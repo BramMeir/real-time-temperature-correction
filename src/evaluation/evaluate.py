@@ -1,9 +1,6 @@
 """
-Script: evaluate.py
-Description: Evaluates forecast performance using standard metrics (MAE, MSE).
-
 Functionality:
-- evaluate_forecasts: Function to compute evaluation metrics 
+- evaluate_forecasts: Function to compute evaluation metrics (MAE and MSE) for forecasts.
 """
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
