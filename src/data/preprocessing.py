@@ -1,12 +1,15 @@
 """
 Script: preprocessing.py
-Description: This script loads, preprocesses, and saves raw weather observation data.
+Description: Loads, preprocesses, and saves raw weather observation data.
 
 Functionality:
 1. Load CSV data file with semicolon delimiter.
 2. Convert 'datetime' column to pandas datetime format.
 3. Sort data by 'station_name' and 'datetime'.
 4. Store the preprocessed data in a new CSV file.
+
+Example usage:
+python preprocessing.py --input data/raw/weather_data.csv --output data/processed/preprocessed_data.csv
 """
 
 import argparse
