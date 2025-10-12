@@ -8,7 +8,8 @@ Functionality:
 - Evaluate performance using MSE and MAE
 
 Voorbeeld gebruik:
-python forecast_baseline.py --input data/processed/preprocessed_data.csv --output results/baseline_forecast.csv
+python forecast_baseline.py --input data/processed/preprocessed_data.csv --output results/baseline_forecast.csv 
+        --lookback 1440 --horizon 144 --nr_periods_to_plot 2
 """
 
 import pandas as pd
@@ -16,6 +17,7 @@ import numpy as np
 import argparse
 from evaluation.evaluate import evaluate_forecasts
 from data.create_dataset import create_dataset
+from visualisation.plot_forecast import plot_forecast_comparison
 
 
 # ----------------------------
@@ -70,7 +72,7 @@ def moving_average_forecast(X, horizon=1, window=6):
 # ----------------------------
 
 
-def main(input_file, output_file, lookback=4320, forecast_horizon=1):
+def main(input_file, output_file, lookback=4320, forecast_horizon=1, nr_periods_to_plot=0):
     """
     Applies baseline forecasting methods to each station in the dataset and evaluates their performance.
 
@@ -80,6 +82,7 @@ def main(input_file, output_file, lookback=4320, forecast_horizon=1):
     output_file: Path to save the CSV file with results
     lookback: Number of past time steps to use for making predictions (4320 = 30 days)
     forecast_horizon: Number of time steps to forecast ahead (1 = 10 minutes)
+    nr_periods_to_plot: Number of latest forecasting periods to plot (0 = no plots)
 
     Output
     ------
@@ -116,6 +119,25 @@ def main(input_file, output_file, lookback=4320, forecast_horizon=1):
             **metrics_ma
         })
 
+        if nr_periods_to_plot:
+            print(f"Plotting results for station: {station}")
+            plot_forecast_comparison(
+                timestamps=group['datetime'].values[-(nr_periods_to_plot * (lookback + forecast_horizon)):],
+                X=X[-nr_periods_to_plot:],
+                y_true=y_true[-nr_periods_to_plot:],
+                y_pred=y_pred_pers[-nr_periods_to_plot:],
+                title=f"{station} - Persistence Forecast",
+                horizon=forecast_horizon
+            )
+            plot_forecast_comparison(
+                timestamps=group['datetime'].values[-(nr_periods_to_plot * (lookback + forecast_horizon)):],
+                X=X[-nr_periods_to_plot:],
+                y_true=y_true[-nr_periods_to_plot:],
+                y_pred=y_pred_ma[-nr_periods_to_plot:],
+                title=f"{station} - Moving Average Forecast",
+                horizon=forecast_horizon
+            )
+
     results_df = pd.DataFrame(results)
     results_df.to_csv(output_file, index=False)
     print(f"Results stored in {output_file}")
@@ -125,8 +147,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Baseline forecasting")
     parser.add_argument("--input", type=str, required=True, help="Path to the preprocessed CSV")
     parser.add_argument("--output", type=str, required=True, help="Path to the output CSV with results")
+    parser.add_argument("--lookback", type=int, default=4320,
+                        help="Number of past time steps to use for making predictions (4320 = 30 days)")
     parser.add_argument("--horizon", type=int, default=1,
                         help="Number of time steps to forecast ahead (1 = 10 minutes)")
+    parser.add_argument("--nr_periods_to_plot", type=int, default=0,
+                        help="Number of latest forecasting periods to plot (0 = no plots)")
     args = parser.parse_args()
 
-    main(args.input, args.output, forecast_horizon=args.horizon)
+    main(args.input, args.output, lookback=args.lookback, forecast_horizon=args.horizon, 
+         nr_periods_to_plot=args.nr_periods_to_plot)

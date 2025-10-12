@@ -7,6 +7,9 @@ def create_dataset(series, lookback=4320, horizon=6):
     lookback: Number of past points to consider
     horizon: Number of future points to predict
     """
+    if len(series) < lookback + horizon:
+        raise ValueError("Series is too short for the specified lookback and horizon")
+
     X, y = [], []
 
     # Divide the series into non-overlapping segments of length lookback + horizon
