@@ -1,7 +1,7 @@
 """
-Script: arima_forecast.py
+Script: sarima_forecast.py
 
-ARIMA model implementation for time series forecasting.
+SARIMA model implementation for time series forecasting.
 Source: https://www.digitalocean.com/community/tutorials/a-guide-to-time-series-forecasting-with-arima-in-python-3
 """
 import pandas as pd
@@ -10,15 +10,16 @@ import matplotlib.pyplot as plt
 from src.evaluation.evaluate import evaluate_forecasts
 
 
-def arima_forecast(series, hours_to_forecast=48, arima_order=(25, 0, 1), max_iter=1000):
+def sarima_forecast(series, hours_to_forecast=48, arima_order=(10, 0, 1), seasonal_order=(3, 0, 1, 24), max_iter=1000):
     """
-    Fit an ARIMA model to the series and forecast values for a specified date range.
+    Fit an SARIMA model to the series and forecast values for a specified date range.
 
     Input
     -----
     series: Pandas Series with the time series data
     hours_to_forecast: Number of hours to forecast into the future (default is 48 = 2 days)
-    arima_order: Tuple specifying the (p, d, q) parameters for the ARIMA model (default is (25, 0, 1))
+    arima_order: Tuple specifying the (p, d, q) parameters for the SARIMA model (default is (25, 0, 1))
+    seasonal_order: Tuple specifying the (P, D, Q, s) seasonal parameters for the SARIMA model (default is (0, 1, 1, 24))
     max_iter: Maximum number of iterations for the model fitting (default is 1000)
 
     Output
@@ -31,16 +32,17 @@ def arima_forecast(series, hours_to_forecast=48, arima_order=(25, 0, 1), max_ite
     train = series[series.index <= split_date]
     test = series[series.index > split_date]
 
-    # Define the ARIMA model with chosen parameters (p=25, d=0, q=1)
-    model = sm.tsa.ARIMA(
+    # Define the SARIMA model with chosen parameters
+    model = sm.tsa.statespace.SARIMAX(
         train,
         order=arima_order,
+        seasonal_order=seasonal_order,
         enforce_stationarity=False,
         enforce_invertibility=False
     )
 
     # Fit the model to the data
-    results = model.fit(method_kwargs={"maxiter": max_iter})
+    results = model.fit(maxiter=max_iter)
 
     print(results.summary().tables[1])
 
@@ -71,7 +73,7 @@ def arima_forecast(series, hours_to_forecast=48, arima_order=(25, 0, 1), max_ite
     plt.xlabel('Datetime')
     plt.ylabel('Temperature (°C)')
     plt.legend()
-    plt.title('ARIMA Forecast vs Real Data')
+    plt.title('SARIMA Forecast vs Real Data')
     plt.show()
 
     # Calculate and print the Mean Absolute Error (MAE) and Mean Squared Error (MSE) of the forecast

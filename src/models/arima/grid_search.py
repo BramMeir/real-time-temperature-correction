@@ -31,7 +31,7 @@ def _fit_arima(params, series):
             enforce_stationarity=False,
             enforce_invertibility=False
         )
-        results = model.fit()
+        results = model.fit(method_kwargs={"maxiter": 1000})
         return params, results.aic
     except Exception:
         return params, float("inf")  # invalid combinations return large AIC
