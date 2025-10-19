@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from src.evaluation.evaluate import evaluate_forecasts
 
 
-def sarima_forecast(series, hours_to_forecast=48, arima_order=(10, 0, 1), seasonal_order=(3, 0, 1, 24), 
+def sarima_forecast(series, exog_df=None, hours_to_forecast=48, arima_order=(10, 0, 1), seasonal_order=(3, 0, 1, 24), 
                     max_iter=1000, plot=True):
     """
     Fit an SARIMA model to the series and forecast values for a specified date range.
@@ -18,6 +18,7 @@ def sarima_forecast(series, hours_to_forecast=48, arima_order=(10, 0, 1), season
     Input
     -----
     series: Pandas Series with the time series data
+    exog_df: DataFrame with exogenous variables (default is None)
     hours_to_forecast: Number of hours to forecast into the future (default is 48 = 2 days)
     arima_order: Tuple specifying the (p, d, q) parameters for the SARIMA model (default is (25, 0, 1))
     seasonal_order: Tuple specifying the (P, D, Q, s) seasonal parameters for the SARIMA model (default is (0, 1, 1, 24))
@@ -34,9 +35,13 @@ def sarima_forecast(series, hours_to_forecast=48, arima_order=(10, 0, 1), season
     train = series[series.index <= split_date]
     test = series[series.index > split_date]
 
+    exog_train = exog_df[exog_df.index <= split_date] if exog_df is not None else None
+    exog_test = exog_df[exog_df.index > split_date] if exog_df is not None else None
+
     # Define the SARIMA model with chosen parameters
     model = sm.tsa.statespace.SARIMAX(
         train,
+        exog=exog_train,
         order=arima_order,
         seasonal_order=seasonal_order,
         enforce_stationarity=False,
@@ -49,7 +54,7 @@ def sarima_forecast(series, hours_to_forecast=48, arima_order=(10, 0, 1), season
     print(results.summary().tables[1])
 
     # Get the forecast for the length of the test set
-    pred = results.get_forecast(steps=len(test))
+    pred = results.get_forecast(steps=len(test), exog=exog_test)
     pred_ci = pred.conf_int()
 
     # Create index for forecasted values (same as test index)
