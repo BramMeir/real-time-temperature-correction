@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 from src.evaluation.evaluate import evaluate_forecasts
 
 
-def sarima_forecast(series, hours_to_forecast=48, arima_order=(10, 0, 1), seasonal_order=(3, 0, 1, 24), max_iter=1000):
+def sarima_forecast(series, hours_to_forecast=48, arima_order=(10, 0, 1), seasonal_order=(3, 0, 1, 24), 
+                    max_iter=1000, plot=True):
     """
     Fit an SARIMA model to the series and forecast values for a specified date range.
 
@@ -21,6 +22,7 @@ def sarima_forecast(series, hours_to_forecast=48, arima_order=(10, 0, 1), season
     arima_order: Tuple specifying the (p, d, q) parameters for the SARIMA model (default is (25, 0, 1))
     seasonal_order: Tuple specifying the (P, D, Q, s) seasonal parameters for the SARIMA model (default is (0, 1, 1, 24))
     max_iter: Maximum number of iterations for the model fitting (default is 1000)
+    plot: Whether to display the forecast plot (default is True)
 
     Output
     ------
@@ -54,27 +56,28 @@ def sarima_forecast(series, hours_to_forecast=48, arima_order=(10, 0, 1), season
     forecast_index = test.index
     y_forecasted = pd.Series(pred.predicted_mean.values, index=forecast_index)
 
-    # Plot observed (train + test) and forecasted values
-    plt.figure(figsize=(12, 6))
-    plt.plot(train.index, train, label='Training data', color='blue')
-    plt.plot(test.index, test, label='Real future data', color='green')
-    plt.plot(forecast_index, y_forecasted, label='Forecast', color='red')
+    if plot:
+        # Plot observed (train + test) and forecasted values
+        plt.figure(figsize=(12, 6))
+        plt.plot(train.index, train, label='Training data', color='blue')
+        plt.plot(test.index, test, label='Real future data', color='green')
+        plt.plot(forecast_index, y_forecasted, label='Forecast', color='red')
 
-    # Add confidence intervals
-    plt.fill_between(
-        forecast_index,
-        pred_ci.iloc[:, 0],
-        pred_ci.iloc[:, 1],
-        color='gray',
-        alpha=0.3,
-        label='Confidence interval'
-    )
+        # Add confidence intervals
+        plt.fill_between(
+            forecast_index,
+            pred_ci.iloc[:, 0],
+            pred_ci.iloc[:, 1],
+            color='gray',
+            alpha=0.3,
+            label='Confidence interval'
+        )
 
-    plt.xlabel('Datetime')
-    plt.ylabel('Temperature (°C)')
-    plt.legend()
-    plt.title('SARIMA Forecast vs Real Data')
-    plt.show()
+        plt.xlabel('Datetime')
+        plt.ylabel('Temperature (°C)')
+        plt.legend()
+        plt.title('SARIMA Forecast vs Real Data')
+        plt.show()
 
     # Calculate and print the Mean Absolute Error (MAE) and Mean Squared Error (MSE) of the forecast
     errors = evaluate_forecasts(test, y_forecasted)
