@@ -10,13 +10,14 @@ import matplotlib.pyplot as plt
 from src.evaluation.evaluate import evaluate_forecasts
 
 
-def arima_forecast(series, hours_to_forecast=48, arima_order=(25, 0, 1), max_iter=1000):
+def arima_forecast(series, exog_df, hours_to_forecast=48, arima_order=(25, 0, 1), max_iter=1000):
     """
     Fit an ARIMA model to the series and forecast values for a specified date range.
 
     Input
     -----
     series: Pandas Series with the time series data
+    exog_df: DataFrame with exogenous variables (optional, can be None)
     hours_to_forecast: Number of hours to forecast into the future (default is 48 = 2 days)
     arima_order: Tuple specifying the (p, d, q) parameters for the ARIMA model (default is (25, 0, 1))
     max_iter: Maximum number of iterations for the model fitting (default is 1000)
@@ -31,9 +32,14 @@ def arima_forecast(series, hours_to_forecast=48, arima_order=(25, 0, 1), max_ite
     train = series[series.index <= split_date]
     test = series[series.index > split_date]
 
+    # Create exogenous variables for training and test sets
+    train_exog = exog_df.loc[train.index] if exog_df is not None else None
+    test_exog = exog_df.loc[test.index] if exog_df is not None else None
+
     # Define the ARIMA model with chosen parameters (p=25, d=0, q=1)
     model = sm.tsa.ARIMA(
         train,
+        exog=train_exog,
         order=arima_order,
         enforce_stationarity=False,
         enforce_invertibility=False
@@ -45,7 +51,7 @@ def arima_forecast(series, hours_to_forecast=48, arima_order=(25, 0, 1), max_ite
     print(results.summary().tables[1])
 
     # Get the forecast for the length of the test set
-    pred = results.get_forecast(steps=len(test))
+    pred = results.get_forecast(steps=len(test), exog=test_exog)
     pred_ci = pred.conf_int()
 
     # Create index for forecasted values (same as test index)
