@@ -206,7 +206,7 @@ if __name__ == "__main__":
                              n_repeats=10, random_seed=47, max_iter=1000, n_jobs=10)
         else:
             repeat_forecasts(series, exog_df=exog_df, months=args.months, hours_to_forecast=args.hours_to_forecast,
-                             arima_order=(6, 0, 1), seasonal_order=(0, 0, 0, 0),
+                             arima_order=(25, 0, 1), seasonal_order=(0, 0, 0, 0),
                              n_repeats=10, random_seed=47, max_iter=1000, n_jobs=10)
 
     elif args.mode == "grid_search":
