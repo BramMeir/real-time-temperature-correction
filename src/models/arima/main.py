@@ -17,7 +17,7 @@ import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.models.arima.arima_forecast import arima_forecast
 from src.models.arima.sarima_forecast import sarima_forecast
-from src.models.arima.grid_search import arima_grid_search
+from src.models.arima.grid_search import arima_grid_search, sarima_grid_search
 from src.models.arima.plot_diagnositcs import arima_plot_diagnostics
 
 
@@ -52,12 +52,12 @@ def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_fore
     print(f"\n🔹 Run {i+1}: using data from {start_date} to {end_date}")
     errors = sarima_forecast(
         sub_series,
+        exog_df=sub_exog,
         hours_to_forecast=hours_to_forecast,
         arima_order=arima_order,
         seasonal_order=seasonal_order,
         max_iter=max_iter,
-        plot=False,
-        exog=sub_exog
+        plot=False
     )
 
     return errors['MAE'], errors['MSE']
@@ -167,28 +167,22 @@ if __name__ == "__main__":
         # Remove the missing timestamps and align with the main series
         exog_pivot = exog_pivot.reindex(series.index)
 
-        print(exog_pivot.head())
-
         # exog_df = exog_pivot.interpolate(limit_direction="both")
         exog_df = exog_pivot
-        print(exog_df.head())
 
     # Shorten the data to the specified number of months (if not in repeat_forecast mode)
     if args.mode != "repeat_forecast":
-        n_months_offset = pd.DateOffset(months=args.months)
-        series = series[series.index >= (series.index.max() - n_months_offset)]
+        total_months = (series.index.max().year - series.index.min().year) * 12 + \
+                       (series.index.max().month - series.index.min().month)
 
-        if exog_df is not None:
-            exog_df = exog_df[exog_df.index >= (exog_df.index.max() - n_months_offset)]
+        if total_months > args.months:
+            start_month = np.random.randint(0, total_months - args.months + 1)
+            start_date = series.index.min() + pd.DateOffset(months=start_month)
+            end_date = start_date + pd.DateOffset(months=args.months)
+            series = series[(series.index >= start_date) & (series.index < end_date)]
 
-        # total_months = (series.index.max().year - series.index.min().year) * 12 + \
-        #                (series.index.max().month - series.index.min().month)
-
-        # if total_months > args.months:
-        #     start_month = np.random.randint(0, total_months - args.months + 1)
-        #     start_date = series.index.min() + pd.DateOffset(months=start_month)
-        #     end_date = start_date + pd.DateOffset(months=args.months)
-        #     series = series[(series.index >= start_date) & (series.index < end_date)]
+            if exog_df is not None:
+                exog_df = exog_df[(exog_df.index >= start_date) & (exog_df.index < end_date)]
 
     # Resample data by taking the mean
     series = series.resample(args.resample).mean()
@@ -196,7 +190,6 @@ if __name__ == "__main__":
     # Resample exogenous data if provided
     if exog_df is not None:
         exog_df = exog_df.resample(args.resample).mean().interpolate(limit_direction="both")
-        print(exog_df.head())
 
     # Dispatch based on argument
     if args.mode == "forecast":
@@ -204,20 +197,24 @@ if __name__ == "__main__":
             sarima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(10, 0, 1),
                             seasonal_order=(1, 0, 1, 24), max_iter=1000)
         else:
-            arima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(25, 0, 1), max_iter=1000)
+            arima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(6, 0, 1), max_iter=1000)
 
     elif args.mode == "repeat_forecast":
         if args.model == "sarima":
             repeat_forecasts(series, exog_df=exog_df, months=args.months, hours_to_forecast=args.hours_to_forecast,
-                             arima_order=(10, 0, 1), seasonal_order=(1, 0, 1, 24),
-                             n_repeats=10, random_seed=47, max_iter=1000, n_jobs=5)
+                             arima_order=(15, 0, 0), seasonal_order=(1, 0, 1, 24),
+                             n_repeats=10, random_seed=47, max_iter=1000, n_jobs=10)
         else:
             repeat_forecasts(series, exog_df=exog_df, months=args.months, hours_to_forecast=args.hours_to_forecast,
                              arima_order=(25, 0, 1), seasonal_order=(0, 0, 0, 0),
-                             n_repeats=10, random_seed=47, max_iter=1000, n_jobs=4)
+                             n_repeats=10, random_seed=47, max_iter=1000, n_jobs=10)
 
     elif args.mode == "grid_search":
-        arima_grid_search(series, p_values=range(0, 31, 1), d_values=[0], q_values=range(0, 2), max_workers=6)
+        if args.model == "sarima":
+            sarima_grid_search(series, p_values=[15], d_values=[0], q_values=[0],
+                               P_values=range(1, 4), D_values=[0], Q_values=range(1, 4), S=24, max_workers=10)
+        else:
+            arima_grid_search(series, p_values=range(0, 31, 1), d_values=[0], q_values=range(0, 2), max_workers=10)
 
     elif args.mode == "diagnostics":
         arima_plot_diagnostics(series)
