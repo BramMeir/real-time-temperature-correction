@@ -7,7 +7,7 @@ Functions:
 - repeat_forecasts: Perform multiple forecasts on random segments of the data for reliability testing.
 
 Example usage:
-python -m src.models.arima.main --mode forecast --model arima --months 6 --resample 1h --hours_to_forecast 48
+python -m src.models.arima.main --mode forecast --model arima --weeks 6 --resample 1h --hours_to_forecast 48
 python -m src.models.arima.main --mode grid_search
 """
 
@@ -63,7 +63,7 @@ def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_fore
     return errors['MAE'], errors['MSE']
 
 
-def repeat_forecasts(series, exog_df=None, months=6, hours_to_forecast=48, arima_order=(10, 0, 1),
+def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_order=(10, 0, 1),
                      seasonal_order=(0, 0, 0, 0), n_repeats=5, random_seed=42,
                      max_iter=1000, n_jobs=4):
     """
@@ -74,7 +74,7 @@ def repeat_forecasts(series, exog_df=None, months=6, hours_to_forecast=48, arima
     -----
     series: Pandas Series with the time series data
     exog_df: DataFrame with exogenous variables (can be None)
-    months: Number of months of data to include in each segment (default is 6)
+    weeks: Number of weeks of data to include in each segment (default is 2 weeks)
     hours_to_forecast: Number of hours to forecast into the future (default is 48)
     arima_order: Tuple specifying the (p, d, q) parameters for the ARIMA model (default is (10, 0, 1))
     seasonal_order: Tuple specifying the (P, D, Q, S) parameters for the SARIMA model (default is (0, 0, 0, 0))
@@ -88,8 +88,8 @@ def repeat_forecasts(series, exog_df=None, months=6, hours_to_forecast=48, arima
     Returns two lists: mae_scores and mse_scores containing the MAE and MSE for each repeat.
     """
     np.random.seed(random_seed)
-    months_offset = pd.DateOffset(months=months)
-    max_start = series.index.max() - months_offset
+    weeks_offset = pd.DateOffset(weeks=weeks)
+    max_start = series.index.max() - weeks_offset
 
     possible_starts = series.index[(series.index >= series.index.min()) & (series.index <= max_start)]
     if len(possible_starts) == 0:
@@ -97,7 +97,7 @@ def repeat_forecasts(series, exog_df=None, months=6, hours_to_forecast=48, arima
 
     # Pre-generate all start and end dates
     start_dates = np.random.choice(possible_starts, size=n_repeats, replace=False)
-    date_ranges = [(start, start + months_offset) for start in start_dates]
+    date_ranges = [(start, start + weeks_offset) for start in start_dates]
 
     mae_scores, mse_scores = [], []
 
@@ -127,8 +127,8 @@ if __name__ == "__main__":
                         default="forecast", help="Select which ARIMA task to run.")
     parser.add_argument("--model", choices=["arima", "sarima"],
                         default="arima", help="Choose between ARIMA and SARIMA model (default: ARIMA).")
-    parser.add_argument("--months", type=int, default=6,
-                        help="Number of months of data to include (default: 6).")
+    parser.add_argument("--weeks", type=int, default=2,
+                        help="Number of weeks of data to include (default: 2).")
     parser.add_argument("--resample", type=str, default="1h",
                         help="Resampling interval, e.g. '10min', '30min', '1h' (default: '1h').")
     parser.add_argument("--hours_to_forecast", type=int, default=48,
@@ -170,15 +170,16 @@ if __name__ == "__main__":
         # exog_df = exog_pivot.interpolate(limit_direction="both")
         exog_df = exog_pivot
 
-    # Shorten the data to the specified number of months (if not in repeat_forecast mode)
+    # Shorten the data to the specified number of weeks (if not in repeat_forecast mode)
     if args.mode != "repeat_forecast":
-        total_months = (series.index.max().year - series.index.min().year) * 12 + \
-                       (series.index.max().month - series.index.min().month)
+        total_weeks = (series.index.max().year - series.index.min().year) * 52 + \
+                      (series.index.max().month - series.index.min().month) * 4 + \
+                      (series.index.max().day - series.index.min().day) // 7
 
-        if total_months > args.months:
-            start_month = np.random.randint(0, total_months - args.months + 1)
-            start_date = series.index.min() + pd.DateOffset(months=start_month)
-            end_date = start_date + pd.DateOffset(months=args.months)
+        if total_weeks > args.weeks:
+            start_weeks = np.random.randint(0, total_weeks - args.weeks + 1)
+            start_date = series.index.min() + pd.DateOffset(weeks=start_weeks)
+            end_date = start_date + pd.DateOffset(weeks=args.weeks)
             series = series[(series.index >= start_date) & (series.index < end_date)]
 
             if exog_df is not None:
@@ -197,24 +198,24 @@ if __name__ == "__main__":
             sarima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(10, 0, 1),
                             seasonal_order=(1, 0, 1, 24), max_iter=1000)
         else:
-            arima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(6, 0, 1), max_iter=1000)
+            arima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(25, 0, 0), max_iter=1000)
 
     elif args.mode == "repeat_forecast":
         if args.model == "sarima":
-            repeat_forecasts(series, exog_df=exog_df, months=args.months, hours_to_forecast=args.hours_to_forecast,
+            repeat_forecasts(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
                              arima_order=(15, 0, 0), seasonal_order=(1, 0, 1, 24),
-                             n_repeats=10, random_seed=47, max_iter=1000, n_jobs=10)
+                             n_repeats=30, random_seed=47, max_iter=1000, n_jobs=10)
         else:
-            repeat_forecasts(series, exog_df=exog_df, months=args.months, hours_to_forecast=args.hours_to_forecast,
-                             arima_order=(25, 0, 1), seasonal_order=(0, 0, 0, 0),
-                             n_repeats=10, random_seed=47, max_iter=1000, n_jobs=10)
+            repeat_forecasts(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
+                             arima_order=(25, 0, 0), seasonal_order=(0, 0, 0, 0),
+                             n_repeats=30, random_seed=47, max_iter=1000, n_jobs=10)
 
     elif args.mode == "grid_search":
         if args.model == "sarima":
-            sarima_grid_search(series, p_values=[15], d_values=[0], q_values=[0],
+            sarima_grid_search(series, exog_df=exog_df, p_values=[15], d_values=[0], q_values=[0],
                                P_values=range(1, 4), D_values=[0], Q_values=range(1, 4), S=24, max_workers=10)
         else:
-            arima_grid_search(series, p_values=range(0, 31, 1), d_values=[0], q_values=range(0, 2), max_workers=10)
+            arima_grid_search(series, exog_df=exog_df, p_values=range(10, 41, 10), d_values=[0], q_values=[0], max_workers=10)
 
     elif args.mode == "diagnostics":
         arima_plot_diagnostics(series)

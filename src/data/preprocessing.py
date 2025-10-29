@@ -9,7 +9,7 @@ Functionality:
 4. Store the preprocessed data in a new CSV file.
 
 Example usage:
-python preprocessing.py --input data/raw/weather_data.csv --output data/processed/preprocessed_data.csv
+python -m src.data.preprocessing --input ./data/Turku_1H_LI.csv --output ./data/Turku_preprocessed.csv --mode turku
 """
 
 import argparse
@@ -33,10 +33,45 @@ def preprocess(input_file, output_file):
     df.to_csv(output_file, index=False)
 
 
+def convert_turku(input_file, output_file):
+    """
+    Specific processing for Turku data:
+    - Original formatting: "Datatime,Station 1, Station 2,...".
+    - Convert to: "datetime, station_name, temp_dry_avg_2m".
+
+    Input
+    -----
+    input_file: Input CSV file path.
+    output_file: Output CSV file path.
+
+    Output
+    ------
+    Saves the reformatted data to the specified output CSV file.
+    """
+    df = pd.read_csv(input_file)
+
+    # Convert the first column to datetime
+    datetime_col = df.columns[0]
+    df[datetime_col] = pd.to_datetime(df[datetime_col], errors="coerce")
+
+    # Melt the dataframe from wide to long format
+    df_long = df.melt(id_vars=[datetime_col], var_name='station_name', value_name='temp_dry_avg_2m')
+
+    # Rename the datetime column
+    df_long = df_long.rename(columns={datetime_col: 'datetime'})
+
+    # Save the reformatted data to a new CSV file
+    df_long.to_csv(output_file, index=False)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Preprocess weather observation data.")
     parser.add_argument("--input", required=True, help="Path to the input CSV file.")
     parser.add_argument("--output", required=True, help="Path to the output CSV file.")
+    parser.add_argument("--mode", choices=["standard", "turku"], required=True, help="Processing mode.")
     args = parser.parse_args()
 
-    preprocess(args.input, args.output)
+    if args.mode == "turku":
+        convert_turku(args.input, args.output)
+    else:
+        preprocess(args.input, args.output)

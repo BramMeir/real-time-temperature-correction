@@ -11,14 +11,16 @@ import statsmodels.api as sm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
-def _fit_arima(series, params, seasonal_params=(0, 0, 0, 0)):
+def _fit_arima(series, exog_df, params, seasonal_params=(0, 0, 0, 0)):
     """
     Fit an ARIMA model with given parameters and return the AIC.
 
     Input
     -----
-    params: Tuple specifying the (p, d, q) parameters for the ARIMA model
     series: Pandas Series with the time series data
+    exog_df: DataFrame with exogenous variables
+    params: Tuple specifying the (p, d, q) parameters for the ARIMA model
+    seasonal_params: Tuple specifying the (P, D, Q, S) parameters for the SARIMA model (default is (0, 0, 0, 0))
 
     Output
     ------
@@ -27,6 +29,7 @@ def _fit_arima(series, params, seasonal_params=(0, 0, 0, 0)):
     try:
         model = sm.tsa.statespace.SARIMAX(
             series,
+            exog=exog_df,
             order=params,
             seasonal_order=seasonal_params,
             enforce_stationarity=False,
@@ -38,7 +41,7 @@ def _fit_arima(series, params, seasonal_params=(0, 0, 0, 0)):
         return params, float("inf")  # invalid combinations return large AIC
 
 
-def arima_grid_search(series, p_values=range(0, 51, 10), d_values=range(0, 3), q_values=range(0, 3), max_workers=None):
+def arima_grid_search(series, exog_df=None, p_values=range(0, 51, 10), d_values=range(0, 3), q_values=range(0, 3), max_workers=None):
     """
     Perform a parallel grid search to find the best ARIMA model parameters based on AIC.
 
@@ -66,7 +69,7 @@ def arima_grid_search(series, p_values=range(0, 51, 10), d_values=range(0, 3), q
 
     # Use all CPU cores by default (or specify with max_workers)
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(_fit_arima, param, series): param for param in pdq}
+        futures = {executor.submit(_fit_arima, series, exog_df, param): param for param in pdq}
 
         for i, future in enumerate(as_completed(futures), 1):
             param = futures[future]
@@ -83,7 +86,7 @@ def arima_grid_search(series, p_values=range(0, 51, 10), d_values=range(0, 3), q
     return best_param
 
 
-def sarima_grid_search(series, p_values=range(0, 51, 10), d_values=range(0, 3), q_values=range(0, 3),
+def sarima_grid_search(series, exog_df=None, p_values=range(0, 51, 10), d_values=range(0, 3), q_values=range(0, 3),
                        P_values=range(0, 3), D_values=range(0, 2), Q_values=range(0, 3), S=24, max_workers=None):
     """
     Perform a parallel grid search to find the best SARIMA model parameters based on AIC.
@@ -122,7 +125,7 @@ def sarima_grid_search(series, p_values=range(0, 51, 10), d_values=range(0, 3), 
         for param in pdq:
             for seasonal_param in seasonal_pdq:
                 seasonal_order = seasonal_param + (S,)
-                futures[executor.submit(_fit_arima, series, param, seasonal_order)] = (param, seasonal_order)
+                futures[executor.submit(_fit_arima, series, exog_df, param, seasonal_order)] = (param, seasonal_order)
 
         for i, future in enumerate(as_completed(futures), 1):
             param, seasonal_param = futures[future]
