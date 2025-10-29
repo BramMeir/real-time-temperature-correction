@@ -7,14 +7,12 @@ Example usage:
 python -m src.visualisation.plot_different_stations --path data/weather_stations.csv --start 2025-09-01
         --end 2025-10-01 --station-col station_name --datetime-col datetime --value-col temp_dry_avg_2m --resample 1h
 """
-
-
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 
 
-def plot_stations(csv_path, start_date, end_date, station_col, datetime_col, value_col, resample_freq=None):
+def plot_stations_data(csv_path, start_date, end_date, station_col, datetime_col, value_col, resample_freq=None):
     """
     Plot and compare the specified variable from different weather stations over a given date range.
 
@@ -63,6 +61,50 @@ def plot_stations(csv_path, start_date, end_date, station_col, datetime_col, val
     plt.show()
 
 
+def plot_difference_stations(csv_path, station_col, datetime_col, value_col, resample_freq=None):
+    """
+    Plot the rolling mean difference between every two stations over time.
+
+    Input
+    -----
+    csv_path: Path to the CSV file containing the data
+    station_col: Column name for station identifiers
+    datetime_col: Column name for datetime values
+    value_col: Column name for the variable to analyze (e.g., 'temp_dry_avg_2m')
+    resample_freq: Optional resampling frequency (e.g., '1h', '10min'). If None, no resampling is done.
+
+    Output
+    ------
+    Plots the rolling mean difference between every two stations.
+    """
+    # Load the data
+    df = pd.read_csv(csv_path)
+    df[datetime_col] = pd.to_datetime(df[datetime_col])
+    df = df.set_index(datetime_col)
+
+    # Pivot to have stations as columns
+    pivot_df = df.pivot(columns=station_col, values=value_col)
+
+    # Resample if needed
+    if resample_freq:
+        pivot_df = pivot_df.resample(resample_freq).mean()
+
+    # Plot the rolling mean difference between every two stations
+    for i in range(len(pivot_df.columns)):
+        for j in range(i + 1, len(pivot_df.columns)):
+            station_a = pivot_df.columns[i]
+            station_b = pivot_df.columns[j]
+            diff_AB = pivot_df[station_a] - pivot_df[station_b]
+            mean_rolling = diff_AB.rolling('14D').mean()
+            plt.plot(mean_rolling.index, mean_rolling, label=f"{station_a} & {station_b}")
+
+    plt.xlabel("Time")
+    plt.ylabel("Mean Difference (station A - station B) last 14 days")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plot temperature (or other variable) comparisons between weather stations.")
     parser.add_argument("--path", type=str, required=True, help="Path to CSV file containing the data.")
@@ -75,10 +117,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    plot_stations(
+    # plot_stations_data(
+    #     csv_path=args.path,
+    #     start_date=args.start,
+    #     end_date=args.end,
+    #     station_col=args.station_col,
+    #     datetime_col=args.datetime_col,
+    #     value_col=args.value_col,
+    #     resample_freq=args.resample
+    # )
+
+    plot_difference_stations(
         csv_path=args.path,
-        start_date=args.start,
-        end_date=args.end,
         station_col=args.station_col,
         datetime_col=args.datetime_col,
         value_col=args.value_col,
