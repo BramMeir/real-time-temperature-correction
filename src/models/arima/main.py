@@ -19,6 +19,7 @@ from src.models.arima.arima_forecast import arima_forecast
 from src.models.arima.sarima_forecast import sarima_forecast
 from src.models.arima.grid_search import arima_grid_search, sarima_grid_search
 from src.models.arima.plot_diagnositcs import arima_plot_diagnostics
+from src.models.arima.simulate_real_forecast import simulate_real_forecast
 
 
 def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_forecast,
@@ -123,7 +124,7 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run ARIMA forecast utilities.")
-    parser.add_argument("--mode", choices=["forecast", "repeat_forecast", "grid_search", "diagnostics", "auto_arima"],
+    parser.add_argument("--mode", choices=["forecast", "repeat_forecast", "grid_search", "diagnostics", "simulate_real_forecast"],
                         default="forecast", help="Select which ARIMA task to run.")
     parser.add_argument("--model", choices=["arima", "sarima"],
                         default="arima", help="Choose between ARIMA and SARIMA model (default: ARIMA).")
@@ -172,18 +173,19 @@ if __name__ == "__main__":
 
     # Shorten the data to the specified number of weeks (if not in repeat_forecast mode)
     if args.mode != "repeat_forecast":
-        total_weeks = (series.index.max().year - series.index.min().year) * 52 + \
-                      (series.index.max().month - series.index.min().month) * 4 + \
-                      (series.index.max().day - series.index.min().day) // 7
+        # total_weeks = (series.index.max().year - series.index.min().year) * 52 + \
+        #               (series.index.max().month - series.index.min().month) * 4 + \
+        #               (series.index.max().day - series.index.min().day) // 7
 
-        if total_weeks > args.weeks:
-            start_weeks = np.random.randint(0, total_weeks - args.weeks + 1)
-            start_date = series.index.min() + pd.DateOffset(weeks=start_weeks)
-            end_date = start_date + pd.DateOffset(weeks=args.weeks)
-            series = series[(series.index >= start_date) & (series.index < end_date)]
+        # if total_weeks > args.weeks:
+        #     start_weeks = np.random.randint(0, total_weeks - args.weeks + 1)
+        #     start_date = series.index.min() + pd.DateOffset(weeks=start_weeks)
+        #     end_date = start_date + pd.DateOffset(weeks=args.weeks)
+        #     series = series[(series.index >= start_date) & (series.index < end_date)]
 
-            if exog_df is not None:
-                exog_df = exog_df[(exog_df.index >= start_date) & (exog_df.index < end_date)]
+        #     if exog_df is not None:
+        #         exog_df = exog_df[(exog_df.index >= start_date) & (exog_df.index < end_date)]
+        series = series[(series.index >= series.index.max() - pd.DateOffset(weeks=args.weeks + args.hours_to_forecast // 168))]
 
     # Resample data by taking the mean
     series = series.resample(args.resample).mean()
@@ -219,3 +221,7 @@ if __name__ == "__main__":
 
     elif args.mode == "diagnostics":
         arima_plot_diagnostics(series)
+
+    elif args.mode == "simulate_real_forecast":
+        simulate_real_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast,
+                               arima_order=(25, 0, 0), seasonal_order=(0, 0, 0, 0), max_iter=1000)
