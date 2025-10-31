@@ -15,7 +15,6 @@ import argparse
 import pandas as pd
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from src.models.arima.arima_forecast import arima_forecast
 from src.models.arima.sarima_forecast import sarima_forecast
 from src.models.arima.grid_search import arima_grid_search, sarima_grid_search
 from src.models.arima.plot_diagnositcs import arima_plot_diagnostics
@@ -200,7 +199,7 @@ if __name__ == "__main__":
             sarima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(10, 0, 1),
                             seasonal_order=(1, 0, 1, 24), max_iter=1000)
         else:
-            arima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(25, 0, 0), max_iter=1000)
+            sarima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(25, 0, 0), max_iter=1000)
 
     elif args.mode == "repeat_forecast":
         if args.model == "sarima":

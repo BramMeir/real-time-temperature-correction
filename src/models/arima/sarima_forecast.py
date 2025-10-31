@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from src.evaluation.evaluate import evaluate_forecasts
 
 
-def sarima_forecast(series, exog_df=None, hours_to_forecast=48, arima_order=(10, 0, 1), seasonal_order=(3, 0, 1, 24),
+def sarima_forecast(series, exog_df=None, hours_to_forecast=48, arima_order=(10, 0, 1), seasonal_order=(0, 0, 0, 0),
                     max_iter=1000, plot=True):
     """
     Fit an SARIMA model to the series and forecast values for a specified date range.
