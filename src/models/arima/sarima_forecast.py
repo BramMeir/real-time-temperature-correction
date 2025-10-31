@@ -4,10 +4,14 @@ Script: sarima_forecast.py
 SARIMA model implementation for time series forecasting.
 Source: https://www.digitalocean.com/community/tutorials/a-guide-to-time-series-forecasting-with-arima-in-python-3
 """
+import warnings
 import pandas as pd
 from pmdarima.arima import ARIMA
 import matplotlib.pyplot as plt
 from src.evaluation.evaluate import evaluate_forecasts
+
+# Surpresses future warnings from pmdarima (https://github.com/alkaline-ml/pmdarima/issues/590)
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 def sarima_forecast(series, exog_df=None, hours_to_forecast=48, arima_order=(10, 0, 1), seasonal_order=(0, 0, 0, 0),

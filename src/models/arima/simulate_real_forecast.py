@@ -3,10 +3,14 @@ Script: simulate_real_forecast.py
 
 
 """
+import warnings
 import pandas as pd
-import statsmodels.api as sm
 import matplotlib.pyplot as plt
+from pmdarima.arima import ARIMA
 from src.evaluation.evaluate import evaluate_forecasts
+
+# Surpresses future warnings from pmdarima (https://github.com/alkaline-ml/pmdarima/issues/590)
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 def simulate_real_forecast(series, exog_df, hours_to_forecast=48, arima_order=(25, 0, 0),
@@ -39,17 +43,17 @@ def simulate_real_forecast(series, exog_df, hours_to_forecast=48, arima_order=(2
     exog_test = exog_df.loc[test.index] if exog_df is not None else None
 
     # Define the SARIMA model with chosen parameters
-    model = sm.tsa.statespace.SARIMAX(
-        train,
-        exog=exog_train,
+    model = ARIMA(
         order=arima_order,
         seasonal_order=seasonal_order,
+        maxiter=max_iter,
+        suppress_warnings=True,
         enforce_stationarity=False,
         enforce_invertibility=False
     )
 
     # Fit the model to the data
-    results = model.fit(maxiter=max_iter, disp=False)
+    results = model.fit(y=train, X=exog_train)
 
     print(results.summary().tables[1])
 
@@ -57,29 +61,30 @@ def simulate_real_forecast(series, exog_df, hours_to_forecast=48, arima_order=(2
     actuals = []
 
     # Simulate real-time forecasting
-    gap_length = 48             # 48 hours no real data, then again 48 hours real data, etc.
-    refit_every = 96    # Refit the model every 'gap_length' steps
+    # gap_length = 48             # 48 hours no real data, then again 48 hours real data, etc.
+    # refit_every = 96            # Refit the model every 'gap_length' steps
 
     for t in range(len(test)):
         # 1. Forecast one step ahead (use .iloc[[t]] to keep correct shape => (1, n_features))
         exog_next = exog_test.iloc[[t]] if exog_test is not None else None
-        pred = results.get_forecast(steps=1, exog=exog_next)
-        y_pred = pred.predicted_mean.iloc[0]
+        pred = results.predict(n_periods=1, X=exog_next)
+        y_pred = pred[0]
 
         # Store forecast vs actual
         forecasts.append(y_pred)
         actuals.append(test.iloc[t])
 
         # 2. Dependant on the gap_length, either add the real observed value or the forecasted value
-        if (t // gap_length) % 2 == 1:
-            # Add the real observed value
-            new_obs = pd.Series(test.iloc[t], index=[test.index[t]])
-        else:
-            # Add the forecasted value
-            new_obs = pd.Series(y_pred, index=[test.index[t]])
+        # if (t // gap_length) % 2 == 1:
+        #     # Add the real observed value
+        #     new_obs = pd.Series(test.iloc[t], index=[test.index[t]])
+        # else:
+        #     # Add the forecasted value
+        #     new_obs = pd.Series(y_pred, index=[test.index[t]])
 
-        results = results.append(new_obs, exog=exog_next, refit=((t + 1) % refit_every == 0),
-                                 fit_kwargs={'maxiter': max_iter, 'disp': False} if ((t + 1) % refit_every == 0) else {})
+        # results = results.append(new_obs, exog=exog_next, refit=((t + 1) % refit_every == 0),
+        #                          fit_kwargs={'maxiter': max_iter, 'disp': False} if ((t + 1) % refit_every == 0) else {})
+        results.update(y=test.iloc[t], X=exog_next, suppress_warnings=True)
 
     # Evaluate how well the forecasts performed
     forecast_series = pd.Series(forecasts, index=test.index)
