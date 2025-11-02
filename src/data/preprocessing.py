@@ -2,12 +2,6 @@
 Script: preprocessing.py
 Description: Loads, preprocesses, and saves raw weather observation data.
 
-Functionality:
-1. Load CSV data file with semicolon delimiter.
-2. Convert 'datetime' column to pandas datetime format.
-3. Sort data by 'station_name' and 'datetime'.
-4. Store the preprocessed data in a new CSV file.
-
 Example usage:
 python -m src.data.preprocessing --input ./data/Turku_1H_LI.csv --output ./data/Turku_preprocessed.csv --mode turku
 """
@@ -17,7 +11,18 @@ import pandas as pd
 
 
 def preprocess(input_file, output_file):
-    """Loads, preprocesses, and saves weather observation data."""
+    """
+    Loads, preprocesses, and saves weather observation data.
+
+    Input
+    -----
+    input_file: Input CSV file path.
+    output_file: Output CSV file path.
+    
+    Output
+    ------
+    Saves the preprocessed data to the specified output CSV file.
+    """
 
     df = pd.read_csv(input_file, sep=';')
 

@@ -1,4 +1,6 @@
 """
+This is the file that contains the different gap-filling techniques presented in Amber's paper.
+See: https://github.com/amberJ99/Gapfilling_debiasingERA5/tree/main
 
 This file contains functions to perform the gap-filling of a single gap. Besides some help-functions, each gap-filling technique has its own function.
 

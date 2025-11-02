@@ -1,7 +1,7 @@
 """
 Script: simulate_real_forecast.py
 
-
+This script contains functions to simulate a real forecast scenario using a SARIMA model.
 """
 import pandas as pd
 import statsmodels.api as sm
@@ -122,7 +122,7 @@ def repeat_simulate_forecast(series, exog_df, weeks, hours_to_forecast=48, arima
                              seasonal_order=(0, 0, 0, 0), max_iter=1000, n_repeats=10,
                              random_seed=47, n_jobs=10):
     """
-    Repeat the simulate_real_forecast function multiple times and average the results.
+    Repeat the _simulate_real_forecast function multiple times and average the results.
 
     Input
     -----
@@ -133,11 +133,12 @@ def repeat_simulate_forecast(series, exog_df, weeks, hours_to_forecast=48, arima
     seasonal_order: Tuple specifying the (P, D, Q, s) seasonal parameters for the SARIMA model (default is (0, 0, 0, 0))
     max_iter: Maximum number of iterations for the model fitting (default is 1000)
     n_repeats: Number of times to repeat the simulation (default is 10)
+    random_seed: Random seed for reproducibility (default is 47)
+    n_jobs: Number of parallel jobs to run (default is 10)
 
     Output
     ------
-    Displays a plot comparing the observed values and the averaged forecasted values,
-    and returns the averaged MAE and MSE of the forecasts.
+    Returns lists of MAE and MSE scores from each simulation run.
     """
     np.random.seed(random_seed)
     weeks_offset = pd.DateOffset(weeks=weeks)
