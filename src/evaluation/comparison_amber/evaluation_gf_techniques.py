@@ -4,7 +4,7 @@ This file contains the functions to perform the evaluation of the gap-filling te
 
 """
 
-from amber_gap_filling.gf_techniques import (
+from src.evaluation.comparison_amber.gf_techniques import (
     GF_linint,
     GF_fillmodel,
     GF_debmodelReg,

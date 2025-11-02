@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from amber_gap_filling.evaluation_gf_techniques import Test_techniques_differentgaplengths
+from src.evaluation.comparison_amber.evaluation_gf_techniques import Test_techniques_differentgaplengths
 from src.models.arima.sarima_forecast import sarima_forecast
 
 
