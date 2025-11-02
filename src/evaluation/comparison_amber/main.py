@@ -1,10 +1,22 @@
+"""
+Main file to run the comparison of the different gap-filling techniques presented in Amber's paper with the SARIMA approach.
+The comparisons are done on the Turku dataset.
+
+Example usage:
+python -m src.evaluation.comparison_amber.main --
+"""
+import argparse
 import pandas as pd
 import numpy as np
-from amber_gap_filling.evaluation_gf_techniques import Test_techniques_differentgaplengths
+from src.evaluation.comparison_amber.evaluation_gf_techniques import Test_techniques_differentgaplengths
 from src.models.arima.sarima_forecast import sarima_forecast
 
 
 def test_different_gf_techniques_amber():
+    """
+    Test different gap-filling techniques from Amber's paper on the Turku dataset using the Test_techniques_differentgaplengths function.
+    The default parameters are set to the ones preferred in Amber's paper.
+    """
     # Read the Turku data and the ERA5 data into dataframes
     df_Turku = pd.read_csv("data/Turku_1H_LI.csv", index_col="DateTime", parse_dates=True)
     df_ERA5 = pd.read_csv("data/Turku_ERA5.csv", index_col="DateTime", parse_dates=True)
@@ -18,6 +30,7 @@ def test_different_gf_techniques_amber():
     # Join both datasets on their timestamps
     df_all = df_Turku.join(df_ERA5, how="inner")
 
+    # Run the evaluation of different gap-filling techniques
     df_errors, df_stderr = Test_techniques_differentgaplengths(
         df_all,
         name_fulldata='Ylijoki',
@@ -43,6 +56,13 @@ def test_different_gf_techniques_amber():
 
 
 def test_SARIMA_approach(seed=47):
+    """
+    Test the SARIMA approach on the Turku dataset for different forecast horizons.
+
+    Input
+    -----
+    seed : Random seed for reproducibility.
+    """
     # Set seed for reproducibility
     np.random.seed(seed)
 
@@ -68,8 +88,9 @@ def test_SARIMA_approach(seed=47):
         # Repeat the forecasting multiple times to get an average error
         temp_mse_list = []
         temp_mae_list = []
+
         for _ in range(100):
-            # Select random 2 weeks + forecast horizon for testing from series and exog_df
+            # Select random 2 weeks (training) + forecast horizon from series and exog_df
             max_start = series_full.index.max() - pd.DateOffset(hours=hours_to_forecast + 24 * 14)
             min_start = series_full.index.min()
             random_start = min_start + (max_start - min_start) * np.random.random()
@@ -107,5 +128,11 @@ def test_SARIMA_approach(seed=47):
 
 
 if __name__ == "__main__":
-    test_different_gf_techniques_amber()
-    # test_SARIMA_approach()
+    parser = argparse.ArgumentParser(description="Run gap-filling technique comparisons.")
+    parser.add_argument("--model", choices=["amber", "sarima"], default="sarima", help="Specify which model to use.")
+    args = parser.parse_args()
+
+    if args.model == "amber":
+        test_different_gf_techniques_amber()
+    else:
+        test_SARIMA_approach()

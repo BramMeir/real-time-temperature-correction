@@ -1,10 +1,9 @@
 """
-
-This file contains the functions to perform the evaluation of the gap-filling techniques
-
+This is the file that evaluates the different gap-filling techniques presented in Amber's paper.
+See: https://github.com/amberJ99/Gapfilling_debiasingERA5/tree/main
 """
 
-from amber_gap_filling.gf_techniques import (
+from src.evaluation.comparison_amber.gf_techniques import (
     GF_linint,
     GF_fillmodel,
     GF_debmodelReg,

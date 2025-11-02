@@ -4,14 +4,10 @@ Script: sarima_forecast.py
 SARIMA model implementation for time series forecasting.
 Source: https://www.digitalocean.com/community/tutorials/a-guide-to-time-series-forecasting-with-arima-in-python-3
 """
-import warnings
 import pandas as pd
-from pmdarima.arima import ARIMA
+import statsmodels.api as sm
 import matplotlib.pyplot as plt
 from src.evaluation.evaluate import evaluate_forecasts
-
-# Surpresses future warnings from pmdarima (https://github.com/alkaline-ml/pmdarima/issues/590)
-warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 def sarima_forecast(series, exog_df=None, hours_to_forecast=48, arima_order=(10, 0, 1), seasonal_order=(0, 0, 0, 0),
@@ -48,25 +44,27 @@ def sarima_forecast(series, exog_df=None, hours_to_forecast=48, arima_order=(10,
         exog_train = exog_train.loc[common_idx]
 
     # Define the SARIMA model with chosen parameters
-    model = ARIMA(
+    model = sm.tsa.statespace.SARIMAX(
+        endog=train,
+        exog=exog_train,
         order=arima_order,
         seasonal_order=seasonal_order,
-        maxiter=max_iter,
         enforce_stationarity=False,
         enforce_invertibility=False
     )
 
     # Fit the model to the data
-    results = model.fit(y=train, X=exog_train)
+    results = model.fit(maxiter=max_iter, disp=False)
 
     print(results.summary().tables[1])
 
     # Get the forecast for the length of the test set
-    pred, pred_ci = results.predict(n_periods=len(test), X=exog_test, return_conf_int=True)
+    pred = results.get_forecast(steps=len(test), exog=exog_test)
+    pred_ci = pred.conf_int()
 
     # Create index for forecasted values (same as test index)
     forecast_index = test.index
-    y_forecasted = pd.Series(pred.values, index=forecast_index)
+    y_forecasted = pd.Series(pred.predicted_mean.values, index=forecast_index)
 
     if plot:
         # Plot observed (train + test) and forecasted values
@@ -78,8 +76,8 @@ def sarima_forecast(series, exog_df=None, hours_to_forecast=48, arima_order=(10,
         # Add confidence intervals
         plt.fill_between(
             forecast_index,
-            pred_ci[:, 0],
-            pred_ci[:, 1],
+            pred_ci.iloc[:, 0],
+            pred_ci.iloc[:, 1],
             color='gray',
             alpha=0.3,
             label='Confidence interval'
