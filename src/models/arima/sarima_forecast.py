@@ -30,6 +30,32 @@ def sarima_forecast(series, exog_df=None, hours_to_forecast=48, arima_order=(10,
     Displays a plot comparing the observed values and the forecasted values,
     and returns the MAE and MSE of the forecast.
     """
+    if exog_df is not None:
+        lags = [1, 2]
+        lagged_exogs = []
+        for lag in lags:
+            lagged = exog_df.shift(lag)
+            lagged.columns = [f"{col}_lag{lag}" for col in exog_df.columns]
+            lagged_exogs.append(lagged)
+
+        # Mean of previous full hour (6 × 10-minute intervals)
+        # window_size = 6
+        # exog_hour_mean = (
+        #     exog_df.shift(1)
+        #     .rolling(window=window_size, min_periods=window_size)
+        #     .mean()
+        # )
+        # exog_hour_mean.columns = [f"{col}_prev_hour_mean" for col in exog_df.columns]
+
+        # Combine original, lag, and hour-mean features
+        # exog_df = pd.concat([exog_df, *lagged_exogs, exog_hour_mean], axis=1).dropna()
+        exog_df = pd.concat([exog_df, *lagged_exogs], axis=1).dropna()
+
+        # Align timestamps of target and exogenous data
+        common_idx = series.index.intersection(exog_df.index)
+        series = series.loc[common_idx]
+        exog_df = exog_df.loc[common_idx]
+
     # Split the data into training and test sets
     split_date = series.index.max() - pd.DateOffset(hours=hours_to_forecast)
     train = series[series.index <= split_date]
@@ -50,7 +76,10 @@ def sarima_forecast(series, exog_df=None, hours_to_forecast=48, arima_order=(10,
         order=arima_order,
         seasonal_order=seasonal_order,
         enforce_stationarity=False,
-        enforce_invertibility=False
+        enforce_invertibility=False,
+
+        # Only include constant for 10-min data
+        trend='c' if series.index.freq == pd.Timedelta("10min") else None
     )
 
     # Fit the model to the data
