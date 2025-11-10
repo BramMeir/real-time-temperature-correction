@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 from src.evaluation.comparison_amber.evaluation_gf_techniques import Test_techniques_differentgaplengths
 from src.models.arima.sarima_forecast import sarima_forecast
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
 def test_different_gf_techniques_amber():
@@ -73,10 +74,10 @@ def test_SARIMA_approach(seed=47):
     df_Turku = df_Turku.resample("h").mean().interpolate()
 
     # Select the target station time series
-    series_full = df_Turku["Ylijoki"]
+    series_full = df_Turku["Betel"]
 
     # Select the exogenous data (other stations in the Turku dataset)
-    exog_df_full = df_Turku.drop(columns=["Ylijoki"])
+    exog_df_full = df_Turku.drop(columns=["Betel", "Puutori", "Virastotalo"])
 
     # Keep track of the forecast errors
     mse_list = []
@@ -89,34 +90,36 @@ def test_SARIMA_approach(seed=47):
         temp_mse_list = []
         temp_mae_list = []
 
-        for _ in range(100):
-            # Select random 2 weeks (training) + forecast horizon from series and exog_df
-            max_start = series_full.index.max() - pd.DateOffset(hours=hours_to_forecast + 24 * 14)
-            min_start = series_full.index.min()
-            random_start = min_start + (max_start - min_start) * np.random.random()
+        max_start = series_full.index.max() - pd.DateOffset(hours=hours_to_forecast + 24 * 14)
+        min_start = series_full.index.min()
 
-            print(random_start)
+        with ProcessPoolExecutor(max_workers=10) as executor:
+            futures = []
+            for _ in range(100):
+                # Select random 2 weeks (training) + forecast horizon from series and exog_df
+                random_start = min_start + (max_start - min_start) * np.random.random()
 
-            series = series_full[random_start: random_start + pd.DateOffset(hours=hours_to_forecast + 24 * 14)]
-            exog_df = exog_df_full[random_start: random_start + pd.DateOffset(hours=hours_to_forecast + 24 * 14)]
+                series = series_full[random_start: random_start + pd.DateOffset(hours=hours_to_forecast + 24 * 14)]
+                exog_df = exog_df_full[random_start: random_start + pd.DateOffset(hours=hours_to_forecast + 24 * 14)]
 
-            errors = sarima_forecast(
-                series,
-                exog_df=exog_df,
-                hours_to_forecast=hours_to_forecast,
-                arima_order=(25, 0, 0),
-                seasonal_order=(0, 0, 0, 0),
-                max_iter=1000,
-                plot=False,
-            )
-            temp_mse_list.append(errors["MSE"])
-            temp_mae_list.append(errors["MAE"])
+                futures.append(executor.submit(
+                    sarima_forecast,
+                    series,
+                    exog_df,
+                    hours_to_forecast,
+                    (25, 0, 0),
+                    (0, 0, 0, 0),
+                    1000,
+                    False,
+                ))
 
-        average_mse = sum(temp_mse_list) / len(temp_mse_list)
-        mse_list.append(average_mse)
+            for future in as_completed(futures):
+                errors = future.result()
+                temp_mse_list.append(errors["MSE"])
+                temp_mae_list.append(errors["MAE"])
 
-        average_mae = sum(temp_mae_list) / len(temp_mae_list)
-        mae_list.append(average_mae)
+        mse_list.append(np.mean(temp_mse_list))
+        mae_list.append(np.mean(temp_mae_list))
 
     print("\nAverage MSE for different forecast horizons:")
     for hours, mse in zip([5, 7, 12, 24, 48, 168, 336], mse_list):

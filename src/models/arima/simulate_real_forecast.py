@@ -41,9 +41,10 @@ def _simulate_real_forecast(i, series, exog_df, start_date, end_date, hours_to_f
     print(f"\n🔹 Run {i+1}: using data from {start_date} to {end_date}")
 
     # Split the data into training and test sets
-    split_date = sub_series.index.max() - pd.DateOffset(hours=hours_to_forecast)
-    train = sub_series[sub_series.index <= split_date]
-    test = sub_series[sub_series.index > split_date]
+    training_period = pd.DateOffset(weeks=2)
+    start_of_forecast = sub_series.index.max() - pd.DateOffset(hours=hours_to_forecast)
+    train = sub_series[sub_series.index < (start_date + training_period)]
+    test = sub_series[sub_series.index > start_of_forecast]
 
     # Create exogenous variables for training and test sets
     exog_train = sub_exog.loc[train.index] if sub_exog is not None else None
@@ -68,29 +69,67 @@ def _simulate_real_forecast(i, series, exog_df, start_date, end_date, hours_to_f
     actuals = []
 
     # Simulate real-time forecasting
-    gap_length = 48             # 48 hours no real data, then again 48 hours real data, etc.
-    refit_every = 96            # Refit the model every 'gap_length' steps
+    # gap_length = 48             # 48 hours no real data, then again 48 hours real data, etc.
+    # refit_every = 96            # Refit the model every 'gap_length' steps
 
-    for t in range(len(test)):
+    # Add the data to the model that was not part of training and not part of testing, in steps of 24 hours and refit the model
+    retrain_step = pd.Timedelta(days=3)
+    current_end = train.index.max()
+    final_train_end = test.index.min()  # stop updating before forecast period
+
+    while current_end + retrain_step < final_train_end:
+        current_end += retrain_step
+
+        # Select new training window
+        new_train = sub_series.loc[:current_end]
+        new_exog_train = sub_exog.loc[new_train.index] if sub_exog is not None else None
+
+        # Refit using previous parameters as starting values
+        model = sm.tsa.statespace.SARIMAX(
+            new_train,
+            exog=new_exog_train,
+            order=arima_order,
+            seasonal_order=seasonal_order,
+            enforce_stationarity=False,
+            enforce_invertibility=False,
+        )
+
+        # Fit the model using previous parameters as starting values
+        results = model.fit(
+            start_params=results.params,
+            maxiter=max_iter,
+            disp=False
+        )
+
+    # If there is any remaining data before the test set, add it without refitting
+    if current_end < final_train_end:
+        new_part = sub_series.loc[current_end + pd.Timedelta(hours=1): (final_train_end - pd.Timedelta(hours=1))]
+        new_exog_train = sub_exog.loc[new_part.index] if sub_exog is not None else None
+
+        results = results.append(new_part, exog=new_exog_train, refit=False)
+
+    for actual_time, actual_value in test.items():
         # 1. Forecast one step ahead (use .iloc[[t]] to keep correct shape => (1, n_features))
-        exog_next = exog_test.iloc[[t]] if exog_test is not None else None
+        exog_next = exog_test.loc[[actual_time]] if exog_test is not None else None
         pred = results.get_forecast(steps=1, exog=exog_next)
         y_pred = pred.predicted_mean.iloc[0]
 
         # Store forecast vs actual
         forecasts.append(y_pred)
-        actuals.append(test.iloc[t])
+        actuals.append(actual_value)
 
-        # 2. Dependant on the gap_length, either add the real observed value or the forecasted value
-        if (t // gap_length) % 2 == 1:
-            # Add the real observed value
-            new_obs = pd.Series(test.iloc[t], index=[test.index[t]])
-        else:
-            # Add the forecasted value
-            new_obs = pd.Series(y_pred, index=[test.index[t]])
+        # # 2. Dependant on the gap_length, either add the real observed value or the forecasted value
+        # if (t // gap_length) % 2 == 1:
+        #     # Add the real observed value
+        #     new_obs = pd.Series(test.iloc[t], index=[test.index[t]])
+        # else:
+        #     # Add the forecasted value
+        #     new_obs = pd.Series(y_pred, index=[test.index[t]])
 
-        results = results.append(new_obs, exog=exog_next, refit=((t + 1) % refit_every == 0),
-                                 fit_kwargs={'maxiter': max_iter} if ((t + 1) % refit_every == 0) else {})
+        # results = results.append(new_obs, exog=exog_next, refit=((t + 1) % refit_every == 0),
+        #                          fit_kwargs={'maxiter': max_iter} if ((t + 1) % refit_every == 0) else {})
+        results = results.append(pd.Series(y_pred, index=pd.DatetimeIndex([actual_time], freq=train.index.freq)),
+                                 exog=exog_next, refit=False)
 
     # Evaluate how well the forecasts performed
     forecast_series = pd.Series(forecasts, index=test.index)
@@ -105,9 +144,9 @@ def _simulate_real_forecast(i, series, exog_df, start_date, end_date, hours_to_f
         plt.plot(forecast_series, label='Forecast', color='red')
 
         # Plot with vertical lines indicating where the refitting happened
-        for t in range(len(test)):
-            if t % refit_every == 0:
-                plt.axvline(x=test.index[t], color='gray', linestyle='--', alpha=0.5)
+        # for t in range(len(test)):
+        #     if t % refit_every == 0:
+        #         plt.axvline(x=test.index[t], color='gray', linestyle='--', alpha=0.5)
 
         plt.xlabel('Datetime')
         plt.ylabel('Temperature (°C)')
@@ -143,7 +182,8 @@ def repeat_simulate_forecast(series, exog_df, weeks, hours_to_forecast=48, arima
     np.random.seed(random_seed)
     weeks_offset = pd.DateOffset(weeks=weeks)
     hours_offset = pd.DateOffset(hours=hours_to_forecast)
-    max_start = series.index.max() - weeks_offset - hours_offset
+    gap_between_training_forecasting = pd.DateOffset(months=1)
+    max_start = series.index.max() - weeks_offset - hours_offset - gap_between_training_forecasting
 
     possible_starts = series.index[(series.index >= series.index.min()) & (series.index <= max_start)]
     if len(possible_starts) == 0:
@@ -151,7 +191,7 @@ def repeat_simulate_forecast(series, exog_df, weeks, hours_to_forecast=48, arima
 
     # Pre-generate all start and end dates
     start_dates = np.random.choice(possible_starts, size=n_repeats, replace=False)
-    date_ranges = [(start, start + weeks_offset + hours_offset) for start in start_dates]
+    date_ranges = [(start, start + weeks_offset + hours_offset + gap_between_training_forecasting) for start in start_dates]
 
     mae_scores, mse_scores = [], []
 
