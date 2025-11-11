@@ -9,11 +9,12 @@ import numpy as np
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from src.data.create_supervised import create_supervised_dataset
+from src.models.random_forest.bayes_search import bayes_search_random_forest
 from src.models.random_forest.train import train_random_forest
 from src.models.random_forest.evaluate_forecast import evaluate_forecast
 
 
-def _run_single_forecast(df, target_station, previous_time_steps, exog_cols, seed, start, train_end, end):
+def _run_single_forecast(df, target_station, previous_time_steps, exog_cols, start, train_end, end, mode):
     """
     Runs a single training and evaluation of the Random Forest model.
 
@@ -23,8 +24,15 @@ def _run_single_forecast(df, target_station, previous_time_steps, exog_cols, see
     y_train: Training target Series
     X_test: Test features DataFrame
     y_test: Test target Series
-    seed: Random seed for reproducibility (default is 42)
+    start: Start datetime for the training and test split
+    train_end: End datetime for the training set
+    end: End datetime for the test set
+    mode: Mode of operation for the task
 
+    Output
+    ------
+    mae: Mean Absolute Error on the test set
+    mse: Mean Squared Error on the test set
     """
     # Print the date range being used
     print(f"Running forecast from {start} to {end} with training until {train_end}")
@@ -38,8 +46,11 @@ def _run_single_forecast(df, target_station, previous_time_steps, exog_cols, see
     X_train, y_train = X.loc[start:train_end], y.loc[start:train_end]
     X_test, y_test = X.loc[train_end:end], y.loc[train_end:end]
 
-    # Train the model
-    model, _ = train_random_forest(X_train, y_train, X_test, y_test, random_seed=seed)
+    # Dependant on the mode, train the model using the selected parameters or Bayesian search
+    if mode == "bayes_search":
+        model, _ = bayes_search_random_forest(X_train, y_train, X_test, y_test)
+    else:
+        model = train_random_forest(X_train, y_train)
 
     # Evaluate using recursive multi-step forecasting
     mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, plot=False)
@@ -50,8 +61,8 @@ def _run_single_forecast(df, target_station, previous_time_steps, exog_cols, see
     return mae, mse
 
 
-def repeat_forecasts(df, target_station, previous_time_steps, exog_cols, random_seed=42, n_repeats=10,
-                     weeks=2, hours_to_forecast=48):
+def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=42, n_repeats=10,
+                weeks=2, hours_to_forecast=48, mode="repeat_forecast"):
     """
     Repeats the training and evaluation of the Random Forest model.
 
@@ -62,7 +73,7 @@ def repeat_forecasts(df, target_station, previous_time_steps, exog_cols, random_
     previous_time_steps: Number of previous time steps to include as features
     exog_cols: List of additional exogenous columns to include as features
     seed: Random seed for reproducibility (default is 42)
-
+    mode: Mode of operation for the task (default is "repeat_forecast")
     """
     # Select random n_repeast parts with 2-weeks training and 2 days test from the df
     np.random.seed(random_seed)
@@ -86,12 +97,11 @@ def repeat_forecasts(df, target_station, previous_time_steps, exog_cols, random_
             df_slice = df.loc[start:end].copy()
             futures.append(
                 executor.submit(
-                    _run_single_forecast, df_slice, target_station, previous_time_steps, exog_cols, random_seed, start, train_end, end
+                    _run_single_forecast, df_slice, target_station, previous_time_steps, exog_cols, start, train_end, end, mode
                 )
             )
 
         for f in as_completed(futures):
-            print("A forecast run has completed.")
             mae, mse = f.result()
             mae_scores.append(mae)
             mse_scores.append(mse)
@@ -104,6 +114,8 @@ if __name__ == "__main__":
     # Define the arguments for the main script
     parser = argparse.ArgumentParser(description="Random Forest Model Training Script")
     parser.add_argument('--input', type=str, required=True, help='Path to the input CSV file')
+    parser.add_argument("--mode", choices=["repeat_forecast", "bayes_search"],
+                        default="repeat_forecast", help="Select which RF task to run.")
     args = parser.parse_args()
 
     # Read the dataset
@@ -127,6 +139,6 @@ if __name__ == "__main__":
     # Define the other stations as exogenous variables
     exog_cols = [col for col in df_pivot.columns if col != target_station]
 
-    # Run repeated forecasts
-    repeat_forecasts(df_pivot, target_station, previous_time_steps=24, exog_cols=exog_cols,
-                     random_seed=53, n_repeats=30, weeks=2, hours_to_forecast=48)
+    # Run repeated task
+    repeat_task(df_pivot, target_station, previous_time_steps=24, exog_cols=exog_cols,
+                random_seed=47, n_repeats=10, weeks=2, hours_to_forecast=48, mode=args.mode)
