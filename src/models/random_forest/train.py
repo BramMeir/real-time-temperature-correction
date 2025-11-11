@@ -22,11 +22,17 @@ def train_random_forest(X_train, y_train, X_test, y_test, random_seed=42):
     """
     # Define the parameter grid for hyperparameter tuning
     param_grid = {
-        'n_estimators': [100, 200, 500],
-        'max_depth': [5, 10, 20, None],
+        'n_estimators': [200, 500],
+        'max_depth': [10, 20, None],
         'min_samples_split': [2, 5, 10],       # Minimum samples required to split an internal node (to justify creating a split)
         'min_samples_leaf': [1, 2, 4]          # Minimum samples required to be at a leaf node (to prevent overfitting)
     }
+    # param_grid = {
+    #     'n_estimators': [200],
+    #     'max_depth': [10],
+    #     'min_samples_split': [2],
+    #     'min_samples_leaf': [4]
+    # }
 
     # Initialize the base Random Forest model (n_jobs=-1 to use all available cores)
     rf_model = RandomForestRegressor(random_state=random_seed, n_jobs=-1)
@@ -47,7 +53,7 @@ def train_random_forest(X_train, y_train, X_test, y_test, random_seed=42):
 
     print(f"Best hyperparameters: {grid_search.best_params_}")
 
-    # Make predictions on the test set
+    # Make predictions on the test set (this means how good the model fits this data, not real recursive forecasting)
     y_pred = best_rf_model.predict(X_test)
 
     # Calculate evaluation metrics
