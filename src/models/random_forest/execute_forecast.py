@@ -1,26 +1,27 @@
-"""
-Module to execute Random Forest forecasts.
-"""
 from src.data.create_supervised import create_supervised_dataset
 from src.models.random_forest.bayes_search import bayes_search_random_forest
 from src.models.random_forest.train import train_random_forest
 from src.models.random_forest.evaluate_forecast import evaluate_forecast
 
 
-def run_single_forecast(df, target_station, previous_time_steps, exog_cols, start, train_end, end, mode):
+def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=None,
+                        start=None, train_end=None, test_end=None, mode="bayes_search"):
     """
-    Runs a single training and evaluation of the Random Forest model.
+    Runs a single forecast using Random Forest, either with Bayesian hyperparameter search or
+    with the default parameters for training. Evaluates the model using recursive multi-step forecasting.
+
 
     Input
     -----
-    X_train: Training features DataFrame
-    y_train: Training target Series
-    X_test: Test features DataFrame
-    y_test: Test target Series
-    start: Start datetime for the training and test split
-    train_end: End datetime for the training set
-    end: End datetime for the test set
-    mode: Mode of operation for the task
+    df: DataFrame with the complete dataset
+    target_station: The target station for forecasting
+    previous_time_steps: Number of previous time steps to include as lags
+    exog_cols: List of exogenous feature column names
+    start: Start date for the dataset
+    train_end: End date for the training set
+    test_end: End date for the test set
+    mode: Mode of operation ("bayes_search" or "forecast")
+
 
     Output
     ------
@@ -28,7 +29,7 @@ def run_single_forecast(df, target_station, previous_time_steps, exog_cols, star
     mse: Mean Squared Error on the test set
     """
     # Print the date range being used
-    print(f"Running forecast from {start} to {end} with training until {train_end}")
+    print(f"Running forecast from {start} to {test_end} with training until {train_end}")
 
     # Create supervised dataset
     X, y = create_supervised_dataset(df, target_station=target_station,
@@ -37,7 +38,7 @@ def run_single_forecast(df, target_station, previous_time_steps, exog_cols, star
 
     # Select the data based on the provided date ranges
     X_train, y_train = X.loc[start:train_end], y.loc[start:train_end]
-    X_test, y_test = X.loc[train_end:end], y.loc[train_end:end]
+    X_test, y_test = X.loc[train_end:test_end], y.loc[train_end:test_end]
 
     # Dependant on the mode, train the model using the selected parameters or Bayesian search
     if mode == "bayes_search":

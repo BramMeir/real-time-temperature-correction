@@ -2,7 +2,7 @@
 Main script for Random Forest model training.
 
 Example usage:
-python -m src.models.random_forest.main --input ./data/preprocessed.csv
+python -m src.models.random_forest.main --input ./data/preprocessed.csv --mode repeat_forecast
 """
 import argparse
 import numpy as np
@@ -22,10 +22,17 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
     target_station: Name of the target station column to predict
     previous_time_steps: Number of previous time steps to include as features
     exog_cols: List of additional exogenous columns to include as features
-    seed: Random seed for reproducibility (default is 42)
+    random_seed: Random seed for reproducibility (default is 42)
+    n_repeats: Number of repetitions for the task (default is 10)
+    weeks: Number of weeks for the training period (default is 2)
+    hours_to_forecast: Number of hours to forecast in each repetition (default is 48)
     mode: Mode of operation for the task (default is "repeat_forecast")
+
+    Output
+    ------
+    Prints the average MAE and MSE over all repetitions.
     """
-    # Select random n_repeast parts with 2-weeks training and 2 days test from the df
+    # Select random n_repeats parts with 2-weeks training and 2 days test from the df
     np.random.seed(random_seed)
     weeks_offset = pd.DateOffset(weeks=weeks)
     hours_offset = pd.DateOffset(hours=hours_to_forecast)

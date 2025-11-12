@@ -7,7 +7,8 @@ from sklearn.model_selection import TimeSeriesSplit
 
 def bayes_search_random_forest(X_train, y_train, X_test, y_test, random_seed=42):
     """
-    Train a Random Forest model and evaluate its performance.
+    Perform Bayesian hyperparameter optimization for a Random Forest model
+    using TimeSeriesSplit cross-validation.
 
     Input
     -----
@@ -19,7 +20,7 @@ def bayes_search_random_forest(X_train, y_train, X_test, y_test, random_seed=42)
 
     Output
     ------
-    model: Trained Random Forest model
+    best_rf_model: Trained Random Forest model with best hyperparameters
     metrics: Dictionary with MAE and RMSE on the test set
     """
     # Define the search space for hyperparameter tuning
