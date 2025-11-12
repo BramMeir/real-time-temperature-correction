@@ -18,7 +18,7 @@ def preprocess(input_file, output_file):
     -----
     input_file: Input CSV file path.
     output_file: Output CSV file path.
-    
+
     Output
     ------
     Saves the preprocessed data to the specified output CSV file.
