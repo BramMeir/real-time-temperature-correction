@@ -4,7 +4,7 @@ from sklearn.ensemble import RandomForestRegressor
 def train_random_forest(X_train, y_train, random_seed=42, n_estimators=350, max_depth=20,
                         min_samples_leaf=1, min_samples_split=3):
     """
-    Train a Random Forest model and evaluate its performance.
+    Train a Random Forest model with specified hyperparameters.
 
     Input
     -----
@@ -12,7 +12,7 @@ def train_random_forest(X_train, y_train, random_seed=42, n_estimators=350, max_
     y_train: Series with training target variable
     random_seed: Random seed for reproducibility (default is 42)
     n_estimators: Number of trees in the forest (default is 350)
-    max_depth: Maximum depth of the tree (default is 20)
+    max_depth: Maximum depth of the trees (default is 20)
     min_samples_leaf: Minimum number of samples required to be at a leaf node (default is 1)
     min_samples_split: Minimum number of samples required to split an internal node (default is 3)
 

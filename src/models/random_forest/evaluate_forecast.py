@@ -5,14 +5,14 @@ from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 
 def evaluate_forecast(model, y_train, X_test, y_test, plot=False):
     """
-    Evaluate the model using recursive multi-step forecasting.
+    Evaluate the RF model using recursive multi-step forecasting.
 
     Input
     -----
     model: Trained Random Forest model
     y_train: Target variable for training (real temperature values)
-    X_test: Test features for forecasting
-    y_test: Test target variable for evaluation (follows on X_train)
+    X_test: Test features for forecasting (follows on X_train)
+    y_test: Test target variable for evaluation (follows on y_train)
     plot: Boolean to indicate whether to plot the results (default is False)
 
     Output
