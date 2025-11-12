@@ -54,7 +54,7 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
             df_slice = df.loc[start:end].copy()
             futures.append(
                 executor.submit(
-                    run_single_forecast, df_slice, target_station, previous_time_steps, exog_cols, start, train_end, end, mode
+                    run_single_forecast, df_slice, target_station, previous_time_steps, None, start, train_end, end, mode
                 )
             )
 
@@ -97,5 +97,5 @@ if __name__ == "__main__":
     exog_cols = [col for col in df_pivot.columns if col != target_station]
 
     # Run repeated task
-    repeat_task(df_pivot, target_station, previous_time_steps=5, exog_cols=exog_cols,
+    repeat_task(df_pivot, target_station, previous_time_steps=24, exog_cols=exog_cols,
                 random_seed=47, n_repeats=1, weeks=2, hours_to_forecast=48, mode=args.mode)

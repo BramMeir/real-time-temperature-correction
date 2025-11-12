@@ -1,6 +1,5 @@
-from src.data.create_supervised import create_supervised_dataset
 from src.models.LSTM.train import train_LSTM_model
-from src.models.random_forest.evaluate_forecast import evaluate_forecast
+from src.models.LSTM.evaluate_forecast import evaluate_LSTM_forecast
 
 
 def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=None,
@@ -30,20 +29,18 @@ def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=No
     # Print the date range being used
     print(f"Running forecast from {start} to {test_end} with training until {train_end}")
 
-    # Create supervised dataset
-    X, y = create_supervised_dataset(df, target_station=target_station,
-                                     previous_time_steps=previous_time_steps,
-                                     exog_cols=exog_cols, exog_lags=2)
-
-    # Select the data based on the provided date ranges
-    X_train, y_train = X.loc[start:train_end], y.loc[start:train_end]
-    X_test, y_test = X.loc[train_end:test_end], y.loc[train_end:test_end]
+    # Split the data into a training and test set
+    df_train = df.loc[start:train_end].copy()
+    df_test = df.loc[train_end:test_end].copy()
+    df_test = df_test.iloc[1:]  # Remove the first row to avoid overlap (loc slicing is inclusive)
 
     # Dependant on the mode, train the model using the selected parameters or Bayesian search
-    model = train_LSTM_model(X_train, y_train)
+    model = train_LSTM_model(df_train, target_station, previous_time_steps=previous_time_steps)
 
     # Evaluate using recursive multi-step forecasting
-    mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, plot=False)
+    mae, rmse = evaluate_LSTM_forecast(
+        model, df_train, df_test, previous_time_steps, target_station, plot=True
+    )
     mse = rmse ** 2
 
     return mae, mse
