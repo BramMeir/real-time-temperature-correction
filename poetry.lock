@@ -623,6 +623,32 @@ packaging = "*"
 rich = "*"
 
 [[package]]
+name = "keras-tuner"
+version = "1.4.8"
+description = "A Hyperparameter Tuning Library for Keras"
+optional = false
+python-versions = "*"
+files = [
+    {file = "keras_tuner-1.4.8-py3-none-any.whl", hash = "sha256:53034e71608051a17c7f764f282e1e54b52c4d69c05a30f1e8891c8e5ea7739f"},
+    {file = "keras_tuner-1.4.8.tar.gz", hash = "sha256:809e78538ea5c8e048012ef1d680712d56f28cf9dfa4938a2daace1ab30c4828"},
+]
+
+[package.dependencies]
+grpcio = "*"
+keras = "*"
+kt-legacy = "*"
+packaging = "*"
+protobuf = "*"
+requests = "*"
+
+[package.extras]
+bayesian = ["scikit-learn", "scipy"]
+build = ["build", "namex", "tensorflow-cpu"]
+tensorflow = ["tensorflow (>=2.0)"]
+tensorflow-cpu = ["tensorflow-cpu (>=2.0)"]
+tests = ["black", "flake8", "ipython", "isort", "namex", "pandas", "portpicker", "pytest", "pytest-cov", "pytest-xdist", "scikit-learn", "scipy"]
+
+[[package]]
 name = "kiwisolver"
 version = "1.4.9"
 description = "A fast implementation of the Cassowary constraint solver"
@@ -730,6 +756,17 @@ files = [
     {file = "kiwisolver-1.4.9-pp311-pypy311_pp73-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:464415881e4801295659462c49461a24fb107c140de781d55518c4b80cb6790f"},
     {file = "kiwisolver-1.4.9-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:fb940820c63a9590d31d88b815e7a3aa5915cad3ce735ab45f0c730b39547de1"},
     {file = "kiwisolver-1.4.9.tar.gz", hash = "sha256:c3b22c26c6fd6811b0ae8363b95ca8ce4ea3c202d3d0975b2914310ceb1bcc4d"},
+]
+
+[[package]]
+name = "kt-legacy"
+version = "1.0.5"
+description = "Legacy import names for Keras Tuner"
+optional = false
+python-versions = "*"
+files = [
+    {file = "kt-legacy-1.0.5.tar.gz", hash = "sha256:dbbade58f12c6a6da6062f4b045a6395a8d4195815e3e064bc3e609b69c8a26c"},
+    {file = "kt_legacy-1.0.5-py3-none-any.whl", hash = "sha256:8d5c5b3dccf348367fe9ca5b006e7ad2d1babcce62976cfc199e831ea699dcd3"},
 ]
 
 [[package]]
@@ -2255,4 +2292,4 @@ dev = ["pytest", "setuptools"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "7117da40b8794d073d61ec384bfc8a39be9a12979f8c7a51dcd736540d802edc"
+content-hash = "5f12fc55ee24a7b3a5bc84367a9ac549ccaf7a469d30eb71b79d6cfa6a716866"
