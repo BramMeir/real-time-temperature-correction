@@ -4,13 +4,14 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 
 
-def evaluate_LSTM_forecast(model, df_train, df_test, previous_time_steps, target_station, plot=False):
+def evaluate_LSTM_forecast(model, number, df_train, df_test, previous_time_steps, target_station, plot=False):
     """
     Evaluate the LSTM model using recursive multi-step forecasting.
 
     Input
     -----
     model: Trained TensorFlow/Keras LSTM model.
+    number: An identifier number for the forecast run.
     df_train: The DataFrame used for training the model.
     df_test: The DataFrame with the test data (true future values).
     previous_time_steps: The number of past time steps the model uses (e.g., 24).
@@ -74,6 +75,6 @@ def evaluate_LSTM_forecast(model, df_train, df_test, previous_time_steps, target
         plt.plot(df_test.index, predictions, label='Forecast', color='red')
         plt.legend()
         plt.title('Recursive Forecast')
-        plt.savefig('LSTM_recursive_forecast.png')
+        plt.savefig(f'LSTM_recursive_forecast_{number}.png')
 
     return mae, rmse

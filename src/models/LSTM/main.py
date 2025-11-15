@@ -7,11 +7,12 @@ python -m src.models.random_forest.main --input ./data/preprocessed.csv --mode r
 import argparse
 import numpy as np
 import pandas as pd
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import collections
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.models.LSTM.execute_forecast import run_single_forecast
 
 
-def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=42, n_repeats=10,
+def repeat_task(df, target_station, previous_time_steps, random_seed=42, n_repeats=10,
                 weeks=2, hours_to_forecast=48, mode="repeat_forecast"):
     """
     Repeats the training and evaluation of the Random Forest model.
@@ -46,25 +47,56 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
                    for start in start_dates]
 
     mae_scores, mse_scores = [], []
+    best_hp_list, optimal_epochs_list = [], []
 
-    with ThreadPoolExecutor() as executor:
+    with ProcessPoolExecutor() as executor:
         futures = []
 
-        for (start, train_end, end) in date_ranges:
+        for i, (start, train_end, end) in enumerate(date_ranges):
             df_slice = df.loc[start:end].copy()
             futures.append(
                 executor.submit(
-                    run_single_forecast, df_slice, target_station, previous_time_steps, None, start, train_end, end, mode
+                    run_single_forecast, df_slice, i, target_station, previous_time_steps, start, train_end, end, mode
                 )
             )
 
         for f in as_completed(futures):
-            mae, mse = f.result()
+            mae, mse, best_hp, optimal_epochs = f.result()
             mae_scores.append(mae)
             mse_scores.append(mse)
+            best_hp_list.append(best_hp)
+            optimal_epochs_list.append(optimal_epochs)
 
     print(f"Average MAE over {n_repeats} runs: {np.mean(mae_scores):.4f} ± {np.std(mae_scores):.4f}")
     print(f"Average MSE over {n_repeats} runs: {np.mean(mse_scores):.4f} ± {np.std(mse_scores):.4f}")
+
+    if mode == "bayes_search":
+        print("Best hyperparameters from Bayesian search (most frequent/average values):")
+
+        # Filter out None values
+        filtered_hp = [hp for hp in best_hp_list if hp is not None]
+
+        if filtered_hp:
+            # Collect all values per hyperparameter
+            hp_values = collections.defaultdict(list)
+            for hp in filtered_hp:
+                for key, value in hp.values.items():
+                    hp_values[key].append(value)
+
+            # Compute most frequent values
+            most_frequent_hp = {}
+            for key, values in hp_values.items():
+                most_frequent_hp[key] = collections.Counter(values).most_common(1)[0][0]
+
+            print("\nMost frequent hyperparameters:")
+            for k, v in most_frequent_hp.items():
+                print(f"  {k}: {v}")
+
+        # Average optimal epochs if available
+        filtered_epochs = [ep for ep in optimal_epochs_list if ep is not None]
+        if filtered_epochs:
+            avg_epochs = int(np.mean(filtered_epochs))
+            print(f"\nAverage optimal epochs: {avg_epochs}")
 
 
 if __name__ == "__main__":
@@ -88,7 +120,7 @@ if __name__ == "__main__":
     df_pivot = df_pivot.sort_index()
 
     # Resample to hourly frequency if not already
-    df_pivot = df_pivot.resample('1h').mean()
+    df_pivot = df_pivot.resample('1h').mean().interpolate(method='time')
 
     # Define the target station
     target_station = "Melle AWS"
@@ -97,5 +129,5 @@ if __name__ == "__main__":
     exog_cols = [col for col in df_pivot.columns if col != target_station]
 
     # Run repeated task
-    repeat_task(df_pivot, target_station, previous_time_steps=24, exog_cols=exog_cols,
-                random_seed=47, n_repeats=1, weeks=2, hours_to_forecast=48, mode=args.mode)
+    repeat_task(df_pivot, target_station, previous_time_steps=5,
+                random_seed=53, n_repeats=10, weeks=3, hours_to_forecast=48, mode=args.mode)
