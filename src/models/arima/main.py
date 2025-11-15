@@ -50,7 +50,7 @@ def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_fore
         sub_exog = exog_df.loc[sub_series.index]
 
     print(f"\n🔹 Run {i+1}: using data from {start_date} to {end_date}")
-    errors = sarima_forecast(
+    errors, importance = sarima_forecast(
         sub_series,
         exog_df=sub_exog,
         hours_to_forecast=hours_to_forecast,
@@ -60,7 +60,7 @@ def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_fore
         plot=False
     )
 
-    return errors['MAE'], errors['MSE']
+    return errors['MAE'], errors['MSE'], importance
 
 
 def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_order=(10, 0, 1),
@@ -100,6 +100,7 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
     date_ranges = [(start, start + weeks_offset) for start in start_dates]
 
     mae_scores, mse_scores = [], []
+    importances = []
 
     with ProcessPoolExecutor(max_workers=n_jobs) as executor:
         futures = [
@@ -111,12 +112,19 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
         ]
 
         for f in as_completed(futures):
-            mae, mse = f.result()
+            mae, mse, importance = f.result()
             mae_scores.append(mae)
             mse_scores.append(mse)
+            importances.append(importance)
 
     print(f"\nAverage MAE across {len(mae_scores)} runs: {np.mean(mae_scores):.3f}")
     print(f"Average MSE across {len(mse_scores)} runs: {np.mean(mse_scores):.3f}")
+
+    # Print the average feature importance if exogenous variables were used
+    if exog_df is not None and importances:
+        avg_importance = pd.concat(importances, axis=1).mean(axis=1).sort_values(ascending=False)
+        print("\nAverage Feature Importance across runs:")
+        print(avg_importance)
 
     return mae_scores, mse_scores
 
@@ -135,14 +143,17 @@ if __name__ == "__main__":
                         help="Number of hours to forecast into the future (default: 48).")
     parser.add_argument("--exog", action="store_true",
                         help="Include exogenous variables from other stations if set.")
+    parser.add_argument("--target_station", type=str, default="Melle AWS",
+                        help="Name of the target weather station (default: 'Melle AWS').")
+    parser.add_argument("--input_file", type=str, default="data/Part_AWS/preprocessed.csv",
+                        help="Path to the preprocessed data CSV file (default: 'data/Part_AWS/preprocessed.csv').")
     args = parser.parse_args()
 
     # Read the preprocessed data
-    df = pd.read_csv("data/preprocessed.csv")
+    df = pd.read_csv(args.input_file)
 
     # Select target station
-    station = "Melle AWS"
-    station_data = df[df['station_name'] == station]
+    station_data = df[df['station_name'] == args.target_station]
 
     # Create target time series with a datetime index
     series = pd.Series(
@@ -153,7 +164,7 @@ if __name__ == "__main__":
     # Create exogenous DataFrame if requested
     exog_df = None
     if args.exog:
-        other_stations = [s for s in df['station_name'].unique() if s != station]
+        other_stations = [s for s in df['station_name'].unique() if s != args.target_station]
         exog_data = df[df['station_name'].isin(other_stations)]
 
         # Pivot to get each station as a separate column
@@ -208,7 +219,7 @@ if __name__ == "__main__":
         else:
             repeat_forecasts(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
                              arima_order=(25, 0, 0), seasonal_order=(0, 0, 0, 0),
-                             n_repeats=30, random_seed=47, max_iter=1000, n_jobs=10)
+                             n_repeats=100, random_seed=47, max_iter=1000, n_jobs=10)
 
     elif args.mode == "grid_search":
         if args.model == "sarima":
