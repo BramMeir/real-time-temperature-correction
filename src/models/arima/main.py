@@ -18,7 +18,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.models.arima.sarima_forecast import sarima_forecast
 from src.models.arima.grid_search import arima_grid_search, sarima_grid_search
 from src.models.arima.plot_diagnositcs import arima_plot_diagnostics
-from src.models.arima.simulate_real_forecast import repeat_simulate_forecast
+from src.models.arima.simulate_real_forecast import repeat_simulate_forecast, experiment_retrain_frequency
 
 
 def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_forecast,
@@ -131,7 +131,8 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run ARIMA forecast utilities.")
-    parser.add_argument("--mode", choices=["forecast", "repeat_forecast", "grid_search", "diagnostics", "simulate_real_forecast"],
+    parser.add_argument("--mode", choices=["forecast", "repeat_forecast", "grid_search", "diagnostics",
+                                           "simulate_real_forecast", "experiment_retrain_frequency"],
                         default="forecast", help="Select which ARIMA task to run.")
     parser.add_argument("--model", choices=["arima", "sarima"],
                         default="arima", help="Choose between ARIMA and SARIMA model (default: ARIMA).")
@@ -182,7 +183,7 @@ if __name__ == "__main__":
         exog_df = exog_pivot
 
     # Shorten the data to the specified number of weeks (if not in repeat_forecast mode)
-    if args.mode != "repeat_forecast" and args.mode != "simulate_real_forecast":
+    if args.mode not in ["repeat_forecast", "simulate_real_forecast", "experiment_retrain_frequency"]:
         total_weeks = (series.index.max().year - series.index.min().year) * 52 + \
                       (series.index.max().month - series.index.min().month) * 4 + \
                       (series.index.max().day - series.index.min().day) // 7
@@ -197,7 +198,7 @@ if __name__ == "__main__":
                 exog_df = exog_df[(exog_df.index >= start_date) & (exog_df.index < end_date)]
 
     # Resample data by taking the mean
-    series = series.resample(args.resample).mean()
+    series = series.resample(args.resample).mean().interpolate(limit_direction="both")
 
     # Resample exogenous data if provided
     if exog_df is not None:
@@ -235,3 +236,8 @@ if __name__ == "__main__":
         repeat_simulate_forecast(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
                                  arima_order=(25, 0, 0), seasonal_order=(0, 0, 0, 0),
                                  n_repeats=30, random_seed=47, max_iter=1000, n_jobs=10)
+
+    elif args.mode == "experiment_retrain_frequency":
+        experiment_retrain_frequency(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
+                                     arima_order=(25, 0, 0), seasonal_order=(0, 0, 0, 0),
+                                     n_repeats=30, random_seed=47, max_iter=1000, n_jobs=10)
