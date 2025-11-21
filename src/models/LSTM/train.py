@@ -4,7 +4,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Suppress TensorFlow logging
 from tensorflow import keras
 
 
-def train_LSTM_model(df, target_station, previous_time_steps=24, number_of_neurons=192,
+def train_LSTM_model(df, target_station, previous_time_steps=24, number_of_neurons=1024,
                      nr_epochs=200, learning_rate=0.001):
     """
     Train a LSTM model with specified hyperparameters.
