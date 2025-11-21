@@ -39,6 +39,33 @@ def _simulate_real_forecast(i, series, exog_df, start_date, end_date, hours_to_f
     if exog_df is not None:
         sub_exog = exog_df.loc[sub_series.index]
 
+        # If the frequency is 10 minutes, use the average of the previous full hour as exogenous feature
+        if series.index.freq == pd.Timedelta("10min"):
+            # lags = [1, 2]
+            # lagged_exogs = []
+            # for lag in lags:
+            #     lagged = exog_df.shift(lag)
+            #     lagged.columns = [f"{col}_lag{lag}" for col in exog_df.columns]
+            #     lagged_exogs.append(lagged)
+
+            # Mean of previous full hour (6 × 10-minute intervals)
+            window_size = 6
+            exog_hour_mean = (
+                sub_exog.shift(1)
+                .rolling(window=window_size, min_periods=window_size)
+                .mean()
+            )
+            exog_hour_mean.columns = [f"{col}_prev_hour_mean" for col in sub_exog.columns]
+
+            # Combine original, lag, and hour-mean features
+            # exog_df = pd.concat([exog_df, *lagged_exogs, exog_hour_mean], axis=1).dropna()
+            sub_exog = pd.concat([exog_hour_mean], axis=1).dropna()
+
+            # Align timestamps of target and exogenous data
+            common_idx = sub_series.index.intersection(sub_exog.index)
+            sub_series = sub_series.loc[common_idx]
+            sub_exog = sub_exog.loc[common_idx]
+
     print(f"\n🔹 Run {i+1}: using data from {start_date} to {end_date}")
 
     # Split the data into training and test sets
@@ -75,7 +102,11 @@ def _simulate_real_forecast(i, series, exog_df, start_date, end_date, hours_to_f
     retrain_time = 0.0
     if retrain_step is None:
         # No retraining, all data added at once
-        new_part = sub_series.loc[train.index.max() + pd.Timedelta(hours=1): test.index.min() - pd.Timedelta(hours=1)]
+        if series.index.freq == pd.Timedelta("10min"):
+            new_part = sub_series.loc[train.index.max() + pd.Timedelta(minutes=10): test.index.min() - pd.Timedelta(minutes=10)]
+        else:
+            new_part = sub_series.loc[train.index.max() + pd.Timedelta(hours=1): test.index.min() - pd.Timedelta(hours=1)]
+
         new_exog_train = sub_exog.loc[new_part.index] if sub_exog is not None else None
         results = results.append(new_part, exog=new_exog_train, refit=False)
 
@@ -91,6 +122,14 @@ def _simulate_real_forecast(i, series, exog_df, start_date, end_date, hours_to_f
             new_train = sub_series.loc[:current_end]
             new_exog_train = sub_exog.loc[new_train.index] if sub_exog is not None else None
 
+            # Select now only the last 2 weeks (otherwise training set keeps growing indefinitely)
+            if len(new_train) > len(train):
+                if series.index.freq == pd.Timedelta("10min"):
+                    new_train = new_train.loc[current_end - training_period + pd.Timedelta(minutes=10): current_end]
+                else:
+                    new_train = new_train.loc[current_end - training_period + pd.Timedelta(hours=1): current_end]
+                new_exog_train = new_exog_train.loc[new_train.index] if sub_exog is not None else None
+
             # Refit using previous parameters as starting values
             model = sm.tsa.statespace.SARIMAX(
                 new_train,
@@ -104,19 +143,25 @@ def _simulate_real_forecast(i, series, exog_df, start_date, end_date, hours_to_f
             # Fit the model using previous parameters as starting values (incremental retraining)
             start_time = time.time()
             results = model.fit(
-                # start_params=results.params,
-                maxiter=max_iter,
+                start_params=results.params,
+                maxiter=20,
                 disp=False
             )
             retrain_time += time.time() - start_time
             retrain_count += 1
 
         # If there is any remaining data before the test set, add it with refitting
-        if current_end + pd.Timedelta(hours=1) < final_train_end:
+        if series.index.freq == pd.Timedelta("10min") and current_end + pd.Timedelta(minutes=10) < final_train_end:
+            new_part = sub_series.loc[current_end + pd.Timedelta(minutes=10): (final_train_end - pd.Timedelta(minutes=10))]
+            new_exog_train = sub_exog.loc[new_part.index] if sub_exog is not None else None
+
+            results = results.append(new_part, exog=new_exog_train, refit=False)
+
+        elif series.index.freq == pd.Timedelta("1h") and current_end + pd.Timedelta(hours=1) < final_train_end:
             new_part = sub_series.loc[current_end + pd.Timedelta(hours=1): (final_train_end - pd.Timedelta(hours=1))]
             new_exog_train = sub_exog.loc[new_part.index] if sub_exog is not None else None
 
-            results = results.append(new_part, exog=new_exog_train, refit=True)
+            results = results.append(new_part, exog=new_exog_train, refit=False)
 
     for actual_time, actual_value in test.items():
         # 1. Forecast one step ahead (use .iloc[[t]] to keep correct shape => (1, n_features))
@@ -242,11 +287,13 @@ def experiment_retrain_frequency(series, exog_df, weeks, hours_to_forecast=48, a
     None
     """
     retrain_steps = [
-        pd.Timedelta(days=14),
-        pd.Timedelta(days=7),
-        pd.Timedelta(days=3),
-        None,    # No retraining
         # pd.Timedelta(days=14),
+        # pd.Timedelta(days=7),
+        pd.Timedelta(days=3),
+        pd.Timedelta(days=2),
+        pd.Timedelta(days=1),
+        # pd.Timedelta(hours=3),
+        None,    # No retraining
     ]
 
     results = []
@@ -254,9 +301,9 @@ def experiment_retrain_frequency(series, exog_df, weeks, hours_to_forecast=48, a
     for step in retrain_steps:
         print(f"\n=== Experimenting with retrain step: {step} ===")
         mae_scores, mse_scores, retrain_counts, retrain_times = repeat_simulate_forecast(
-            series, exog_df, weeks=weeks, hours_to_forecast=hours_to_forecast, n_repeats=n_repeats, retrain_step=step,
-            gap_between_training_forecasting=pd.DateOffset(months=1), arima_order=arima_order, seasonal_order=seasonal_order,
-            max_iter=max_iter, random_seed=random_seed, n_jobs=1
+            series, exog_df, weeks=weeks, hours_to_forecast=hours_to_forecast, n_repeats=30, retrain_step=step,
+            gap_between_training_forecasting=pd.DateOffset(weeks=1), arima_order=arima_order, seasonal_order=seasonal_order,
+            max_iter=max_iter, random_seed=random_seed, n_jobs=10
         )
 
         results.append({
@@ -270,14 +317,17 @@ def experiment_retrain_frequency(series, exog_df, weeks, hours_to_forecast=48, a
     print("\nRetraining Frequency Experiment Results:")
 
     for res in results:
-        print(f"Retrain Step: {res['retrain_step']}, Avg MAE: {res['avg_mae']:.3f}, Avg MSE: {res['avg_mse']:.3f}, "
-              f"Avg Retrain Count: {res['avg_retrain_count']:.2f}, Avg Retrain Time: {res['avg_retrain_time']:.2f}s")
+        print(f"{res['retrain_step'] if res['retrain_step'] is not None else 'Geen retraining'}, Avg MAE: {res['avg_mae']:.3f}, "
+              f"Avg MSE: {res['avg_mse']:.3f}, Retrain Count: {res['avg_retrain_count']:.2f}, "
+              f"Avg Retrain Time: {res['avg_retrain_time'] / res['avg_retrain_count'] if res['avg_retrain_count'] > 0 else 0:.2f}s")
 
     plt.figure(figsize=(12, 6))
-    plt.scatter(results["avg_retrain_time"], results["avg_mae"])
+    results_df = pd.DataFrame(results)
+    plt.scatter(results_df["avg_retrain_time"], results_df["avg_mae"])
 
-    for idx, row in results.iterrows():
-        plt.annotate(str(row["retrain_step"]), (row["avg_retrain_time"], row["avg_mae"]))
+    for _, row in results_df.iterrows():
+        plt.annotate(str(row["retrain_step"] if row["retrain_step"] is not None else "No Retrain"), (
+                     row["avg_retrain_time"], row["avg_mae"]))
 
     plt.xlabel("Total Retraining Time (seconds)")
     plt.ylabel("MAE")
