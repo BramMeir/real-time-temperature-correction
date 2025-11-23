@@ -12,16 +12,17 @@ from src.evaluation.comparison_amber.evaluation_gf_techniques import Test_techni
 from src.models.arima.sarima_forecast import sarima_forecast
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.models.random_forest.execute_forecast import run_single_forecast
+from src.models.LSTM.execute_forecast import run_single_forecast as run_single_LSTM_forecast
 
 
-def test_different_gf_techniques_amber():
+def test_different_gf_techniques_amber(input_file="data/Turku/Turku_1H_LI.csv"):
     """
     Test different gap-filling techniques from Amber's paper on the Turku dataset using the Test_techniques_differentgaplengths function.
     The default parameters are set to the ones preferred in Amber's paper.
     """
     # Read the Turku data and the ERA5 data into dataframes
-    df_Turku = pd.read_csv("data/Turku_1H_LI.csv", index_col="DateTime", parse_dates=True)
-    df_ERA5 = pd.read_csv("data/Turku_ERA5.csv", index_col="DateTime", parse_dates=True)
+    df_Turku = pd.read_csv(input_file, index_col="DateTime", parse_dates=True)
+    df_ERA5 = pd.read_csv("data/Turku/Turku_ERA5.csv", index_col="DateTime", parse_dates=True)
 
     # Rename the ERA5 station names to station name + '_ERA5'
     df_ERA5.columns = [col + "_ERA5" for col in df_ERA5.columns if col != "DateTime"]
@@ -57,7 +58,7 @@ def test_different_gf_techniques_amber():
     print(df_stderr)
 
 
-def test_SARIMA_approach(seed=47):
+def test_SARIMA_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
     """
     Test the SARIMA approach on the Turku dataset for different forecast horizons.
 
@@ -69,7 +70,7 @@ def test_SARIMA_approach(seed=47):
     np.random.seed(seed)
 
     # Read the Turku data into a dataframe
-    df_Turku = pd.read_csv("data/Turku_1H_LI.csv", index_col="DateTime", parse_dates=True)
+    df_Turku = pd.read_csv(input_file, index_col="DateTime", parse_dates=True)
 
     # Make sure the Turku data is complete by filling missing timestamps using Linear Interpolation
     df_Turku = df_Turku.resample("h").mean().interpolate()
@@ -131,7 +132,7 @@ def test_SARIMA_approach(seed=47):
         print(f"{hours} hours: MAE = {mae}")
 
 
-def test_RF_approach(seed=47):
+def test_RF_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
     """
     Test the RF approach on the Turku dataset for different forecast horizons.
 
@@ -143,7 +144,7 @@ def test_RF_approach(seed=47):
     np.random.seed(seed)
 
     # Read the Turku data into a dataframe
-    df_Turku = pd.read_csv("data/Turku_1H_LI.csv", index_col="DateTime", parse_dates=True)
+    df_Turku = pd.read_csv(input_file, index_col="DateTime", parse_dates=True)
 
     # Make sure the Turku data is complete by filling missing timestamps using Linear Interpolation
     df_Turku = df_Turku.resample("h").mean().interpolate()
@@ -183,11 +184,11 @@ def test_RF_approach(seed=47):
                     run_single_forecast,
                     df_slice,
                     target_station="Betel",
-                    previous_time_steps=24,
+                    previous_time_steps=3,
                     exog_cols=exog_df_full.columns.tolist(),
                     start=random_start,
                     train_end=train_end,
-                    end=forecast_end,
+                    test_end=forecast_end,
                     mode="repeat_forecast",
                 ))
 
@@ -208,14 +209,94 @@ def test_RF_approach(seed=47):
         print(f"{hours} hours: MAE = {mae}")
 
 
+def test_LSTM_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
+    """
+    Test the LSTM approach on the Turku dataset for different forecast horizons.
+
+    Input
+    -----
+    seed : Random seed for reproducibility.
+    """
+    # Set seed for reproducibility
+    np.random.seed(seed)
+
+    # Read the Turku data into a dataframe
+    df_Turku = pd.read_csv(input_file, index_col="DateTime", parse_dates=True)
+
+    # Make sure the Turku data is complete by filling missing timestamps using Linear Interpolation
+    df_Turku = df_Turku.resample("h").mean().interpolate()
+
+    # Select the target station time series
+    series_full = df_Turku["Betel"]
+
+    # Select the exogenous data (other stations in the Turku dataset)
+    # exog_df_full = df_Turku.drop(columns=["Betel"])
+
+    # Keep track of the forecast errors
+    mse_list = []
+    mae_list = []
+
+    for hours_to_forecast in [5, 7, 12, 24, 48, 168, 336]:
+        print(f"\nForecasting {hours_to_forecast} hours into the future:")
+
+        # Repeat the forecasting multiple times to get an average error
+        temp_mse_list = []
+        temp_mae_list = []
+
+        max_start = series_full.index.max() - pd.DateOffset(hours=hours_to_forecast + 24 * 14)
+        min_start = series_full.index.min()
+
+        with ProcessPoolExecutor(max_workers=10) as executor:
+            futures = []
+            for i in range(50):
+                # Select random 2 weeks (training) + forecast horizon from series and exog_df
+                random_start = min_start + (max_start - min_start) * np.random.random()
+                train_end = random_start + pd.DateOffset(hours=24 * 14)
+                forecast_end = train_end + pd.DateOffset(hours=hours_to_forecast)
+
+                # Take the slice of the dataframe for the selected period
+                df_slice = df_Turku.loc[random_start:forecast_end].copy()
+
+                futures.append(executor.submit(
+                    run_single_LSTM_forecast,
+                    df_slice,
+                    i,
+                    target_station="Betel",
+                    previous_time_steps=2,
+                    start=random_start,
+                    train_end=train_end,
+                    test_end=forecast_end,
+                    mode="repeat_forecast",
+                ))
+
+            for future in as_completed(futures):
+                mae, mse, _, _ = future.result()
+                temp_mse_list.append(mse)
+                temp_mae_list.append(mae)
+
+        mse_list.append(np.mean(temp_mse_list))
+        mae_list.append(np.mean(temp_mae_list))
+
+    print("\nAverage MSE for different forecast horizons:")
+    for hours, mse in zip([5, 7, 12, 24, 48, 168, 336], mse_list):
+        print(f"{hours} hours: MSE = {mse}")
+
+    print("\nAverage MAE for different forecast horizons:")
+    for hours, mae in zip([5, 7, 12, 24, 48, 168, 336], mae_list):
+        print(f"{hours} hours: MAE = {mae}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run gap-filling technique comparisons.")
-    parser.add_argument("--model", choices=["amber", "sarima", "RF"], default="sarima", help="Specify which model to use.")
+    parser.add_argument("--model", choices=["amber", "sarima", "RF", "LSTM"], default="sarima", help="Specify which model to use.")
+    parser.add_argument("--input", type=str, default="data/Turku/Turku_1H_LI.csv", help="Path to the input CSV file.")
     args = parser.parse_args()
 
     if args.model == "amber":
-        test_different_gf_techniques_amber()
+        test_different_gf_techniques_amber(input_file=args.input)
     elif args.model == "RF":
-        test_RF_approach()
+        test_RF_approach(input_file=args.input)
+    elif args.model == "LSTM":
+        test_LSTM_approach(input_file=args.input)
     else:
-        test_SARIMA_approach()
+        test_SARIMA_approach(input_file=args.input)

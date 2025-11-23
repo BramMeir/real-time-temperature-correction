@@ -17,15 +17,14 @@ def build_LSTM_model(hp, num_features, sequence_length):
 
     model.add(
         keras.layers.LSTM(
-            units=hp.Int("units", min_value=32, max_value=256, step=32),
-            dropout=hp.Float("dropout", 0.0, 0.5, step=0.1),
+            units=hp.Int("units", min_value=1024, max_value=2048, step=256),
         )
     )
     model.add(keras.layers.Dense(1))
 
     model.compile(
         optimizer=keras.optimizers.Adam(
-            learning_rate=hp.Choice("learning_rate", [0.001, 0.005, 0.01, 0.02])
+            learning_rate=0.001
         ),
         loss="mse",
     )
@@ -66,7 +65,7 @@ def bayesian_search_LSTM(df, target_station, number, previous_time_steps=24):
     tuner = kt.BayesianOptimization(
         lambda hp: build_LSTM_model(hp, num_features, sequence_length),
         objective="val_loss",
-        max_trials=20,                      # number of different configs to try
+        max_trials=4,                      # number of different configs to try
         executions_per_trial=1,
         directory="tuner_results",
         project_name=f"bayesian_lstm_{number}",
@@ -92,8 +91,8 @@ def bayesian_search_LSTM(df, target_station, number, previous_time_steps=24):
     best_hp = tuner.get_best_hyperparameters(num_trials=1)[0]
     print("\nBest hyperparameters found:")
     print(f"Units: {best_hp.get('units')}")
-    print(f"Dropout: {best_hp.get('dropout')}")
-    print(f"Learning rate: {best_hp.get('learning_rate')}")
+    # print(f"Dropout: {best_hp.get('dropout')}")
+    # print(f"Learning rate: {best_hp.get('learning_rate')}")
 
     # Retrieve and train the best model
     best_model = tuner.hypermodel.build(best_hp)

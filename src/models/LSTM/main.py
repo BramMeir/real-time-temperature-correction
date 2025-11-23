@@ -123,11 +123,11 @@ if __name__ == "__main__":
     df_pivot = df_pivot.resample('1h').mean().interpolate(method='time')
 
     # Define the target station
-    target_station = "Melle AWS"
+    target_station = "MELLE"
 
     # Define the other stations as exogenous variables
     exog_cols = [col for col in df_pivot.columns if col != target_station]
 
     # Run repeated task
-    repeat_task(df_pivot, target_station, previous_time_steps=5,
-                random_seed=53, n_repeats=10, weeks=3, hours_to_forecast=48, mode=args.mode)
+    repeat_task(df_pivot, target_station, previous_time_steps=2,
+                random_seed=47, n_repeats=10, weeks=3, hours_to_forecast=48, mode=args.mode)

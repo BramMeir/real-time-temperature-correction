@@ -25,8 +25,8 @@ def bayes_search_random_forest(X_train, y_train, X_test, y_test, random_seed=42)
     """
     # Define the search space for hyperparameter tuning
     search_space = {
-        'n_estimators': Integer(200, 500),
-        'max_depth': Integer(10, 30),
+        'n_estimators': Integer(200, 1000),
+        'max_depth': Integer(10, 40),
         'min_samples_split': Integer(2, 6),
         'min_samples_leaf': Integer(1, 3)
     }

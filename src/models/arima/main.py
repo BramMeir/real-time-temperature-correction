@@ -18,11 +18,13 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.models.arima.sarima_forecast import sarima_forecast
 from src.models.arima.grid_search import arima_grid_search, sarima_grid_search
 from src.models.arima.plot_diagnositcs import arima_plot_diagnostics
-from src.models.arima.simulate_real_forecast import repeat_simulate_forecast
+from src.models.arima.simulate_real_forecast import repeat_simulate_forecast, experiment_retrain_frequency
+from src.models.arima.confidence_score import sarima_forecast_with_confidence_score
+from src.models.arima.bayes_search import sarima_bayes_search
 
 
 def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_forecast,
-                         arima_order, seasonal_order, max_iter):
+                         arima_order, seasonal_order, confidence_score, max_iter):
     """
     Helper function to run a single forecast on a sub-series.
 
@@ -50,21 +52,36 @@ def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_fore
         sub_exog = exog_df.loc[sub_series.index]
 
     print(f"\n🔹 Run {i+1}: using data from {start_date} to {end_date}")
-    errors = sarima_forecast(
-        sub_series,
-        exog_df=sub_exog,
-        hours_to_forecast=hours_to_forecast,
-        arima_order=arima_order,
-        seasonal_order=seasonal_order,
-        max_iter=max_iter,
-        plot=False
-    )
 
-    return errors['MAE'], errors['MSE']
+    if confidence_score:
+        errors, importance, confidence_score_value, avg_conf_interval_size = sarima_forecast_with_confidence_score(
+            sub_series,
+            exog_df=sub_exog,
+            hours_to_forecast=hours_to_forecast,
+            arima_order=arima_order,
+            seasonal_order=seasonal_order,
+            max_iter=max_iter,
+            plot=False
+        )
+
+        return errors['MAE'], errors['MSE'], importance, confidence_score_value, avg_conf_interval_size
+
+    else:
+        errors, importance = sarima_forecast(
+            sub_series,
+            exog_df=sub_exog,
+            hours_to_forecast=hours_to_forecast,
+            arima_order=arima_order,
+            seasonal_order=seasonal_order,
+            max_iter=max_iter,
+            plot=False
+        )
+
+        return errors['MAE'], errors['MSE'], importance, None, None
 
 
 def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_order=(10, 0, 1),
-                     seasonal_order=(0, 0, 0, 0), n_repeats=5, random_seed=42,
+                     seasonal_order=(0, 0, 0, 0), confidence_score=False, n_repeats=5, random_seed=42,
                      max_iter=1000, n_jobs=4):
     """
     Perform multiple forecasts on random n-month segments of the data.
@@ -100,30 +117,49 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
     date_ranges = [(start, start + weeks_offset) for start in start_dates]
 
     mae_scores, mse_scores = [], []
+    importances = []
+    confidence_scores = []
+    avg_conf_interval_sizes = []
 
     with ProcessPoolExecutor(max_workers=n_jobs) as executor:
         futures = [
             executor.submit(
                 _run_single_forecast, i, series, exog_df, start, end,
-                hours_to_forecast, arima_order, seasonal_order, max_iter
+                hours_to_forecast, arima_order, seasonal_order, confidence_score, max_iter
             )
             for i, (start, end) in enumerate(date_ranges)
         ]
 
         for f in as_completed(futures):
-            mae, mse = f.result()
+            mae, mse, importance, confidence_score_value, avg_conf_interval_size = f.result()
             mae_scores.append(mae)
             mse_scores.append(mse)
+            importances.append(importance)
+            if confidence_score:
+                confidence_scores.append(confidence_score_value)
+                avg_conf_interval_sizes.append(avg_conf_interval_size)
 
     print(f"\nAverage MAE across {len(mae_scores)} runs: {np.mean(mae_scores):.3f}")
     print(f"Average MSE across {len(mse_scores)} runs: {np.mean(mse_scores):.3f}")
+
+    # Print the average feature importance if exogenous variables were used
+    if exog_df is not None and importances:
+        avg_importance = pd.concat(importances, axis=1).mean(axis=1).sort_values(ascending=False)
+        print("\nAverage Feature Importance across runs:")
+        print(avg_importance)
+
+    # Print the confidence score statistics if calculated
+    if confidence_score and confidence_scores:
+        print(f"\nAverage Confidence Score across {len(confidence_scores)} runs: {np.mean(confidence_scores):.3f}")
+        print(f"Average Confidence Interval Size across {len(avg_conf_interval_sizes)} runs: {np.mean(avg_conf_interval_sizes):.3f}")
 
     return mae_scores, mse_scores
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run ARIMA forecast utilities.")
-    parser.add_argument("--mode", choices=["forecast", "repeat_forecast", "grid_search", "diagnostics", "simulate_real_forecast"],
+    parser.add_argument("--mode", choices=["forecast", "repeat_forecast", "grid_search", "bayes_search", "diagnostics",
+                                           "simulate_real_forecast", "experiment_retrain_frequency", "confidence_score"],
                         default="forecast", help="Select which ARIMA task to run.")
     parser.add_argument("--model", choices=["arima", "sarima"],
                         default="arima", help="Choose between ARIMA and SARIMA model (default: ARIMA).")
@@ -135,14 +171,17 @@ if __name__ == "__main__":
                         help="Number of hours to forecast into the future (default: 48).")
     parser.add_argument("--exog", action="store_true",
                         help="Include exogenous variables from other stations if set.")
+    parser.add_argument("--target_station", type=str, default="Melle AWS",
+                        help="Name of the target weather station (default: 'Melle AWS').")
+    parser.add_argument("--input_file", type=str, default="data/Part_AWS/preprocessed.csv",
+                        help="Path to the preprocessed data CSV file (default: 'data/Part_AWS/preprocessed.csv').")
     args = parser.parse_args()
 
     # Read the preprocessed data
-    df = pd.read_csv("data/preprocessed.csv")
+    df = pd.read_csv(args.input_file)
 
     # Select target station
-    station = "Melle AWS"
-    station_data = df[df['station_name'] == station]
+    station_data = df[df['station_name'] == args.target_station]
 
     # Create target time series with a datetime index
     series = pd.Series(
@@ -153,7 +192,7 @@ if __name__ == "__main__":
     # Create exogenous DataFrame if requested
     exog_df = None
     if args.exog:
-        other_stations = [s for s in df['station_name'].unique() if s != station]
+        other_stations = [s for s in df['station_name'].unique() if s != args.target_station]
         exog_data = df[df['station_name'].isin(other_stations)]
 
         # Pivot to get each station as a separate column
@@ -171,7 +210,7 @@ if __name__ == "__main__":
         exog_df = exog_pivot
 
     # Shorten the data to the specified number of weeks (if not in repeat_forecast mode)
-    if args.mode != "repeat_forecast" and args.mode != "simulate_real_forecast":
+    if args.mode not in ["repeat_forecast", "simulate_real_forecast", "experiment_retrain_frequency", "confidence_score"]:
         total_weeks = (series.index.max().year - series.index.min().year) * 52 + \
                       (series.index.max().month - series.index.min().month) * 4 + \
                       (series.index.max().day - series.index.min().day) // 7
@@ -186,7 +225,7 @@ if __name__ == "__main__":
                 exog_df = exog_df[(exog_df.index >= start_date) & (exog_df.index < end_date)]
 
     # Resample data by taking the mean
-    series = series.resample(args.resample).mean()
+    series = series.resample(args.resample).mean().interpolate(limit_direction="both")
 
     # Resample exogenous data if provided
     if exog_df is not None:
@@ -203,11 +242,11 @@ if __name__ == "__main__":
     elif args.mode == "repeat_forecast":
         if args.model == "sarima":
             repeat_forecasts(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
-                             arima_order=(15, 0, 0), seasonal_order=(1, 0, 1, 24),
+                             arima_order=(15, 0, 0), seasonal_order=(1, 0, 1, 24), confidence_score=False,
                              n_repeats=30, random_seed=47, max_iter=1000, n_jobs=10)
         else:
             repeat_forecasts(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
-                             arima_order=(25, 0, 0), seasonal_order=(0, 0, 0, 0),
+                             arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), confidence_score=False,
                              n_repeats=30, random_seed=47, max_iter=1000, n_jobs=10)
 
     elif args.mode == "grid_search":
@@ -217,6 +256,10 @@ if __name__ == "__main__":
         else:
             arima_grid_search(series, exog_df=exog_df, p_values=range(10, 41, 10), d_values=[0], q_values=[0], max_workers=10)
 
+    elif args.mode == "bayes_search":
+        sarima_bayes_search(series, exog_df=exog_df, S=24, p_range=(0, 50), d_range=(0, 2), q_range=(0, 2),
+                            P_range=(0, 2), D_range=(0, 1), Q_range=(0, 2))
+
     elif args.mode == "diagnostics":
         arima_plot_diagnostics(series)
 
@@ -224,3 +267,13 @@ if __name__ == "__main__":
         repeat_simulate_forecast(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
                                  arima_order=(25, 0, 0), seasonal_order=(0, 0, 0, 0),
                                  n_repeats=30, random_seed=47, max_iter=1000, n_jobs=10)
+
+    elif args.mode == "experiment_retrain_frequency":
+        experiment_retrain_frequency(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
+                                     arima_order=(25, 0, 0), seasonal_order=(0, 0, 0, 0),
+                                     n_repeats=30, random_seed=57, max_iter=1000, n_jobs=10)
+
+    elif args.mode == "confidence_score":
+        repeat_forecasts(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
+                         arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), confidence_score=True,
+                         n_repeats=50, random_seed=47, max_iter=1000, n_jobs=10)
