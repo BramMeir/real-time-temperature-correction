@@ -34,31 +34,34 @@ def sarima_forecast_with_confidence_score(
     errors: Dictionary containing MAE and MSE of the forecast
     importance: Series containing feature importance of exogenous variables (if provided)
     """
-    # if exog_df is not None:
-    #     lags = [1, 2]
-    #     lagged_exogs = []
-    #     for lag in lags:
-    #         lagged = exog_df.shift(lag)
-    #         lagged.columns = [f"{col}_lag{lag}" for col in exog_df.columns]
-    #         lagged_exogs.append(lagged)
+    if exog_df is not None:
+        if series.index.freq == pd.Timedelta("10min"):
+            # Mean of previous full hour (6 × 10-minute intervals)
+            window_size = 6
+            exog_hour_mean = (
+                exog_df.shift(1)
+                .rolling(window=window_size, min_periods=window_size)
+                .mean()
+            )
+            exog_hour_mean.columns = [f"{col}_prev_hour_mean" for col in exog_df.columns]
 
-    #     # Mean of previous full hour (6 × 10-minute intervals)
-    #     # window_size = 6
-    #     # exog_hour_mean = (
-    #     #     exog_df.shift(1)
-    #     #     .rolling(window=window_size, min_periods=window_size)
-    #     #     .mean()
-    #     # )
-    #     # exog_hour_mean.columns = [f"{col}_prev_hour_mean" for col in exog_df.columns]
+            exog_df = pd.concat([exog_hour_mean], axis=1).dropna()
 
-    #     # Combine original, lag, and hour-mean features
-    #     # exog_df = pd.concat([exog_df, *lagged_exogs, exog_hour_mean], axis=1).dropna()
-    #     exog_df = pd.concat([exog_df, *lagged_exogs], axis=1).dropna()
+        elif series.index.freq == pd.Timedelta("1h"):
+            # Add the previous hour as lagged exogenous variable
+            lags = [1]
+            lagged_exogs = []
+            for lag in lags:
+                lagged = exog_df.shift(lag)
+                lagged.columns = [f"{col}_lag{lag}" for col in exog_df.columns]
+                lagged_exogs.append(lagged)
 
-    #     # Align timestamps of target and exogenous data
-    #     common_idx = series.index.intersection(exog_df.index)
-    #     series = series.loc[common_idx]
-    #     exog_df = exog_df.loc[common_idx]
+            exog_df = pd.concat(lagged_exogs, axis=1).dropna()
+
+        # Align timestamps of target and exogenous data
+        common_idx = series.index.intersection(exog_df.index)
+        series = series.loc[common_idx]
+        exog_df = exog_df.loc[common_idx]
 
     # Split the data into training and test sets
     split_date = series.index.max() - pd.DateOffset(hours=hours_to_forecast)
