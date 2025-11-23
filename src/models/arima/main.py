@@ -20,6 +20,7 @@ from src.models.arima.grid_search import arima_grid_search, sarima_grid_search
 from src.models.arima.plot_diagnositcs import arima_plot_diagnostics
 from src.models.arima.simulate_real_forecast import repeat_simulate_forecast, experiment_retrain_frequency
 from src.models.arima.confidence_score import sarima_forecast_with_confidence_score
+from src.models.arima.bayes_search import sarima_bayes_search
 
 
 def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_forecast,
@@ -157,7 +158,7 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run ARIMA forecast utilities.")
-    parser.add_argument("--mode", choices=["forecast", "repeat_forecast", "grid_search", "diagnostics",
+    parser.add_argument("--mode", choices=["forecast", "repeat_forecast", "grid_search", "bayes_search", "diagnostics",
                                            "simulate_real_forecast", "experiment_retrain_frequency", "confidence_score"],
                         default="forecast", help="Select which ARIMA task to run.")
     parser.add_argument("--model", choices=["arima", "sarima"],
@@ -245,8 +246,8 @@ if __name__ == "__main__":
                              n_repeats=30, random_seed=47, max_iter=1000, n_jobs=10)
         else:
             repeat_forecasts(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
-                             arima_order=(25, 0, 0), seasonal_order=(0, 0, 0, 0), confidence_score=False,
-                             n_repeats=100, random_seed=47, max_iter=1000, n_jobs=10)
+                             arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), confidence_score=False,
+                             n_repeats=30, random_seed=47, max_iter=1000, n_jobs=10)
 
     elif args.mode == "grid_search":
         if args.model == "sarima":
@@ -254,6 +255,10 @@ if __name__ == "__main__":
                                P_values=range(1, 4), D_values=[0], Q_values=range(1, 4), S=24, max_workers=10)
         else:
             arima_grid_search(series, exog_df=exog_df, p_values=range(10, 41, 10), d_values=[0], q_values=[0], max_workers=10)
+
+    elif args.mode == "bayes_search":
+        sarima_bayes_search(series, exog_df=exog_df, S=24, p_range=(0, 50), d_range=(0, 2), q_range=(0, 2),
+                            P_range=(0, 2), D_range=(0, 1), Q_range=(0, 2))
 
     elif args.mode == "diagnostics":
         arima_plot_diagnostics(series)
@@ -266,9 +271,9 @@ if __name__ == "__main__":
     elif args.mode == "experiment_retrain_frequency":
         experiment_retrain_frequency(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
                                      arima_order=(25, 0, 0), seasonal_order=(0, 0, 0, 0),
-                                     n_repeats=30, random_seed=47, max_iter=1000, n_jobs=10)
+                                     n_repeats=30, random_seed=57, max_iter=1000, n_jobs=10)
 
     elif args.mode == "confidence_score":
         repeat_forecasts(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
-                         arima_order=(25, 0, 0), seasonal_order=(0, 0, 0, 0), confidence_score=True,
+                         arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), confidence_score=True,
                          n_repeats=50, random_seed=47, max_iter=1000, n_jobs=10)
