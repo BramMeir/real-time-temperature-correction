@@ -184,11 +184,11 @@ def test_RF_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
                     run_single_forecast,
                     df_slice,
                     target_station="Betel",
-                    previous_time_steps=24,
+                    previous_time_steps=3,
                     exog_cols=exog_df_full.columns.tolist(),
                     start=random_start,
                     train_end=train_end,
-                    end=forecast_end,
+                    test_end=forecast_end,
                     mode="repeat_forecast",
                 ))
 
