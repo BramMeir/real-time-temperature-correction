@@ -1,4 +1,5 @@
 from sklearn.ensemble import RandomForestRegressor
+import pandas as pd
 
 
 def train_random_forest(X_train, y_train, random_seed=42, n_estimators=350, max_depth=20,
@@ -29,15 +30,15 @@ def train_random_forest(X_train, y_train, random_seed=42, n_estimators=350, max_
     rf_model.fit(X_train, y_train)
 
     # # Get the feature importances
-    # importances = rf_model.feature_importances_
+    importances = rf_model.feature_importances_
 
     # # Map the feature importances to their corresponding feature names
-    # feature_importance_df = pd.DataFrame({
-    #     'Feature': X_train.columns,
-    #     'Importance': importances
-    # }).sort_values(by='Importance', ascending=False)
+    feature_importance_df = pd.DataFrame({
+        'Feature': X_train.columns,
+        'Importance': importances
+    }).sort_values(by='Importance', ascending=False)
 
     # print("Feature importances:")
     # print(feature_importance_df.head(10))
 
-    return rf_model
+    return rf_model, feature_importance_df

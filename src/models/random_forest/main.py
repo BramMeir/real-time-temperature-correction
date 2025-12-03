@@ -45,7 +45,7 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
     date_ranges = [(start, start + weeks_offset, start + weeks_offset + hours_offset)
                    for start in start_dates]
 
-    mae_scores, mse_scores = [], []
+    mae_scores, mse_scores, importances_list = [], [], []
 
     with ThreadPoolExecutor() as executor:
         futures = []
@@ -59,9 +59,18 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
             )
 
         for f in as_completed(futures):
-            mae, mse = f.result()
+            mae, mse, importances = f.result()
             mae_scores.append(mae)
             mse_scores.append(mse)
+            if importances is not None:
+                importances_list.append(importances)
+
+    if importances_list:
+        # Get average feature importances over all runs
+        all_importances = pd.concat(importances_list)
+        avg_importances = all_importances.groupby('Feature').mean().sort_values(by='Importance', ascending=False)
+        print("Average Feature Importances over all runs:")
+        print(avg_importances.head(10))
 
     print(f"Average MAE over {n_repeats} runs: {np.mean(mae_scores):.4f} ± {np.std(mae_scores):.4f}")
     print(f"Average MSE over {n_repeats} runs: {np.mean(mse_scores):.4f} ± {np.std(mse_scores):.4f}")

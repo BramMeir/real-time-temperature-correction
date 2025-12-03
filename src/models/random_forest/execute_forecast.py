@@ -34,20 +34,21 @@ def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=No
     # Create supervised dataset
     X, y = create_supervised_dataset(df, target_station=target_station,
                                      previous_time_steps=previous_time_steps,
-                                     exog_cols=exog_cols, exog_lags=2)
+                                     exog_cols=exog_cols, exog_lags=0)
 
     # Select the data based on the provided date ranges
     X_train, y_train = X.loc[start:train_end], y.loc[start:train_end]
     X_test, y_test = X.loc[train_end:test_end], y.loc[train_end:test_end]
 
     # Dependant on the mode, train the model using the selected parameters or Bayesian search
+    importances = None
     if mode == "bayes_search":
         model, _ = bayes_search_random_forest(X_train, y_train, X_test, y_test)
     else:
-        model = train_random_forest(X_train, y_train)
+        model, importances = train_random_forest(X_train, y_train)
 
     # Evaluate using recursive multi-step forecasting
     mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, plot=False)
     mse = rmse ** 2
 
-    return mae, mse
+    return mae, mse, importances

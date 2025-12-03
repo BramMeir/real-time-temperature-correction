@@ -196,7 +196,7 @@ def test_RF_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
                 ))
 
             for future in as_completed(futures):
-                mae, mse = future.result()
+                mae, mse, _ = future.result()
                 temp_mse_list.append(mse)
                 temp_mae_list.append(mae)
 
@@ -316,7 +316,7 @@ def test_MLP_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
     mse_dir = {}
     mae_dir = {}
 
-    max_start = series_full.index.max() - pd.DateOffset(hours=336 + 24 * 14)
+    max_start = series_full.index.max() - pd.DateOffset(hours=336 + 24 * 21)
     min_start = series_full.index.min()
 
     # Keep a list of the X_test and y_test
@@ -326,11 +326,11 @@ def test_MLP_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
 
     with ProcessPoolExecutor(max_workers=10) as executor:
         futures = []
-        for i in range(50):
+        for i in range(100):
 
             # Select random 6 weeks (training) + forecast horizon from series and exog_df
             random_start = min_start + (max_start - min_start) * np.random.random()
-            train_end = random_start + pd.DateOffset(hours=24 * 7 * 4)
+            train_end = random_start + pd.DateOffset(hours=24 * 7 * 3)
             max_forecast_end = train_end + pd.DateOffset(hours=336)
 
             # Take the slice of the dataframe for the selected period
@@ -372,7 +372,7 @@ def test_MLP_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
                 y_test = temp_y_test[index].iloc[:hours_to_forecast]
 
                 # Make predictions
-                mae, rmse = evaluate_forecast(model, y_train, X_test, y_test)
+                mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, True)
                 mse = rmse ** 2
 
                 # Store the errors
