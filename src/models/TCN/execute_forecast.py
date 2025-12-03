@@ -1,4 +1,4 @@
-from src.data.create_supervised import create_supervised_dataset
+from src.data.create_3d_dataset import create_3d_dataset
 from src.models.TCN.bayes_search import bayes_search_tcn
 from src.models.MLP.train import train_mlp_model
 from src.models.random_forest.evaluate_forecast import evaluate_forecast
@@ -27,27 +27,28 @@ def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=No
     mae: Mean Absolute Error on the test set
     mse: Mean Squared Error on the test set
     """
-    print(df.head())
     # Print the date range being used
     print(f"Running forecast from {start} to {test_end} with training until {train_end}")
 
     # Create supervised dataset
-    X, y = create_supervised_dataset(df, target_station=target_station,
-                                     previous_time_steps=previous_time_steps,
-                                     exog_cols=exog_cols, exog_lags=0)
+    X, y, dates = create_3d_dataset(df, target_station=target_station,
+                                    previous_time_steps=previous_time_steps,
+                                    exog_cols=exog_cols)
 
     # Select the data based on the provided date ranges
-    X_train, y_train = X.loc[start:train_end], y.loc[start:train_end]
-    X_test, y_test = X.loc[train_end:test_end], y.loc[train_end:test_end]
+    # Boolean masks for date filtering
+    train_mask = (dates >= start) & (dates <= train_end)
+    test_mask = (dates > train_end) & (dates <= test_end)
 
-    # The TCN model expects a 3D array: (samples, timesteps, features).
-    # We convert our 2D DataFrame into a 3D NumPy array where each sample has 1 timestep.
-    X_train_reshaped = X_train.values.reshape((X_train.shape[0], 1, X_train.shape[1]))
-    X_test_reshaped = X_test.values.reshape((X_test.shape[0], 1, X_test.shape[1]))
+    X_train = X[train_mask]
+    y_train = y[train_mask]
+
+    X_test = X[test_mask]
+    y_test = y[test_mask]
 
     # Dependant on the mode, train the model using the selected parameters or Bayesian search
     if mode == "bayes_search":
-        model, _ = bayes_search_tcn(X_train_reshaped, y_train, X_test_reshaped, y_test)
+        model, _ = bayes_search_tcn(X_train, y_train, X_test, y_test)
     else:
         model = train_mlp_model(X_train, y_train)
 
