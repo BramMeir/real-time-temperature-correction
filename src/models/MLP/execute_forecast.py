@@ -1,13 +1,13 @@
 from src.data.create_supervised import create_supervised_dataset
-from src.models.random_forest.bayes_search import bayes_search_random_forest
-from src.models.random_forest.train import train_random_forest
+from src.models.MLP.bayes_search import bayes_search_mlp
+from src.models.MLP.train import train_mlp_model
 from src.models.random_forest.evaluate_forecast import evaluate_forecast
 
 
 def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=None,
                         start=None, train_end=None, test_end=None, mode="bayes_search"):
     """
-    Runs a single forecast using Random Forest, either with Bayesian hyperparameter search or
+    Runs a single forecast using MLP, either with Bayesian hyperparameter search or
     with the default parameters for training. Evaluates the model using recursive multi-step forecasting.
 
 
@@ -21,7 +21,6 @@ def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=No
     train_end: End date for the training set
     test_end: End date for the test set
     mode: Mode of operation ("bayes_search" or "forecast")
-
 
     Output
     ------
@@ -41,14 +40,13 @@ def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=No
     X_test, y_test = X.loc[train_end:test_end], y.loc[train_end:test_end]
 
     # Dependant on the mode, train the model using the selected parameters or Bayesian search
-    importances = None
     if mode == "bayes_search":
-        model, _ = bayes_search_random_forest(X_train, y_train, X_test, y_test)
+        model, _ = bayes_search_mlp(X_train, y_train, X_test, y_test)
     else:
-        model, importances = train_random_forest(X_train, y_train)
+        model = train_mlp_model(X_train, y_train)
 
     # Evaluate using recursive multi-step forecasting
-    mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, plot=False)
+    mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, plot=True)
     mse = rmse ** 2
 
-    return mae, mse, importances
+    return mae, mse

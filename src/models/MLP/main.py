@@ -1,20 +1,20 @@
 """
-Main script for Random Forest model training.
+Main script for MLP model training.
 
 Example usage:
-python -m src.models.random_forest.main --input ./data/preprocessed.csv --mode repeat_forecast
+python -m src.models.MLP.main --input ./data/preprocessed.csv --mode repeat_forecast
 """
 import argparse
 import numpy as np
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from src.models.random_forest.execute_forecast import run_single_forecast
+from src.models.MLP.execute_forecast import run_single_forecast
 
 
 def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=42, n_repeats=10,
                 weeks=2, hours_to_forecast=48, mode="repeat_forecast"):
     """
-    Repeats the training and evaluation of the Random Forest model.
+    Repeats the training and evaluation of the MLP model.
 
     Input
     -----
@@ -45,7 +45,7 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
     date_ranges = [(start, start + weeks_offset, start + weeks_offset + hours_offset)
                    for start in start_dates]
 
-    mae_scores, mse_scores, importances_list = [], [], []
+    mae_scores, mse_scores = [], []
 
     with ThreadPoolExecutor() as executor:
         futures = []
@@ -59,18 +59,9 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
             )
 
         for f in as_completed(futures):
-            mae, mse, importances = f.result()
+            mae, mse = f.result()
             mae_scores.append(mae)
             mse_scores.append(mse)
-            if importances is not None:
-                importances_list.append(importances)
-
-    if importances_list:
-        # Get average feature importances over all runs
-        all_importances = pd.concat(importances_list)
-        avg_importances = all_importances.groupby('Feature').mean().sort_values(by='Importance', ascending=False)
-        print("Average Feature Importances over all runs:")
-        print(avg_importances.head(10))
 
     print(f"Average MAE over {n_repeats} runs: {np.mean(mae_scores):.4f} ± {np.std(mae_scores):.4f}")
     print(f"Average MSE over {n_repeats} runs: {np.mean(mse_scores):.4f} ± {np.std(mse_scores):.4f}")
@@ -78,10 +69,10 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
 
 if __name__ == "__main__":
     # Define the arguments for the main script
-    parser = argparse.ArgumentParser(description="Random Forest Model Training Script")
+    parser = argparse.ArgumentParser(description="MLP Model Training Script")
     parser.add_argument('--input', type=str, required=True, help='Path to the input CSV file')
     parser.add_argument("--mode", choices=["repeat_forecast", "bayes_search"],
-                        default="repeat_forecast", help="Select which RF task to run.")
+                        default="repeat_forecast", help="Select which MLP task to run.")
     args = parser.parse_args()
 
     # Read the dataset
@@ -106,5 +97,5 @@ if __name__ == "__main__":
     exog_cols = [col for col in df_pivot.columns if col != target_station]
 
     # Run repeated task
-    repeat_task(df_pivot, target_station, previous_time_steps=3, exog_cols=exog_cols,
+    repeat_task(df_pivot, target_station, previous_time_steps=5, exog_cols=exog_cols,
                 random_seed=47, n_repeats=50, weeks=8, hours_to_forecast=48, mode=args.mode)
