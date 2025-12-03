@@ -623,6 +623,21 @@ packaging = "*"
 rich = "*"
 
 [[package]]
+name = "keras-tcn"
+version = "3.5.6"
+description = "Keras TCN"
+optional = false
+python-versions = "*"
+files = [
+    {file = "keras_tcn-3.5.6-py3-none-any.whl", hash = "sha256:14e4abce58346245c432d3f66abe86c742932cce5b6db7a53585f912d18ea61c"},
+    {file = "keras_tcn-3.5.6.tar.gz", hash = "sha256:db487eaebcf0806967fce6427fb091b9634edfc91b5e766fad2f8454f0c1ca8b"},
+]
+
+[package.dependencies]
+numpy = "*"
+tensorflow = "*"
+
+[[package]]
 name = "keras-tuner"
 version = "1.4.8"
 description = "A Hyperparameter Tuning Library for Keras"
@@ -1756,6 +1771,25 @@ pygments = ">=2.13.0,<3.0.0"
 jupyter = ["ipywidgets (>=7.5.1,<9)"]
 
 [[package]]
+name = "scikeras"
+version = "0.13.0"
+description = "Scikit-Learn API wrapper for Keras."
+optional = false
+python-versions = "<4,>=3.9.0"
+files = [
+    {file = "scikeras-0.13.0-py3-none-any.whl", hash = "sha256:beeec4536129e316f8ffa56b32cbc097fa9168f3789feb243cadb8d9a36a0084"},
+    {file = "scikeras-0.13.0.tar.gz", hash = "sha256:bfc720b2755f6c09981da13c9858e999a4bf775c49b0a296847dd1adad4c5d7d"},
+]
+
+[package.dependencies]
+keras = ">=3.2.0"
+scikit-learn = ">=1.4.2"
+
+[package.extras]
+tensorflow = ["tensorflow (>=2.16.1)"]
+test = ["tensorflow (>=2.16.1)"]
+
+[[package]]
 name = "scikit-learn"
 version = "1.7.2"
 description = "A set of python modules for machine learning and data mining"
@@ -2292,4 +2326,4 @@ dev = ["pytest", "setuptools"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "5f12fc55ee24a7b3a5bc84367a9ac549ccaf7a469d30eb71b79d6cfa6a716866"
+content-hash = "dc6b76eb9e36a227ce3f7401714973d1a00b025c26d4154a401dbb99355997dd"
