@@ -117,8 +117,11 @@ def sarima_forecast(series, exog_df=None, hours_to_forecast=48, arima_order=(10,
         plt.xlabel('Datetime')
         plt.ylabel('Temperature (°C)')
         plt.legend()
-        plt.title('SARIMA Forecast vs Real Data')
-        plt.show()
+        plt.title('SARIMA Forecast (1-hour data)')
+
+        # Generate random filename to save the plot
+        random_filename = f"sarima_forecast_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.png"
+        plt.savefig(f"plot_results/{random_filename}")
 
     # Calculate and print the Mean Absolute Error (MAE) and Mean Squared Error (MSE) of the forecast
     errors = evaluate_forecasts(test, y_forecasted)

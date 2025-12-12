@@ -93,12 +93,12 @@ def plot_difference_stations(csv_path, start_date, end_date, station_col, dateti
     if resample_freq:
         pivot_df = pivot_df.resample(resample_freq).mean()
 
+    plt.figure(figsize=(12, 6))
     if base_station and base_station in pivot_df.columns:
-        plt.figure(figsize=(12, 6))
         for col in pivot_df.columns:
             if col != base_station:
                 diff = pivot_df[base_station] - pivot_df[col]
-                mean_rolling = diff.rolling('1h').mean()
+                mean_rolling = diff.rolling('14D').mean()
 
                 # Filter based on date range
                 mask = (mean_rolling.index >= start_date) & (mean_rolling.index <= end_date)
@@ -111,7 +111,7 @@ def plot_difference_stations(csv_path, start_date, end_date, station_col, dateti
                 station_a = pivot_df.columns[i]
                 station_b = pivot_df.columns[j]
                 diff_AB = pivot_df[station_a] - pivot_df[station_b]
-                mean_rolling = diff_AB.rolling('3h').mean()
+                mean_rolling = diff_AB.rolling('14D').mean()
 
                 # Filter based on date range
                 mask = (mean_rolling.index >= start_date) & (mean_rolling.index <= end_date)
@@ -122,7 +122,7 @@ def plot_difference_stations(csv_path, start_date, end_date, station_col, dateti
                else f"Mean Difference from {base_station} last 3 hours")
     plt.legend()
     plt.tight_layout()
-    plt.show()
+    plt.savefig("station_differences.png", dpi=300)
 
 
 if __name__ == "__main__":

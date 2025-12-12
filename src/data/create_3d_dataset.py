@@ -63,9 +63,4 @@ def create_3d_dataset(df, target_station, previous_time_steps=24, exog_cols=None
     y = np.array(y)
     indices = pd.to_datetime(indices)
 
-    print("First rows of created 3D dataset:")
-    print("X[0]:", X[0])
-    print("y[0]:", y[0])
-
-    print(f"Dataset created. Shape X: {X.shape}, Shape y: {y.shape}")
     return X, y, indices
