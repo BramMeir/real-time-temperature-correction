@@ -12,10 +12,12 @@ from src.evaluation.comparison_amber.evaluation_gf_techniques import Test_techni
 from src.models.arima.sarima_forecast import sarima_forecast
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.models.random_forest.execute_forecast import run_single_forecast
-from src.models.random_forest.evaluate_forecast import evaluate_forecast
+from src.models.TCN.evaluate_forecast import evaluate_forecast as evaluate_tcn_forecast
 from src.models.LSTM.execute_forecast import run_single_forecast as run_single_LSTM_forecast
 from src.models.MLP.train import train_mlp_model
+from src.models.TCN.train import train_tcn_model
 from src.data.create_supervised import create_supervised_dataset
+from src.data.create_3d_dataset import create_3d_dataset
 
 
 def test_different_gf_techniques_amber(input_file="data/Turku/Turku_1H_LI.csv"):
@@ -372,7 +374,7 @@ def test_MLP_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
                 y_test = temp_y_test[index].iloc[:hours_to_forecast]
 
                 # Make predictions
-                mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, True)
+                mae, rmse = evaluate_tcn_forecast(model, y_train, X_test, y_test, True)
                 mse = rmse ** 2
 
                 # Store the errors
@@ -405,9 +407,140 @@ def execute_train_mlp_model(i, X_train, y_train, random_seed):
     return model, i
 
 
+def test_TCN_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
+    """
+    Test the TCN approach on the Turku dataset for different forecast horizons.
+
+    Input
+    -----
+    seed : Random seed for reproducibility.
+    """
+    # Set seed for reproducibility
+    np.random.seed(seed)
+
+    # Read the Turku data into a dataframe
+    df_Turku = pd.read_csv(input_file, index_col="DateTime", parse_dates=True)
+
+    # Make sure the Turku data is complete by filling missing timestamps using Linear Interpolation
+    df_Turku = df_Turku.resample("h").mean().interpolate()
+
+    # Select the target station time series
+    series_full = df_Turku["Betel"]
+
+    # Select the exogenous data (other stations in the Turku dataset)
+    exog_df_full = df_Turku.drop(columns=["Betel"])
+
+    # Keep track of the forecast errors
+    mse_dir = {}
+    mae_dir = {}
+
+    max_start = series_full.index.max() - pd.DateOffset(hours=336 + 24 * 14)
+    min_start = series_full.index.min()
+
+    # Keep a list of the X_test and y_test
+    temp_y_train = {}
+    temp_x_test = {}
+    temp_y_test = {}
+    temp_dates_train = {}
+    temp_dates_test = {}
+
+    with ProcessPoolExecutor(max_workers=10) as executor:
+        futures = []
+        for i in range(50):
+
+            # Select random 2 weeks (training) + forecast horizon from series and exog_df
+            random_start = min_start + (max_start - min_start) * np.random.random()
+            train_end = random_start + pd.DateOffset(hours=24 * 7 * 2)
+            max_forecast_end = train_end + pd.DateOffset(hours=336)
+
+            # Take the slice of the dataframe for the selected period
+            df_slice = df_Turku.loc[random_start:max_forecast_end].copy()
+
+            # Create supervised dataset
+            X, y, dates = create_3d_dataset(df_slice, target_station="Betel",
+                                            previous_time_steps=24 * 3,
+                                            exog_cols=exog_df_full.columns.tolist())
+
+            # Select the data based on the provided date ranges
+            train_mask = (dates >= random_start) & (dates <= train_end)
+            test_mask = (dates > train_end) & (dates <= max_forecast_end)
+
+            X_train = X[train_mask]
+            y_train = y[train_mask]
+
+            X_test = X[test_mask]
+            y_test = y[test_mask]
+
+            # Store the test sets for evaluation later
+            temp_y_train[i] = y_train
+            temp_x_test[i] = X_test
+            temp_y_test[i] = y_test
+            temp_dates_train[i] = dates[train_mask]
+            temp_dates_test[i] = dates[test_mask]
+
+            futures.append(executor.submit(
+                execute_train_tcn_model,
+                i,
+                X_train,
+                y_train,
+                seed
+            ))
+
+        for future in as_completed(futures):
+            # Get both the model and the corresponding index
+            model, index = future.result()
+
+            for hours_to_forecast in [5, 7, 12, 24, 48, 168, 336]:
+                print(f"\nForecasting {hours_to_forecast} hours into the future (index {index}):")
+
+                # Get the corresponding test set
+                y_train = temp_y_train[index]
+                X_test = temp_x_test[index][:hours_to_forecast]
+                y_test = temp_y_test[index][:hours_to_forecast]
+                dates_train = temp_dates_train[index]
+                dates_test = temp_dates_test[index][:hours_to_forecast]
+
+                # Make predictions
+                mae, rmse = evaluate_tcn_forecast(model, y_train, X_test, y_test,
+                                                  dates_train, dates_test,
+                                                  previous_time_steps=24 * 3,
+                                                  target_station="Betel", plot=True)
+
+                mse = rmse ** 2
+
+                # Store the errors
+                if hours_to_forecast not in mse_dir:
+                    mse_dir[hours_to_forecast] = []
+                    mae_dir[hours_to_forecast] = []
+
+                mse_dir[hours_to_forecast].append(mse)
+                mae_dir[hours_to_forecast].append(mae)
+
+    # Calculate average errors for each forecast horizon
+    mse_list = []
+    mae_list = []
+
+    for hours_to_forecast in [5, 7, 12, 24, 48, 168, 336]:
+        mse_list.append(np.mean(mse_dir[hours_to_forecast]))
+        mae_list.append(np.mean(mae_dir[hours_to_forecast]))
+
+    print("\nAverage MSE for different forecast horizons:")
+    for hours, mse in zip([5, 7, 12, 24, 48, 168, 336], mse_list):
+        print(f"{hours} hours: MSE = {mse}")
+
+    print("\nAverage MAE for different forecast horizons:")
+    for hours, mae in zip([5, 7, 12, 24, 48, 168, 336], mae_list):
+        print(f"{hours} hours: MAE = {mae}")
+
+
+def execute_train_tcn_model(i, X_train, y_train, random_seed):
+    model = train_tcn_model(X_train, y_train, random_seed=random_seed)
+    return model, i
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run gap-filling technique comparisons.")
-    parser.add_argument("--model", choices=["amber", "sarima", "RF", "LSTM", "MLP"], default="sarima",
+    parser.add_argument("--model", choices=["amber", "sarima", "RF", "LSTM", "MLP", "TCN"], default="sarima",
                         help="Specify which model to use.")
     parser.add_argument("--input", type=str, default="data/Turku/Turku_1H_LI.csv", help="Path to the input CSV file.")
     args = parser.parse_args()
@@ -420,5 +553,7 @@ if __name__ == "__main__":
         test_LSTM_approach(input_file=args.input)
     elif args.model == "MLP":
         test_MLP_approach(input_file=args.input)
+    elif args.model == "TCN":
+        test_TCN_approach(input_file=args.input)
     else:
         test_SARIMA_approach(input_file=args.input)

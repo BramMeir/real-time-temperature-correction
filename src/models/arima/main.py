@@ -74,7 +74,7 @@ def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_fore
             arima_order=arima_order,
             seasonal_order=seasonal_order,
             max_iter=max_iter,
-            plot=False
+            plot=True
         )
 
         return errors['MAE'], errors['MSE'], importance, None, None
@@ -237,7 +237,8 @@ if __name__ == "__main__":
             sarima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(10, 0, 1),
                             seasonal_order=(1, 0, 1, 24), max_iter=1000)
         else:
-            sarima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(25, 0, 0), max_iter=1000)
+            sarima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(2, 0, 0),
+                            seasonal_order=(1, 0, 1, 24), max_iter=1000)
 
     elif args.mode == "repeat_forecast":
         if args.model == "sarima":
@@ -247,7 +248,7 @@ if __name__ == "__main__":
         else:
             repeat_forecasts(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
                              arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), confidence_score=False,
-                             n_repeats=30, random_seed=47, max_iter=1000, n_jobs=10)
+                             n_repeats=50, random_seed=47, max_iter=1000, n_jobs=10)
 
     elif args.mode == "grid_search":
         if args.model == "sarima":
