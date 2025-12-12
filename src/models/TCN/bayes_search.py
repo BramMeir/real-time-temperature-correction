@@ -4,6 +4,7 @@ from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 from skopt.space import Integer, Real, Categorical
 from src.models.TCN.skoptTCN import create_tcn_model
 from scikeras.wrappers import KerasRegressor
+from keras.callbacks import EarlyStopping
 
 
 def bayes_search_tcn(X_train, y_train, X_test, y_test, random_seed=42):
@@ -27,6 +28,9 @@ def bayes_search_tcn(X_train, y_train, X_test, y_test, random_seed=42):
     # Define the input shape from your training data
     input_shape = (X_train.shape[1], X_train.shape[2])
 
+    # Define early stopping callback (stop if validation loss doesn't improve for 10 epochs)
+    early_stopping = EarlyStopping(monitor='loss', patience=10, restore_best_weights=True)
+
     # Wrap the Keras model so it can be used by scikit-learn/skopt.
     # Pass the static `input_shape` parameter here.
     tcn_estimator = KerasRegressor(
@@ -34,10 +38,9 @@ def bayes_search_tcn(X_train, y_train, X_test, y_test, random_seed=42):
         input_shape=input_shape,
         verbose=0,
         epochs=100,
-        batch_size=16,
+        batch_size=32,
+        callbacks=[early_stopping]
     )
-
-    print(tcn_estimator.get_params().keys())
 
     # Hyperparameter search space
     search_space = {
@@ -45,9 +48,9 @@ def bayes_search_tcn(X_train, y_train, X_test, y_test, random_seed=42):
         "model__kernel_size": Integer(2, 8),                               # Size of the convolutional kernel
         "model__learning_rate": Real(1e-4, 1e-2, prior="log-uniform"),
         "model__dilations": Categorical([                                  # List/Tuple of dilation rates for TCN layers
+            "(1, 2)",
             "(1, 2, 4)",
             "(1, 2, 4, 8)",
-            "(1, 2, 4, 8, 16)",
         ]),
     }
 
@@ -58,10 +61,10 @@ def bayes_search_tcn(X_train, y_train, X_test, y_test, random_seed=42):
     bayes_search = BayesSearchCV(
         estimator=tcn_estimator,
         search_spaces=search_space,
-        n_iter=25,
+        n_iter=20,
         cv=tscv,
         scoring="neg_mean_absolute_error",
-        n_jobs=1,      # Set to 1 due to TensorFlow/Keras not being fully thread-safe
+        n_jobs=8,
         random_state=random_seed,
         verbose=2,
     )

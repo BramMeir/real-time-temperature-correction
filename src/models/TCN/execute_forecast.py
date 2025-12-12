@@ -1,7 +1,7 @@
 from src.data.create_3d_dataset import create_3d_dataset
 from src.models.TCN.bayes_search import bayes_search_tcn
-from src.models.MLP.train import train_mlp_model
-from src.models.random_forest.evaluate_forecast import evaluate_forecast
+from src.models.TCN.train import train_tcn_model
+from src.models.TCN.evaluate_forecast import evaluate_forecast
 
 
 def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=None,
@@ -50,10 +50,11 @@ def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=No
     if mode == "bayes_search":
         model, _ = bayes_search_tcn(X_train, y_train, X_test, y_test)
     else:
-        model = train_mlp_model(X_train, y_train)
+        model = train_tcn_model(X_train, y_train)
 
     # Evaluate using recursive multi-step forecasting
-    mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, plot=True)
+    mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, dates[train_mask], dates[test_mask],
+                                  previous_time_steps, target_station, plot=True)
     mse = rmse ** 2
 
     return mae, mse

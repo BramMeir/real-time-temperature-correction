@@ -2,6 +2,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Input
 from keras.optimizers import Adam
 from tcn import TCN
+from keras import backend as K
 import ast
 
 
@@ -25,8 +26,13 @@ def create_tcn_model(nb_filters=32, kernel_size=3, dilations="(1, 2, 4, 8)",
     # Convert the dilations string back to a tuple of integers
     try:
         actual_dilations = ast.literal_eval(dilations)
+        nb_filters = int(nb_filters)
+        kernel_size = int(kernel_size)
     except (ValueError, SyntaxError):
         raise ValueError("Dilations must be a string representation of a tuple, e.g., '(1, 2, 4)'")
+
+    # Clear the previous Keras session to avoid clutter from old models / layers.
+    K.clear_session()
 
     model = Sequential()
 
@@ -48,7 +54,7 @@ def create_tcn_model(nb_filters=32, kernel_size=3, dilations="(1, 2, 4, 8)",
     model.add(Dense(1))
 
     # Compile the model with the Adam optimizer and mean squared error for regression.
-    optimizer = Adam(learning_rate=learning_rate)
+    optimizer = Adam(learning_rate=learning_rate, clipnorm=1.0)
     model.compile(optimizer=optimizer, loss='mean_squared_error')
 
     return model

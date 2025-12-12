@@ -47,7 +47,7 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
 
     mae_scores, mse_scores = [], []
 
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=1) as executor:
         futures = []
 
         for (start, train_end, end) in date_ranges:
@@ -98,4 +98,4 @@ if __name__ == "__main__":
 
     # Run repeated task
     repeat_task(df_pivot, target_station, previous_time_steps=24 * 3, exog_cols=exog_cols,
-                random_seed=47, n_repeats=1, weeks=2, hours_to_forecast=48, mode=args.mode)
+                random_seed=47, n_repeats=30, weeks=2, hours_to_forecast=48, mode=args.mode)
