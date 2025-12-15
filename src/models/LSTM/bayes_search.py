@@ -49,16 +49,18 @@ def bayesian_search_LSTM(df, target_station, number, previous_time_steps=24):
 
     # Convert into time series datasets
     dataset_train = keras.preprocessing.timeseries_dataset_from_array(
-        data=X_train,
-        targets=y_train,
+        data=X_train[:-sequence_length],
+        targets=y_train[sequence_length:],
         sequence_length=sequence_length,
         batch_size=64,
+        shuffle=True,
     )
+
     dataset_val = keras.preprocessing.timeseries_dataset_from_array(
-        data=X_val,
-        targets=y_val,
+        data=X_val[:-sequence_length],
+        targets=y_val[sequence_length:],
         sequence_length=sequence_length,
-        batch_size=64,
+        batch_size=64
     )
 
     # Create the Bayesian tuner
