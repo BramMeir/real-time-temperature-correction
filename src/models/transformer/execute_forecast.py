@@ -1,5 +1,6 @@
 from src.models.transformer.evaluate_forecast import evaluate_forecast
 from src.models.transformer.bayes_search import bayesian_search_transformer
+from src.models.transformer.train import train_transformer_model
 
 
 def run_single_forecast(df, number, target_station, previous_time_steps=24,
@@ -33,16 +34,16 @@ def run_single_forecast(df, number, target_station, previous_time_steps=24,
     best_hp = None
 
     if mode == "bayes_search":
-        model, best_hp = bayesian_search_transformer(
+        model, best_hp, x_scaler, y_scaler = bayesian_search_transformer(
             df_train, target_station, number, previous_time_steps=previous_time_steps
         )
-    # else:
-    #     # Train with default parameters if not searching
-    #     model = train_Transformer_model(df_train, target_station, previous_time_steps=previous_time_steps)
+    else:
+        # Train with default parameters if not searching
+        model, x_scaler, y_scaler = train_transformer_model(df_train, target_station, previous_time_steps=previous_time_steps)
 
     # Evaluate
     mae, rmse = evaluate_forecast(
-        model, number, df_train, df_test, previous_time_steps, target_station, plot=True
+        model, number, df_train, df_test, previous_time_steps, target_station, x_scaler, y_scaler, plot=True
     )
     mse = rmse ** 2
 

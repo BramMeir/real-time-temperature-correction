@@ -1,166 +1,180 @@
-# https://www.scaler.com/topics/tensorflow/tensorflow-transformer/
-
-import numpy as np
+# See Transformer-based deep learning architecture for time series forecasting
+# Reference: https://www.sciencedirect.com/science/article/pii/S2665963824001040
+import os
+from tensorflow import keras
+from keras import layers
 import tensorflow as tf
+from keras.saving import register_keras_serializable
+
+# Suppress TensorFlow logging
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 
-def positional_encoding(length, depth):
+@register_keras_serializable(package="Custom", name="Time2Vec")
+class Time2Vec(layers.Layer):
     """
-    Creates a positional encoding for input sequences.
-    This is necessary for the Transformer model to capture the order of the sequence and understand
-    the relative positions of the time steps. Otherwise, the model would treat the input as a bag of features
-    without any temporal context.
-
-    How it works:
-    Each time step in the input sequence is mapped to a point in a high-dimensional periodic space.
-    Nearby time steps will have similar positional encodings, allowing the model to learn temporal relationships.
-
-    Input
-    -----
-    length: Length of the input sequences (number of time steps)
-    depth: Depth of the model (embedding dimension)
-
-    Output
-    ------
-    A tensor of shape (1, length, depth) containing the positional encodings.
+    Time2Vec or Sinusoidal Positional Encoding.
+    For simplicity in time series, we often use fixed Sin/Cos encoding
+    to help the model understand the order of data points.
     """
-    # Dividing depth by 2 to create separate sine and cosine components for each dimension (both half embedding space)
-    depth = depth / 2
+    def __init__(self, sequence_length, embed_dim, **kwargs):
+        super().__init__(**kwargs)
+        self.sequence_length = sequence_length
+        self.embed_dim = embed_dim
 
-    # Create arrays for positions and depths.
-    positions = np.arange(length)[:, np.newaxis]        # Shape: (seq, 1)
-    depths = np.arange(depth)[np.newaxis, :] / depth    # Shape: (1, depth)
+    def call(self, inputs):
+        # Create positions [0, 1, ..., seq_len-1]
+        positions = tf.range(start=0, limit=self.sequence_length, delta=1, dtype=tf.float32)
 
-    # Calculate angle rates to be used for positional encoding.
-    # This creates a unique frequency for each depth dimension, where the frequency decreases exponentially.
-    angle_rates = 1 / (10000 ** depths)                 # Shape: (1, depth)
+        # Calculate angle rates
+        d_model = tf.cast(self.embed_dim, tf.float32)
+        angle_rads = positions[:, tf.newaxis] / tf.pow(10000.0, (2 * (tf.range(d_model)[tf.newaxis, :] // 2)) / d_model)
 
-    # Calculate the angle radians for each position and depth.
-    # angle_rads[pos, dim] = pos / (10000 ^ (dim / depth))
-    angle_rads = positions * angle_rates                # Shape: (pos, depth)
+        # Apply sin to even indices, cos to odd indices
+        sines = tf.math.sin(angle_rads[:, 0::2])
+        cosines = tf.math.cos(angle_rads[:, 1::2])
 
-    # Compute the positional encoding using both sine and cosine functions.
-    # Concatenate sine and cosine components along the last axis.
-    pos_encoding = np.concatenate([np.sin(angle_rads), np.cos(angle_rads)], axis=-1)
+        pos_encoding = tf.concat([sines, cosines], axis=-1)
 
-    # Cast the positional encoding to the TensorFlow float32 data type before returning.
-    return tf.cast(pos_encoding, dtype=tf.float32)
+        # Add batch dimension so it matches input shape
+        return inputs + pos_encoding[tf.newaxis, :, :]
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "sequence_length": self.sequence_length,
+            "embed_dim": self.embed_dim,
+        })
+        return config
 
 
-class EncoderBlock(tf.keras.layers.Layer):
-    def __init__(self, d_model, num_heads, dff, dropout_rate=0.1):
-        super().__init__()
+def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
+    """
+    A single Transformer encoder block.
+    """
+    # Normalizes the inputs
+    x = layers.LayerNormalization(epsilon=1e-6)(inputs)
 
-        self.attention = tf.keras.layers.MultiHeadAttention(
+    # Multi-Head Self Attention
+    # Every head computes attention scores that show how much focus to put on the other time steps
+    # After this layer, each time step's representation is enriched with information from other time steps
+    x = layers.MultiHeadAttention(
+        key_dim=head_size, num_heads=num_heads, dropout=dropout
+    )(x, x)
+
+    x = layers.Dropout(dropout)(x)
+
+    # Residual connection
+    # Add the input back to the output of the attention layer, this to prevent information loss
+    res = x + inputs
+
+    # Feed Forward network
+    # A simple fully connected feed-forward network applied to each time step independently
+    # This non-linear transformation helps the model learn complex patterns
+    x = layers.LayerNormalization(epsilon=1e-6)(res)
+    x = layers.Dense(ff_dim, activation="gelu")(x)
+    x = layers.Dropout(dropout)(x)
+    x = layers.Dense(inputs.shape[-1])(x)
+
+    # Another residual connection after the feed-forward network
+    return x + res
+
+
+def build_bayes_transformer_model(hp, num_features, sequence_length):
+    """
+    Build and compile a Transformer model based on hyperparameters.
+    """
+    inputs = keras.Input(shape=(sequence_length, num_features))
+
+    # Hyperparameters
+    embed_dim = hp.Int("embed_dim", min_value=64, max_value=512, step=64)
+    num_heads = hp.Int("num_heads", min_value=2, max_value=6, step=2)
+    ff_dim = hp.Int("ff_dim", min_value=4, max_value=256, step=16)
+    num_blocks = hp.Int("num_blocks", min_value=2, max_value=6, step=1)
+    dropout_rate = hp.Float("dropout", min_value=0.1, max_value=0.2, step=0.1)
+
+    x = layers.Dense(embed_dim)(inputs)
+
+    # Add positional encoding
+    x = Time2Vec(sequence_length, embed_dim)(x)
+
+    # Stack Transformer blocks
+    for _ in range(num_blocks):
+        x = transformer_encoder(
+            x,
+            head_size=embed_dim // num_heads,
             num_heads=num_heads,
-            key_dim=d_model,
+            ff_dim=ff_dim,
             dropout=dropout_rate
         )
 
-        self.ffn = tf.keras.Sequential([
-            tf.keras.layers.Dense(dff, activation="relu"),
-            tf.keras.layers.Dense(d_model)
-        ])
+    # (batch_size, sequence_length, embed_dim)
+    # Decide which time steps are most important
+    x = layers.Attention()([x, x])
 
-        self.norm1 = tf.keras.layers.LayerNormalization()
-        self.norm2 = tf.keras.layers.LayerNormalization()
+    # Final pooling by averaging over time steps
+    # Each timestep contributes proportionally to its importance
+    x = layers.GlobalAveragePooling1D()(x)
 
-        self.dropout1 = tf.keras.layers.Dropout(dropout_rate)
-        self.dropout2 = tf.keras.layers.Dropout(dropout_rate)
+    # Map the summarized representation to the output scalar value
+    x = layers.Dropout(dropout_rate)(x)
+    x = layers.Dense(128, activation="relu")(x)
+    x = layers.Dropout(dropout_rate)(x)
+    outputs = layers.Dense(1)(x)
 
-    def call(self, x, training=False):
-        attn_output = self.attention(x, x, training=training)
-        x = self.norm1(x + self.dropout1(attn_output, training=training))
+    model = keras.Model(inputs=inputs, outputs=outputs)
 
-        ffn_output = self.ffn(x, training=training)
-        x = self.norm2(x + self.dropout2(ffn_output, training=training))
-
-        return x
-
-
-class TransformerForecaster(tf.keras.Model):
-    def __init__(
-        self,
-        *,
-        num_layers,
-        d_model,
-        num_heads,
-        dff,
-        sequence_length,
-        dropout_rate=0.1
-    ):
-        super().__init__()
-
-        self.d_model = d_model
-
-        # Project numeric inputs → d_model
-        self.input_projection = tf.keras.layers.Dense(d_model)
-
-        self.pos_encoding = positional_encoding(sequence_length, d_model)
-
-        self.encoder_blocks = [
-            EncoderBlock(d_model, num_heads, dff, dropout_rate)
-            for _ in range(num_layers)
-        ]
-
-        self.dropout = tf.keras.layers.Dropout(dropout_rate)
-
-        # Pool over time
-        self.pooling = tf.keras.layers.GlobalAveragePooling1D()
-
-        # Regression head
-        self.out = tf.keras.layers.Dense(1)
-
-    def call(self, x, training=False):
-        # x: (batch, time, features)
-        x = self.input_projection(x)
-        x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-
-        x = x + self.pos_encoding[:tf.shape(x)[1]]
-        x = self.dropout(x, training=training)
-
-        for block in self.encoder_blocks:
-            x = block(x, training=training)
-
-        x = self.pooling(x)
-        return self.out(x)
-
-
-def build_transformer_model(hp, sequence_length):
-    """
-    Builds a Transformer model based on the provided hyperparameters.
-
-    Input
-    -----
-    hp: Hyperparameters object containing the model configuration
-    sequence_length: Length of the input sequences
-
-    Output
-    ------
-    model: Compiled Transformer model
-    """
-    # Extract hyperparameters for the model architecture
-    num_layers = hp.Int("num_layers", min_value=2, max_value=6, step=1)
-    d_model = hp.Int("d_model", min_value=32, max_value=256, step=32)
-    num_heads = hp.Int("num_heads", min_value=2, max_value=8, step=2)
-    dff = hp.Int("dff", min_value=64, max_value=512, step=64)
-    lr = hp.Choice("learning_rate", values=[1e-2, 1e-3, 1e-4])
-
-    # Create the Transformer model
-    model = TransformerForecaster(
-        num_layers=num_layers,
-        d_model=d_model,
-        num_heads=num_heads,
-        dff=dff,
-        sequence_length=sequence_length,
-        dropout_rate=0.1
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate=1e-4),
+        loss="mse",
+        metrics=["mae"]
     )
 
-    # Compile the model with Adam optimizer and Mean Squared Error loss
+    return model
+
+
+def build_transformer_model(embed_dim, num_heads, ff_dim, num_blocks, dropout_rate, num_features, sequence_length):
+    """
+    Build and compile a Transformer model based on hyperparameters.
+    """
+    # (batch_size, sequence_length, num_features)
+    inputs = keras.Input(shape=(sequence_length, num_features))
+
+    # Feature projection
+    # This layer projects input features to the embedding dimension
+    # (batch_size, sequence_length, embed_dim)
+    x = layers.Dense(embed_dim)(inputs)
+
+    # Add positional encoding
+    # This adds time-based positional information to the embeddings, helping the model understand the order of data points
+    x = Time2Vec(sequence_length, embed_dim)(x)
+
+    # Stack Transformer blocks
+    for _ in range(num_blocks):
+        x = transformer_encoder(
+            x,
+            head_size=embed_dim // num_heads,
+            num_heads=num_heads,
+            ff_dim=ff_dim,
+            dropout=dropout_rate
+        )
+
+    # Decode and Output
+    # Add an attention layer before pooling to let the model focus on important time steps
+    x = layers.Attention()([x, x])
+    x = layers.GlobalAveragePooling1D()(x)
+
+    x = layers.Dropout(dropout_rate)(x)
+    x = layers.Dense(128, activation="relu")(x)
+    x = layers.Dropout(dropout_rate)(x)
+    outputs = layers.Dense(1)(x)
+
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
     model.compile(
-        loss=tf.keras.losses.MeanSquaredError(),
-        optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
-        metrics=[tf.keras.metrics.MeanAbsoluteError()]
+        optimizer=keras.optimizers.Adam(learning_rate=1e-4),
+        loss="mse",
+        metrics=["mae"]
     )
 
     return model

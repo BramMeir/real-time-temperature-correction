@@ -126,5 +126,5 @@ if __name__ == "__main__":
     exog_cols = [col for col in df_pivot.columns if col != target_station]
 
     # Run repeated task
-    repeat_task(df_pivot, target_station, previous_time_steps=24,
-                random_seed=47, n_repeats=1, weeks=2, hours_to_forecast=48, mode=args.mode)
+    repeat_task(df_pivot, target_station, previous_time_steps=5,
+                random_seed=47, n_repeats=30, weeks=6, hours_to_forecast=48, mode=args.mode)

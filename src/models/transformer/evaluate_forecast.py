@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 
 
-def evaluate_forecast(model, number, df_train, df_test, previous_time_steps, target_station, plot=False):
+def evaluate_forecast(model, number, df_train, df_test, previous_time_steps, target_station,
+                      x_scaler, y_scaler, plot=False):
     """
     Evaluate the Transformer model using recursive multi-step forecasting.
 
@@ -27,38 +28,55 @@ def evaluate_forecast(model, number, df_train, df_test, previous_time_steps, tar
     target_col_index = all_cols.index(target_station)
     exog_cols = [col for col in all_cols if col != target_station]
 
-    last_known_sequence = df_train.values[-previous_time_steps:]
-    predictions = []
+    # Standardize train data
+    train_values_scaled = x_scaler.transform(df_train.values)
+    test_values_scaled = x_scaler.transform(df_test.values)
+
+    last_known_sequence = train_values_scaled[-previous_time_steps:]
+    predictions_scaled = []
 
     for i in range(len(df_test)):
         current_sequence_reshaped = np.expand_dims(last_known_sequence, axis=0)
 
         # Predict
-        y_pred = model.predict(current_sequence_reshaped, verbose=0)[0][0]
-        predictions.append(y_pred)
+        y_pred_scaled = model.predict(current_sequence_reshaped, verbose=1)[0][0]
+        predictions_scaled.append(y_pred_scaled)
 
-        # Update Sequence
-        exog_values_next_step = df_test.iloc[i][exog_cols].values
-        next_input_features = np.zeros(len(all_cols))
-        next_input_features[target_col_index] = y_pred
+        # Build next timestep input (scaled)
+        next_input = np.zeros(len(all_cols))
 
-        for j, col in enumerate(exog_cols):
-            col_index = all_cols.index(col)
-            next_input_features[col_index] = exog_values_next_step[j]
+        # Target (predicted, scaled)
+        next_input[target_col_index] = y_pred_scaled
 
-        last_known_sequence = np.vstack([last_known_sequence[1:], next_input_features])
+        # Exogenous variables (already scaled)
+        for col in exog_cols:
+            col_idx = all_cols.index(col)
+            next_input[col_idx] = test_values_scaled[i, col_idx]
 
-    predictions = pd.Series(predictions, index=df_test.index)
-    mae = mean_absolute_error(df_test[target_station], predictions)
-    rmse = root_mean_squared_error(df_test[target_station], predictions)
+        last_known_sequence = np.vstack([last_known_sequence[1:], next_input])
+
+    # Inverse transform predictions
+    predictions_scaled = np.array(predictions_scaled).reshape(-1, 1)
+    predictions = y_scaler.inverse_transform(predictions_scaled).ravel()
+
+    y_true = df_test[target_station].values
+
+    mae = mean_absolute_error(y_true, predictions)
+    rmse = root_mean_squared_error(y_true, predictions)
 
     if plot:
         plt.figure(figsize=(12, 6))
-        plt.plot(df_train.index, df_train[target_station], label='Training data', color='blue', alpha=0.6)
+        # Select last part of training data for better visualization
+        train_part = df_train[target_station].iloc[-24 * 14:]
+        plt.plot(train_part.index, train_part, label='Training data', color='blue', alpha=0.6)
         plt.plot(df_test.index, df_test[target_station], label='Real future data', color='green')
         plt.plot(df_test.index, predictions, label='Forecast', color='red')
         plt.legend()
         plt.title(f'Recursive Forecast (Transformer) #{number}')
-        plt.savefig(f'Transformer_recursive_forecast_{number}.png')
+
+        # Generate random filename to avoid overwriting
+        random_filename = f"Transformer_forecast_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.png"
+        plt.savefig(f"plot_results/{random_filename}")
+        plt.close()
 
     return mae, rmse
