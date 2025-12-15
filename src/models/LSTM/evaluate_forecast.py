@@ -75,6 +75,10 @@ def evaluate_LSTM_forecast(model, number, df_train, df_test, previous_time_steps
         plt.plot(df_test.index, predictions, label='Forecast', color='red')
         plt.legend()
         plt.title('Recursive Forecast')
-        plt.savefig(f'LSTM_recursive_forecast_{number}.png')
+
+        # Save the plot with a unique name
+        random_filename = f"LSTM_forecast_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.png"
+        plt.savefig(f"plot_results/{random_filename}")
+        plt.close()
 
     return mae, rmse

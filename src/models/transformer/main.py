@@ -1,21 +1,25 @@
 """
-Main script for LSTM model training.
+Main script for transformer model training.
 
 Example usage:
-python -m src.models.LSTM.main --input ./data/preprocessed.csv --mode repeat_forecast
+python -m src.models.transformer.main --input ./data/preprocessed.csv --mode repeat_forecast
 """
+import os
+# Suppress TensorFlow logging
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 import argparse
 import numpy as np
 import pandas as pd
 import collections
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from src.models.LSTM.execute_forecast import run_single_forecast
+from src.models.transformer.execute_forecast import run_single_forecast
 
 
 def repeat_task(df, target_station, previous_time_steps, random_seed=42, n_repeats=10,
                 weeks=2, hours_to_forecast=48, mode="repeat_forecast"):
     """
-    Repeats the training and evaluation of the Random Forest model.
+    Repeats the training and evaluation of the Transformer model.
 
     Input
     -----
@@ -47,7 +51,7 @@ def repeat_task(df, target_station, previous_time_steps, random_seed=42, n_repea
                    for start in start_dates]
 
     mae_scores, mse_scores = [], []
-    best_hp_list, optimal_epochs_list = [], []
+    best_hp_list = []
 
     with ProcessPoolExecutor() as executor:
         futures = []
@@ -61,11 +65,10 @@ def repeat_task(df, target_station, previous_time_steps, random_seed=42, n_repea
             )
 
         for f in as_completed(futures):
-            mae, mse, best_hp, optimal_epochs = f.result()
+            mae, mse, best_hp = f.result()
             mae_scores.append(mae)
             mse_scores.append(mse)
             best_hp_list.append(best_hp)
-            optimal_epochs_list.append(optimal_epochs)
 
     print(f"Average MAE over {n_repeats} runs: {np.mean(mae_scores):.4f} ± {np.std(mae_scores):.4f}")
     print(f"Average MSE over {n_repeats} runs: {np.mean(mse_scores):.4f} ± {np.std(mse_scores):.4f}")
@@ -92,19 +95,13 @@ def repeat_task(df, target_station, previous_time_steps, random_seed=42, n_repea
             for k, v in most_frequent_hp.items():
                 print(f"  {k}: {v}")
 
-        # Average optimal epochs if available
-        filtered_epochs = [ep for ep in optimal_epochs_list if ep is not None]
-        if filtered_epochs:
-            avg_epochs = int(np.mean(filtered_epochs))
-            print(f"\nAverage optimal epochs: {avg_epochs}")
-
 
 if __name__ == "__main__":
     # Define the arguments for the main script
-    parser = argparse.ArgumentParser(description="LSTM Model Training Script")
+    parser = argparse.ArgumentParser(description="Transformer Model Training Script")
     parser.add_argument('--input', type=str, required=True, help='Path to the input CSV file')
     parser.add_argument("--mode", choices=["repeat_forecast", "bayes_search"],
-                        default="repeat_forecast", help="Select which LSTM task to run.")
+                        default="repeat_forecast", help="Select which Transformer task to run.")
     args = parser.parse_args()
 
     # Read the dataset
@@ -129,5 +126,5 @@ if __name__ == "__main__":
     exog_cols = [col for col in df_pivot.columns if col != target_station]
 
     # Run repeated task
-    repeat_task(df_pivot, target_station, previous_time_steps=3,
-                random_seed=47, n_repeats=30, weeks=3, hours_to_forecast=48, mode=args.mode)
+    repeat_task(df_pivot, target_station, previous_time_steps=5,
+                random_seed=47, n_repeats=30, weeks=6, hours_to_forecast=48, mode=args.mode)
