@@ -2,39 +2,42 @@
 VLINDER: missing data strategieën voor weer- en klimaatdata.
 
 ## Project Setup
-### Vereisten
-Zorg dat je **Python 3.12** of hoger en **Poetry** geïnstalleerd hebt. Je kan Poetry installeren via:
+### Requirements
+Make sure you have **Python 3.11** or higher and **Poetry** installed. You can install Poetry via:
 ```bash
 pip install poetry
 ```
 
 ### Virtual Environment
-Maak een virtuele omgeving aan en installeer de vereisten:
+Create a virtual environment and install the requirements:
 ```bash
 poetry install
 ```
 
-Activeer de omgeving met:
+Activate the environment with:
 ```bash
 poetry shell
 ```
 
-### Project uitvoeren
-Je kan de verschillende scripts uitvoeren via:
+### Running the Project
+You can run the various scripts using for example:
 ```bash
-python <script_naam>.py
+python -m src.models.arima.main --mode forecast --model arima --weeks 6 --resample 1h --hours_to_forecast 48
 ```
 
-## Mappenstructuur
+## Directory Structure
 ```
-Masterproef/
-│
-├── data/                  # Ruwe datasets (niet in GitHub, te groot)
+├── data/                  # Raw datasets (not in GitHub, too large)
 │
 ├── src/
-│   └── scripts/           # Python scripts (preprocessing, training, evaluatie)
+│   ├── data/              # Data loading and preprocessing modules
+│   ├── models/            # Model implementations (ARIMA, LSTM, etc.)
+│   ├── evaluation/        # Evaluation metrics and functions
+│   ├── scripts/           # Some standalone scripts for experiments (stationarity tests, etc.)
+│   └── visualisation/     # Plots and visualisation utilities
 │
-├── pyproject.toml         # Poetry-configuratie (dependencies, Python-versie)
-├── poetry.lock            # Exacte versie-lock van dependencies
-└── README.md              # Deze handleiding
+├── hpc_interactive.sh     # Script to load necessary modules on HPC
+├── pyproject.toml         # Poetry configuration (dependencies, Python version)
+├── poetry.lock            # Exact version lock of dependencies
+└── README.md              # This manual
 ```
