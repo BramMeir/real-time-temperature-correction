@@ -37,13 +37,24 @@ def extract_temperature_data(input_file, output_file, station_file=None):
     # Make sure a row denotes a time step and a column a weather station
     df = tas_celsius.transpose("time", "point_index").to_pandas()
 
+    # Move columns into rows and reset index
+    df_long = df.stack().reset_index()
+    df_long.columns = ["datetime", "point_index", "temp_dry_avg_2m"]
+    # print(df_long)
+
     # Convert the point_index to station names using the given station mapping
     if station_file:
         station_mapping = pd.read_csv(station_file)
-        index_to_name = dict(zip(station_mapping["point_index"], station_mapping["station_name"]))
-        df.rename(columns=index_to_name, inplace=True)
+        df_long = df_long.merge(
+            station_mapping,
+            on="point_index",
+            how="left"
+        )
 
-    df.to_csv(output_file, index=True)
+    # Select and reorder columns
+    df_long = df_long[["datetime", "temp_dry_avg_2m", "station_name"]]
+
+    df_long.to_csv(output_file, index=False)
 
 
 if __name__ == "__main__":
