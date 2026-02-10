@@ -51,7 +51,9 @@ def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_fore
     if exog_df is not None:
         sub_exog = exog_df.loc[sub_series.index]
 
-    print(f"\n🔹 Run {i+1}: using data from {start_date} to {end_date}")
+    print(f"\n🔹 Run {i + 1}: using data from {start_date} to {end_date}")
+
+    start_time = pd.Timestamp.now()
 
     if confidence_score:
         errors, importance, confidence_score_value, avg_conf_interval_size = sarima_forecast_with_confidence_score(
@@ -64,7 +66,10 @@ def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_fore
             plot=False
         )
 
-        return errors['MAE'], errors['MSE'], importance, confidence_score_value, avg_conf_interval_size
+        end_time = pd.Timestamp.now()
+        duration = end_time - start_time
+
+        return errors['MAE'], errors['MSE'], importance, duration, confidence_score_value, avg_conf_interval_size
 
     else:
         errors, importance = sarima_forecast(
@@ -77,7 +82,10 @@ def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_fore
             plot=True
         )
 
-        return errors['MAE'], errors['MSE'], importance, None, None
+        end_time = pd.Timestamp.now()
+        duration = end_time - start_time
+
+        return errors['MAE'], errors['MSE'], importance, duration, None, None
 
 
 def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_order=(10, 0, 1),
@@ -118,6 +126,7 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
 
     mae_scores, mse_scores = [], []
     importances = []
+    durations = []
     confidence_scores = []
     avg_conf_interval_sizes = []
 
@@ -131,17 +140,18 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
         ]
 
         for f in as_completed(futures):
-            mae, mse, importance, confidence_score_value, avg_conf_interval_size = f.result()
+            mae, mse, importance, duration, confidence_score_value, avg_conf_interval_size = f.result()
             mae_scores.append(mae)
             mse_scores.append(mse)
             importances.append(importance)
+            durations.append(duration)
             if confidence_score:
                 confidence_scores.append(confidence_score_value)
                 avg_conf_interval_sizes.append(avg_conf_interval_size)
 
     print(f"\nAverage MAE across {len(mae_scores)} runs: {np.mean(mae_scores):.3f}")
     print(f"Average MSE across {len(mse_scores)} runs: {np.mean(mse_scores):.3f}")
-
+    print(f"Average Duration per run: {np.mean(durations).total_seconds():.2f} seconds")
     # Print the average feature importance if exogenous variables were used
     if exog_df is not None and importances:
         avg_importance = pd.concat(importances, axis=1).mean(axis=1).sort_values(ascending=False)
@@ -187,12 +197,27 @@ if __name__ == "__main__":
     series = pd.Series(
         station_data['temp_dry_avg_2m'].values,
         index=pd.to_datetime(station_data['datetime'])
-    ).asfreq('10min').dropna()
+    ).asfreq('1h').dropna()
 
     # Create exogenous DataFrame if requested
     exog_df = None
     if args.exog:
         other_stations = [s for s in df['station_name'].unique() if s != args.target_station]
+        # Urban stations
+        # other_stations = ['Casino_Oostende', 'Sint_Pauluskathedraal_Luik', 'Paleis_voor_Schone_Kunsten_van_Karelskoning_Charleroi',
+        #                   'Grote_Markt_Kortrijk', 'Grote_Markt_Brugge', 'Stadhuis_Brussel_Grote_Markt', 'Sint_Baafs_Gent',
+        #                   'Grote_Markt_Hasselt', 'Sint_Martinuskerk_Aarlen', 'Onze_Lieve_Vrouw_Kerk_Dinant',
+        #                   'Stadhuis_Antwerpen_Grote_Markt']
+        # Sub-urban stations
+        # other_stations = ['Romeins_Archeologisch_Museum_Oudenburg', 'Station_Eeklo', 'Markt_Kruisem', 'Jumbo_Stekene',
+        #                   'Abdij_Tongerlo', 'Gemeenteplein_Hoegaarden', 'Markt_Hoei', 'Slag_om_Ardennen_Museum_La_Roche_en_Ardenne',
+        #                   'Markt_Mettet', 'Vesten_Geraardsbergen', 'Centrum_Beloeil', 'Centrum_Malmedy',
+        #                   'Markt_Nijvel', 'Markt_Houthulst', 'Rechtbank_Neufchâteau', 'Sint_Martinuskerk_Aalst']
+
+        # Rural stations
+        # other_stations = ['Tervate', 'Ieper', 'Tielt', 'Lievegem', 'Houthave', 'Lemberge', 'Puurs', 'Brecht',
+        #                   'Maarkedal', 'Lens', 'Putte', 'Leopoldsburg', 'Remicourt', 'Incourt', 'Biercée',
+        #                   'Somme_Leuze', 'Gembloux', 'Houyet', 'Vielsalm', 'Etalle', 'Dilbeek', 'Paliseul']
         exog_data = df[df['station_name'].isin(other_stations)]
 
         # Pivot to get each station as a separate column
@@ -248,7 +273,7 @@ if __name__ == "__main__":
         else:
             repeat_forecasts(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
                              arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), confidence_score=False,
-                             n_repeats=50, random_seed=47, max_iter=1000, n_jobs=10)
+                             n_repeats=30, random_seed=47, max_iter=1000, n_jobs=10)
 
     elif args.mode == "grid_search":
         if args.model == "sarima":
