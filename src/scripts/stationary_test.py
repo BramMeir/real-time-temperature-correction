@@ -6,6 +6,8 @@ Functions:
 """
 
 import statsmodels.api as sm
+import pandas as pd
+import argparse
 
 
 def stationary_test(series):
@@ -31,3 +33,23 @@ def stationary_test(series):
     print('Critical Values:')
     for key, value in adf_result[4].items():
         print('\t%s: %.3f' % (key, value))
+
+
+if __name__ == "__main__":
+    # Command-line argument parsing
+    parser = argparse.ArgumentParser(description='Perform the Augmented Dickey-Fuller test on a time series.')
+    parser.add_argument('--csv_file', type=str, help='Path to the CSV file containing the time series data.')
+    parser.add_argument('--station', type=str, default='Sint_Baafs_Gent', help='Name of the station to analyze (default: Sint_Baafs_Gent).')
+    args = parser.parse_args()
+
+    # Load the time series data from the specified CSV file
+    data = pd.read_csv(args.csv_file)
+
+    # Select the data points for a specific station
+    station_data = data[data['station_name'] == args.station]
+
+    # Select 2 weeks of data between two dates
+    station_data = station_data[(station_data['datetime'] >= '2020-05-01') & (station_data['datetime'] <= '2020-12-01')]
+
+    # Perform the ADF test on the selected station's data
+    stationary_test(station_data['temp_dry_avg_2m'])
