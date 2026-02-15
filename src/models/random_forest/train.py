@@ -29,10 +29,10 @@ def train_random_forest(X_train, y_train, random_seed=42, n_estimators=350, max_
     # Fit the model to the training data
     rf_model.fit(X_train, y_train)
 
-    # # Get the feature importances
+    # Get the feature importances
     importances = rf_model.feature_importances_
 
-    # # Map the feature importances to their corresponding feature names
+    # Map the feature importances to their corresponding feature names
     feature_importance_df = pd.DataFrame({
         'Feature': X_train.columns,
         'Importance': importances
