@@ -22,7 +22,6 @@ def repeat_task(df, target_station, previous_time_steps, random_seed=42, n_repea
     df: DataFrame with time series data, indexed by datetime
     target_station: Name of the target station column to predict
     previous_time_steps: Number of previous time steps to include as features
-    exog_cols: List of additional exogenous columns to include as features
     random_seed: Random seed for reproducibility (default is 42)
     n_repeats: Number of repetitions for the task (default is 10)
     weeks: Number of weeks for the training period (default is 2)
@@ -125,9 +124,6 @@ if __name__ == "__main__":
     # Define the target station
     target_station = "MELLE"
 
-    # Define the other stations as exogenous variables
-    exog_cols = [col for col in df_pivot.columns if col != target_station]
-
     # Run repeated task
-    repeat_task(df_pivot, target_station, previous_time_steps=3,
+    repeat_task(df_pivot, target_station, previous_time_steps=5,
                 random_seed=47, n_repeats=30, weeks=3, hours_to_forecast=48, mode=args.mode)

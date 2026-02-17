@@ -48,7 +48,7 @@ def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=No
         model, importances = train_random_forest(X_train, y_train)
 
     # Evaluate using recursive multi-step forecasting
-    mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, plot=False)
+    mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, plot=True)
     mse = rmse ** 2
 
     return mae, mse, importances

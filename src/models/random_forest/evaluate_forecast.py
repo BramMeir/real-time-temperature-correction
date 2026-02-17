@@ -1,7 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error
-import numpy as np
 
 
 def evaluate_forecast(model, y_train, X_test, y_test, plot=False):
@@ -53,15 +52,16 @@ def evaluate_forecast(model, y_train, X_test, y_test, plot=False):
 
     # Plot results
     if plot:
-        fig, ax = plt.subplots(figsize=(12, 6))
-        ax.plot(y_train.index, y_train, label='Training data', color='blue', alpha=0.6)
-        ax.plot(y_test.index, y_test, label='Real future data', color='green')
-        ax.plot(y_test.index, predictions, label='Forecast', color='red')
-        ax.legend()
-        ax.set_title('Recursive Forecast')
+        plt.figure(figsize=(12, 6))
+        plt.plot(y_train.index, y_train, label='Training data', color='blue', alpha=0.6)
+        plt.plot(y_test.index, y_test, label='Real future data', color='green')
+        plt.plot(y_test.index, predictions, label='Forecast', color='red')
+        plt.legend()
+        plt.title('Recursive Forecast')
 
-        rand_int = np.random.randint(0, 1000000)
-        fig.savefig(f'plot_results/forecast_evaluation_{rand_int}.png')
-        plt.close(fig)
+        # Generate random filename to avoid overwriting
+        random_filename = f"RF_forecast_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.png"
+        plt.savefig(f'plot_results/{random_filename}')
+        plt.close()
 
     return mae, rmse
