@@ -225,6 +225,9 @@ if __name__ == "__main__":
 
     print("\nStation ranking based on average importance:")
     print(importance_ranking)
+    print(f"MAE: {results_all['mae_mean']:.4f}")
+    print(f"MSE: {results_all['mse_mean']:.4f}")
+    print(f"Average duration (seconds): {results_all['duration_mean_seconds']:.2f}")
 
     # Step 2: Determine the optimal number of stations to include
     print("\nStep 2: Determining the optimal number of stations to include...")
@@ -235,7 +238,7 @@ if __name__ == "__main__":
     # Keep track of best performance to implement an early stopping criterion
     best_mse = float("inf")
 
-    for k in range(1, len(ordered_stations) + 1):
+    for k in range(1, max(len(ordered_stations) + 1, 30)):  # Test up to all stations or a maximum of 30
         selected_stations = ordered_stations[:k]
 
         print(f"\nTesting top {k} stations:")
