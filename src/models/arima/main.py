@@ -14,18 +14,20 @@ python -m src.models.arima.main --mode grid_search
 import argparse
 import pandas as pd
 import numpy as np
+from src.models.arima.repeat_forecast import repeat_forecasts
 from src.models.arima.sarima_forecast import sarima_forecast
 from src.models.arima.grid_search import arima_grid_search, sarima_grid_search
 from src.models.arima.plot_diagnositcs import arima_plot_diagnostics
 from src.models.arima.simulate_real_forecast import repeat_simulate_forecast, experiment_retrain_frequency
 from src.models.arima.bayes_search import sarima_bayes_search
-from src.models.arima.repeat_forecast import repeat_forecasts
+from src.models.arima.experiment_exog_scaling import experiment_exog_scaling, plot_exog_scaling_results
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run ARIMA forecast utilities.")
     parser.add_argument("--mode", choices=["forecast", "repeat_forecast", "grid_search", "bayes_search", "diagnostics",
-                                           "simulate_real_forecast", "experiment_retrain_frequency", "confidence_score"],
+                                           "simulate_real_forecast", "experiment_retrain_frequency", "confidence_score",
+                                           "experiment_exog_scaling"],
                         default="forecast", help="Select which ARIMA task to run.")
     parser.add_argument("--model", choices=["arima", "sarima"],
                         default="arima", help="Choose between ARIMA and SARIMA model (default: ARIMA).")
@@ -59,21 +61,7 @@ if __name__ == "__main__":
     exog_df = None
     if args.exog:
         other_stations = [s for s in df['station_name'].unique() if s != args.target_station]
-        # Urban stations
-        # other_stations = ['Casino_Oostende', 'Sint_Pauluskathedraal_Luik', 'Paleis_voor_Schone_Kunsten_van_Karelskoning_Charleroi',
-        #                   'Grote_Markt_Kortrijk', 'Grote_Markt_Brugge', 'Stadhuis_Brussel_Grote_Markt', 'Sint_Baafs_Gent',
-        #                   'Grote_Markt_Hasselt', 'Sint_Martinuskerk_Aarlen', 'Onze_Lieve_Vrouw_Kerk_Dinant',
-        #                   'Stadhuis_Antwerpen_Grote_Markt']
-        # Sub-urban stations
-        # other_stations = ['Romeins_Archeologisch_Museum_Oudenburg', 'Station_Eeklo', 'Markt_Kruisem', 'Jumbo_Stekene',
-        #                   'Abdij_Tongerlo', 'Gemeenteplein_Hoegaarden', 'Markt_Hoei', 'Slag_om_Ardennen_Museum_La_Roche_en_Ardenne',
-        #                   'Markt_Mettet', 'Vesten_Geraardsbergen', 'Centrum_Beloeil', 'Centrum_Malmedy',
-        #                   'Markt_Nijvel', 'Markt_Houthulst', 'Rechtbank_Neufchâteau', 'Sint_Martinuskerk_Aalst']
 
-        # Rural stations
-        # other_stations = ['Tervate', 'Ieper', 'Tielt', 'Lievegem', 'Houthave', 'Lemberge', 'Puurs', 'Brecht',
-        #                   'Maarkedal', 'Lens', 'Putte', 'Leopoldsburg', 'Remicourt', 'Incourt', 'Biercée',
-        #                   'Somme_Leuze', 'Gembloux', 'Houyet', 'Vielsalm', 'Etalle', 'Dilbeek', 'Paliseul']
         exog_data = df[df['station_name'].isin(other_stations)]
 
         # Pivot to get each station as a separate column
@@ -91,7 +79,8 @@ if __name__ == "__main__":
         exog_df = exog_pivot
 
     # Shorten the data to the specified number of weeks (if not in repeat_forecast mode)
-    if args.mode not in ["repeat_forecast", "simulate_real_forecast", "experiment_retrain_frequency", "confidence_score"]:
+    if args.mode not in ["repeat_forecast", "simulate_real_forecast",
+                         "experiment_retrain_frequency", "experiment_exog_scaling", "confidence_score"]:
         total_weeks = (series.index.max().year - series.index.min().year) * 52 + \
                       (series.index.max().month - series.index.min().month) * 4 + \
                       (series.index.max().day - series.index.min().day) // 7
@@ -142,9 +131,6 @@ if __name__ == "__main__":
         sarima_bayes_search(series, exog_df=exog_df, S=24, p_range=(0, 50), d_range=(0, 2), q_range=(0, 2),
                             P_range=(0, 2), D_range=(0, 1), Q_range=(0, 2))
 
-    elif args.mode == "diagnostics":
-        arima_plot_diagnostics(series)
-
     elif args.mode == "simulate_real_forecast":
         repeat_simulate_forecast(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
                                  arima_order=(25, 0, 0), seasonal_order=(0, 0, 0, 0),
@@ -159,3 +145,28 @@ if __name__ == "__main__":
         repeat_forecasts(series, exog_df=exog_df, weeks=args.weeks, hours_to_forecast=args.hours_to_forecast,
                          arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), confidence_score=True,
                          n_repeats=50, random_seed=47, max_iter=1000, n_jobs=10, plot=False, verbose=True)
+
+    elif args.mode == "diagnostics":
+        arima_plot_diagnostics(series)
+
+    elif args.mode == "experiment_exog_scaling":
+        df_results = experiment_exog_scaling(
+            series,
+            full_exog_df=exog_df,
+            k_values=list(range(1, exog_df.shape[1] + 1, 3)),
+            weeks=args.weeks,
+            hours_to_forecast=args.hours_to_forecast,
+            arima_order=(2, 0, 0),
+            seasonal_order=(1, 0, 1, 24),
+            n_repeats=15,
+            max_iter=1000,
+            n_jobs=10
+        )
+
+        # Save the results to a CSV file
+        df_results.to_csv("output/experiment_exog_scaling.csv", index=False)
+
+        # Plot the results
+        plot_exog_scaling_results(csv_path="output/experiment_exog_scaling_2_weeks_triples.csv",
+                                  save_path="output/experiment_exog_scaling.png",
+                                  log_scale=False)
