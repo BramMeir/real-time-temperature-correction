@@ -44,7 +44,7 @@ def bayes_search_tcn(X_train, y_train, X_test, y_test, random_seed=42):
 
     # Hyperparameter search space
     search_space = {
-        "model__nb_filters": Integer(16, 128),                             # Number of filters in convolutional layers (similar as #units LSTM)
+        "model__nb_filters": Integer(16, 128),                             # Number of filters in convolutional layer
         "model__kernel_size": Integer(2, 8),                               # Size of the convolutional kernel
         "model__learning_rate": Real(1e-4, 1e-2, prior="log-uniform"),
         "model__dilations": Categorical([                                  # List/Tuple of dilation rates for TCN layers

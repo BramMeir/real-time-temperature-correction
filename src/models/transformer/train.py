@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 def train_transformer_model(df, target_station, previous_time_steps=24, num_layers=2,
-                            d_model=192, num_heads=2, dff=32, dropout_rate=0.1, learning_rate=1e-4, batch_size=64):
+                            d_model=256, num_heads=2, dff=32, dropout_rate=0.1, learning_rate=1e-4, batch_size=64):
     """
     Train a Transformer model with specified hyperparameters.
 

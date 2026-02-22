@@ -79,13 +79,13 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
 if __name__ == "__main__":
     # Define the arguments for the main script
     parser = argparse.ArgumentParser(description="Random Forest Model Training Script")
-    parser.add_argument('--input', type=str, required=True, help='Path to the input CSV file')
+    parser.add_argument('--input_file', type=str, required=True, help='Path to the input CSV file')
     parser.add_argument("--mode", choices=["repeat_forecast", "bayes_search"],
                         default="repeat_forecast", help="Select which RF task to run.")
     args = parser.parse_args()
 
     # Read the dataset
-    df = pd.read_csv(args.input, index_col='datetime', parse_dates=True)
+    df = pd.read_csv(args.input_file, index_col='datetime', parse_dates=True)
 
     # Pivot the DataFrame to have every station as a separate column
     df_pivot = df.pivot_table(index='datetime', columns='station_name', values='temp_dry_avg_2m')
@@ -107,4 +107,4 @@ if __name__ == "__main__":
 
     # Run repeated task
     repeat_task(df_pivot, target_station, previous_time_steps=3, exog_cols=exog_cols,
-                random_seed=47, n_repeats=50, weeks=8, hours_to_forecast=48, mode=args.mode)
+                random_seed=47, n_repeats=30, weeks=8, hours_to_forecast=48, mode=args.mode)

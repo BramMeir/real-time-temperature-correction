@@ -144,8 +144,8 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
                 avg_conf_interval_sizes.append(avg_conf_interval_size)
 
     if verbose:
-        print(f"\nAverage MAE across {len(mae_scores)} runs: {np.mean(mae_scores):.3f}")
-        print(f"Average MSE across {len(mse_scores)} runs: {np.mean(mse_scores):.3f}")
+        print(f"\nAverage MAE across {len(mae_scores)} runs: {np.mean(mae_scores):.3f} ± {np.std(mae_scores):.3f}")
+        print(f"Average MSE across {len(mse_scores)} runs: {np.mean(mse_scores):.3f} ± {np.std(mse_scores):.3f}")
         print(f"Average Duration per run: {np.mean(durations).total_seconds():.2f} seconds")
 
     # Print the average feature importance if exogenous variables were used

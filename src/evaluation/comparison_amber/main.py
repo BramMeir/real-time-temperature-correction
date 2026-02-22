@@ -684,20 +684,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run gap-filling technique comparisons.")
     parser.add_argument("--model", choices=["amber", "sarima", "RF", "LSTM", "MLP", "TCN", "transformer"], default="sarima",
                         help="Specify which model to use.")
-    parser.add_argument("--input", type=str, default="data/Turku/Turku_1H_LI.csv", help="Path to the input CSV file.")
+    parser.add_argument("--input_file", type=str, default="data/Turku/Turku_1H_LI.csv", help="Path to the input CSV file.")
     args = parser.parse_args()
 
     if args.model == "amber":
-        test_different_gf_techniques_amber(input_file=args.input)
+        test_different_gf_techniques_amber(input_file=args.input_file)
     elif args.model == "RF":
-        test_RF_approach(input_file=args.input)
+        test_RF_approach(input_file=args.input_file)
     elif args.model == "LSTM":
-        test_LSTM_approach(input_file=args.input)
+        test_LSTM_approach(input_file=args.input_file)
     elif args.model == "MLP":
-        test_MLP_approach(input_file=args.input)
+        test_MLP_approach(input_file=args.input_file)
     elif args.model == "TCN":
-        test_TCN_approach(input_file=args.input)
+        test_TCN_approach(input_file=args.input_file)
     elif args.model == "transformer":
-        test_transformer_approach(input_file=args.input)
+        test_transformer_approach(input_file=args.input_file)
     else:
-        test_SARIMA_approach(input_file=args.input)
+        test_SARIMA_approach(input_file=args.input_file)

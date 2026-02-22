@@ -60,11 +60,11 @@ def extract_temperature_data(input_file, output_file, station_file=None):
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Extract temperature data from NetCDF file and save as CSV")
-    parser.add_argument("--input", type=str, default="data/Synthetic/extracted_points_tas.nc", help="Path to the input NetCDF file")
+    parser.add_argument("--input_file", type=str, default="data/Synthetic/extracted_points_tas.nc", help="Path to the input NetCDF file")
     parser.add_argument("--output", type=str, default="data/Synthetic/temperature_data.csv", help="Path to the output CSV file")
     parser.add_argument("--station_file", type=str, default="data/Synthetic/stations_mapping.csv", help="Path to station mapping CSV file")
     args = parser.parse_args()
 
     # Extract temperature data and save to CSV
-    extract_temperature_data(args.input, args.output, args.station_file)
+    extract_temperature_data(args.input_file, args.output, args.station_file)
     print(f"Temperature data extracted and saved to {args.output}")

@@ -41,9 +41,9 @@ def bayes_search_mlp(X_train, y_train, X_test, y_test, random_seed=42):
     # and will be converted back to tuples in the SkoptMLP subclass. Otherwise, skopt has issues with tuples in Categorical.
     search_space = {
         "hidden_layer_sizes": Integer(128, 1024),  # Number of neurons in a single hidden layer
-        # "activation": Categorical(["relu", "tanh", "logistic"]),
-        # "learning_rate_init": Real(1e-4, 1e-2, prior="log-uniform"),
-        # "batch_size": Integer(4, 64),
+        "activation": Categorical(["relu", "tanh", "logistic"]),
+        "learning_rate_init": Real(1e-4, 1e-2, prior="log-uniform"),
+        "batch_size": Integer(4, 64),
     }
 
     # Same cross-validation structure as RF
