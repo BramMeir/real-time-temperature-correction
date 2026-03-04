@@ -33,6 +33,7 @@ def preprocess(input_file, output_file):
 
     # Print the number of stations that have missing temperature data
     missing_temp_stations = df[df['temp_dry_avg_2m'].isna()]['code'].nunique()
+    print(f"Total number of stations: {df['code'].nunique()}")
     print(f"Number of stations with missing temperature data: {missing_temp_stations}")
 
     # Filter out the rows with a code that have more than 10% missing temperature data
@@ -124,16 +125,16 @@ def include_station_metadata(data_file, metadata_file, output_file):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Preprocess weather observation data.")
     parser.add_argument("--input_file", required=True, help="Path to the input CSV file.")
-    parser.add_argument("--output", required=True, help="Path to the output CSV file.")
+    parser.add_argument("--output_file", required=True, help="Path to the output CSV file.")
     parser.add_argument("--mode", choices=["standard", "turku", "include_metadata"], required=True, help="Processing mode.")
     parser.add_argument("--metadata", help="Path to the station metadata CSV file (required if mode is include_metadata).")
     args = parser.parse_args()
 
     if args.mode == "turku":
-        convert_turku(args.input_file, args.output)
+        convert_turku(args.input_file, args.output_file)
     elif args.mode == "include_metadata":
         if not args.metadata:
             parser.error("--metadata is required when mode is include_metadata")
-        include_station_metadata(args.input_file, args.metadata, args.output)
+        include_station_metadata(args.input_file, args.metadata, args.output_file)
     else:
-        preprocess(args.input_file, args.output)
+        preprocess(args.input_file, args.output_file)

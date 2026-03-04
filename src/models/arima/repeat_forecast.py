@@ -95,6 +95,7 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
     hours_to_forecast: Number of hours to forecast into the future (default is 48)
     arima_order: Tuple specifying the (p, d, q) parameters for the ARIMA model (default is (10, 0, 1))
     seasonal_order: Tuple specifying the (P, D, Q, S) parameters for the SARIMA model (default is (0, 0, 0, 0))
+    confidence_score: Whether to calculate confidence scores for the forecasts (default is False)
     n_repeats: Number of random segments to test (default is 5)
     random_seed: Seed for random number generator for reproducibility (default is 42)
     max_iter: Maximum number of iterations for model fitting (default is 1000)

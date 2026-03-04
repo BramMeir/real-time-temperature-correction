@@ -78,9 +78,8 @@ if __name__ == "__main__":
         # exog_df = exog_pivot.interpolate(limit_direction="both")
         exog_df = exog_pivot
 
-    # Shorten the data to the specified number of weeks (if not in repeat_forecast mode)
-    if args.mode not in ["repeat_forecast", "simulate_real_forecast",
-                         "experiment_retrain_frequency", "experiment_exog_scaling", "confidence_score"]:
+    # Shorten the data to the specified number of weeks (if in given modes)
+    if args.mode in ["forecast", "grid_search", "bayes_search", "diagnostics"]:
         total_weeks = (series.index.max().year - series.index.min().year) * 52 + \
                       (series.index.max().month - series.index.min().month) * 4 + \
                       (series.index.max().day - series.index.min().day) // 7
@@ -167,6 +166,6 @@ if __name__ == "__main__":
         df_results.to_csv("output/experiment_exog_scaling.csv", index=False)
 
         # Plot the results
-        plot_exog_scaling_results(csv_path="output/experiment_exog_scaling_2_weeks_triples.csv",
+        plot_exog_scaling_results(csv_path="output/experiment_exog_scaling.csv",
                                   save_path="output/experiment_exog_scaling.png",
                                   log_scale=False)

@@ -2,8 +2,8 @@ from sklearn.ensemble import RandomForestRegressor
 import pandas as pd
 
 
-def train_random_forest(X_train, y_train, random_seed=42, n_estimators=350, max_depth=20,
-                        min_samples_leaf=1, min_samples_split=3):
+def train_random_forest(X_train, y_train, random_seed=42, n_estimators=200, max_depth=10,
+                        min_samples_leaf=1, min_samples_split=2):
     """
     Train a Random Forest model with specified hyperparameters.
 
