@@ -201,7 +201,7 @@ def test_RF_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
                 ))
 
             for future in as_completed(futures):
-                mae, mse, _ = future.result()
+                mae, mse, _, _ = future.result()
                 temp_mse_list.append(mse)
                 temp_mae_list.append(mae)
 
