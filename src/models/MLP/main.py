@@ -2,11 +2,12 @@
 Main script for MLP model training.
 
 Example usage:
-python -m src.models.MLP.main --input ./data/preprocessed.csv --mode repeat_forecast
+python -m src.models.MLP.main --input_file ./data/preprocessed.csv --mode repeat_forecast
 """
 import argparse
 import numpy as np
 import pandas as pd
+import collections
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from src.models.MLP.execute_forecast import run_single_forecast
 
@@ -45,7 +46,7 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
     date_ranges = [(start, start + weeks_offset, start + weeks_offset + hours_offset)
                    for start in start_dates]
 
-    mae_scores, mse_scores = [], []
+    mae_scores, mse_scores, best_hp_list = [], [], []
 
     with ThreadPoolExecutor() as executor:
         futures = []
@@ -59,24 +60,53 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
             )
 
         for f in as_completed(futures):
-            mae, mse = f.result()
+            mae, mse, best_hp = f.result()
             mae_scores.append(mae)
             mse_scores.append(mse)
 
+            if best_hp is not None:
+                best_hp_list.append(best_hp)
+
+    # If Bayesian search was used, print the most frequent hyperparameters
+    if mode == "bayes_search":
+        print("Best hyperparameters from Bayesian search (most frequent/average values):")
+
+        # Filter out None values
+        filtered_hp = [hp for hp in best_hp_list if hp is not None]
+
+        if filtered_hp:
+            # Collect all values per hyperparameter
+            hp_values = collections.defaultdict(list)
+            for hp in filtered_hp:
+                for key, value in hp.items():
+                    hp_values[key].append(value)
+
+            # Compute most frequent values
+            most_frequent_hp = {}
+            for key, values in hp_values.items():
+                most_frequent_hp[key] = collections.Counter(values).most_common(1)[0][0]
+
+            print("\nMost frequent hyperparameters:")
+            for k, v in most_frequent_hp.items():
+                print(f"  {k}: {v}")
+
+    print(f"\nRunning with previous_time_steps={previous_time_steps} and weeks={weeks}")
     print(f"Average MAE over {n_repeats} runs: {np.mean(mae_scores):.4f} ± {np.std(mae_scores):.4f}")
     print(f"Average MSE over {n_repeats} runs: {np.mean(mse_scores):.4f} ± {np.std(mse_scores):.4f}")
+
+    return np.mean(mae_scores), np.mean(mse_scores), most_frequent_hp if mode == "bayes_search" else None
 
 
 if __name__ == "__main__":
     # Define the arguments for the main script
     parser = argparse.ArgumentParser(description="MLP Model Training Script")
-    parser.add_argument('--input', type=str, required=True, help='Path to the input CSV file')
+    parser.add_argument('--input_file', type=str, required=True, help='Path to the input CSV file')
     parser.add_argument("--mode", choices=["repeat_forecast", "bayes_search"],
                         default="repeat_forecast", help="Select which MLP task to run.")
     args = parser.parse_args()
 
     # Read the dataset
-    df = pd.read_csv(args.input, index_col='datetime', parse_dates=True)
+    df = pd.read_csv(args.input_file, index_col='datetime', parse_dates=True)
 
     # Pivot the DataFrame to have every station as a separate column
     df_pivot = df.pivot_table(index='datetime', columns='station_name', values='temp_dry_avg_2m')
@@ -96,6 +126,17 @@ if __name__ == "__main__":
     # Define the other stations as exogenous variables
     exog_cols = [col for col in df_pivot.columns if col != target_station]
 
-    # Run repeated task
-    repeat_task(df_pivot, target_station, previous_time_steps=5, exog_cols=exog_cols,
-                random_seed=47, n_repeats=30, weeks=8, hours_to_forecast=48, mode=args.mode)
+    if args.mode == "bayes_search":
+        with open(f"output/mlp_bayes_search_{target_station}.csv", "w") as f:
+            f.write("previous_time_steps,weeks,mae,mse,most_frequent_hp\n")
+
+            for repeat_step in [3, 8, 12, 24]:
+                for weeks in [2, 4, 8, 12]:
+                    mae, mse, most_frequent_hp = repeat_task(df_pivot, target_station, previous_time_steps=repeat_step,
+                                                             exog_cols=exog_cols, random_seed=47, n_repeats=10, weeks=weeks,
+                                                             hours_to_forecast=48, mode=args.mode)
+                    f.write(f"{repeat_step},{weeks},{mae:.4f},{mse:.4f},{most_frequent_hp}\n")
+
+    else:
+        repeat_task(df_pivot, target_station, previous_time_steps=4, exog_cols=exog_cols,
+                    random_seed=47, n_repeats=30, weeks=8, hours_to_forecast=48, mode=args.mode)

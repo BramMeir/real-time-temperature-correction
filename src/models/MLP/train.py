@@ -2,7 +2,7 @@ from sklearn.neural_network import MLPRegressor
 
 
 def train_mlp_model(X_train, y_train, activation='relu', bath_size=16,
-                    learning_rate_init=0.005, max_iter=500, hidden_layer_sizes=(512,),
+                    learning_rate_init=0.005, max_iter=500, hidden_layer_sizes=(128,),
                     random_seed=42):
     """
     Train a MLP model with specified hyperparameters.
