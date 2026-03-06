@@ -43,7 +43,7 @@ def run_single_forecast(df, number, target_station, previous_time_steps=24,
 
     # Evaluate
     mae, rmse = evaluate_forecast(
-        model, number, df_train, df_test, previous_time_steps, target_station, x_scaler, y_scaler, plot=True
+        model, number, df_train, df_test, previous_time_steps, target_station, x_scaler, y_scaler, plot=False
     )
     mse = rmse ** 2
 

@@ -13,9 +13,9 @@ def train_LSTM_model(df, target_station, previous_time_steps=24, number_of_neuro
     df: DataFrame with time series data, indexed by datetime
     target_station: Name of the target station column to predict
     previous_time_steps: Number of previous time steps to include as features (default is 24)
-    number_of_neurons: Number of neurons in the LSTM layer (default is 128)
-    nr_epochs: Number of training epochs (default is 100)
-    learning_rate: Learning rate for the Adam optimizer (default is 0.01)
+    number_of_neurons: Number of neurons in the LSTM layer (default is 512)
+    nr_epochs: Number of training epochs (default is 200)
+    learning_rate: Learning rate for the Adam optimizer (default is 0.001)
 
     Output
     ------

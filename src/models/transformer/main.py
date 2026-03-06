@@ -2,7 +2,7 @@
 Main script for transformer model training.
 
 Example usage:
-python -m src.models.transformer.main --input ./data/preprocessed.csv --mode repeat_forecast
+python -m src.models.transformer.main --input_file ./data/preprocessed.csv --mode repeat_forecast
 """
 import os
 # Suppress TensorFlow logging
@@ -70,9 +70,6 @@ def repeat_task(df, target_station, previous_time_steps, random_seed=42, n_repea
             mse_scores.append(mse)
             best_hp_list.append(best_hp)
 
-    print(f"Average MAE over {n_repeats} runs: {np.mean(mae_scores):.4f} ± {np.std(mae_scores):.4f}")
-    print(f"Average MSE over {n_repeats} runs: {np.mean(mse_scores):.4f} ± {np.std(mse_scores):.4f}")
-
     if mode == "bayes_search":
         print("Best hyperparameters from Bayesian search (most frequent/average values):")
 
@@ -95,17 +92,23 @@ def repeat_task(df, target_station, previous_time_steps, random_seed=42, n_repea
             for k, v in most_frequent_hp.items():
                 print(f"  {k}: {v}")
 
+    print(f"\nRunning with previous_time_steps={previous_time_steps} and weeks={weeks}")
+    print(f"Average MAE over {n_repeats} runs: {np.mean(mae_scores):.4f} ± {np.std(mae_scores):.4f}")
+    print(f"Average MSE over {n_repeats} runs: {np.mean(mse_scores):.4f} ± {np.std(mse_scores):.4f}")
+
+    return np.mean(mae_scores), np.mean(mse_scores), most_frequent_hp if mode == "bayes_search" else None
+
 
 if __name__ == "__main__":
     # Define the arguments for the main script
     parser = argparse.ArgumentParser(description="Transformer Model Training Script")
-    parser.add_argument('--input', type=str, required=True, help='Path to the input CSV file')
+    parser.add_argument('--input_file', type=str, required=True, help='Path to the input CSV file')
     parser.add_argument("--mode", choices=["repeat_forecast", "bayes_search"],
                         default="repeat_forecast", help="Select which Transformer task to run.")
     args = parser.parse_args()
 
     # Read the dataset
-    df = pd.read_csv(args.input, index_col='datetime', parse_dates=True)
+    df = pd.read_csv(args.input_file, index_col='datetime', parse_dates=True)
 
     # Pivot the DataFrame to have every station as a separate column
     df_pivot = df.pivot_table(index='datetime', columns='station_name', values='temp_dry_avg_2m')
@@ -125,6 +128,17 @@ if __name__ == "__main__":
     # Define the other stations as exogenous variables
     exog_cols = [col for col in df_pivot.columns if col != target_station]
 
-    # Run repeated task
-    repeat_task(df_pivot, target_station, previous_time_steps=5,
-                random_seed=47, n_repeats=30, weeks=6, hours_to_forecast=48, mode=args.mode)
+    if args.mode == "bayes_search":
+        with open(f"output/transformer_bayes_search_{target_station}.csv", "w") as f:
+            f.write("previous_time_steps,weeks,mae,mse,most_frequent_hp\n")
+
+            for repeat_step in [8, 12, 24]:
+                for weeks in [4, 8, 12]:
+                    mae, mse, most_frequent_hp = repeat_task(df_pivot, target_station, previous_time_steps=repeat_step,
+                                                             random_seed=47, n_repeats=5, weeks=weeks,
+                                                             hours_to_forecast=48, mode=args.mode)
+                    f.write(f"{repeat_step},{weeks},{mae:.4f},{mse:.4f},{most_frequent_hp}\n")
+
+    else:
+        repeat_task(df_pivot, target_station, previous_time_steps=5,
+                    random_seed=47, n_repeats=30, weeks=6, hours_to_forecast=48, mode=args.mode)
