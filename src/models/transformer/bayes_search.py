@@ -71,7 +71,7 @@ def bayesian_search_transformer(df, target_station, number, previous_time_steps=
     tuner = kt.BayesianOptimization(
         lambda hp: build_bayes_transformer_model(hp, num_features, sequence_length),
         objective="val_loss",
-        max_trials=10,
+        max_trials=20,
         executions_per_trial=1,
         directory="tuner_results_transformer",
         project_name=f"bayesian_transformer_{number}",
