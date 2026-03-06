@@ -145,7 +145,7 @@ if __name__ == "__main__":
 
     if args.mode == "bayes_search":
         mae, mse, most_frequent_hp = repeat_task(df_pivot, target_station, previous_time_steps=args.previous_time_steps,
-                                                 random_seed=47, n_repeats=5, weeks=args.weeks,
+                                                 random_seed=47, n_repeats=10, weeks=args.weeks,
                                                  hours_to_forecast=48, mode=args.mode)
         print(f"{args.previous_time_steps},{args.weeks},{mae:.4f},{mse:.4f},{most_frequent_hp}\n")
 
