@@ -71,7 +71,7 @@ def bayesian_search_transformer(df, target_station, number, previous_time_steps=
     tuner = kt.BayesianOptimization(
         lambda hp: build_bayes_transformer_model(hp, num_features, sequence_length),
         objective="val_loss",
-        max_trials=20,
+        max_trials=12,
         executions_per_trial=1,
         directory="tuner_results_transformer",
         project_name=f"bayesian_transformer_{number}",
@@ -81,14 +81,14 @@ def bayesian_search_transformer(df, target_station, number, previous_time_steps=
     # Early stopping
     stop_early = keras.callbacks.EarlyStopping(
         monitor="val_loss",
-        patience=20,
+        patience=10,
         restore_best_weights=True
     )
 
     try:
         tuner.search(
             dataset_train,
-            epochs=200,
+            epochs=60,
             validation_data=dataset_val,
             callbacks=[stop_early],
             verbose=1
@@ -107,7 +107,7 @@ def bayesian_search_transformer(df, target_station, number, previous_time_steps=
         validation_data=dataset_val,
         epochs=500,
         callbacks=[stop_early],
-        verbose=1
+        verbose=0
     )
 
     return best_model, best_hp, x_scaler, y_scaler
