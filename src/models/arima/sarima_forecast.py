@@ -7,7 +7,7 @@ Source: https://www.digitalocean.com/community/tutorials/a-guide-to-time-series-
 import pandas as pd
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
-from src.evaluation.evaluate import evaluate_forecasts
+from src.evaluation.evaluate_forecasts import evaluate_forecasts
 
 
 def sarima_forecast(series, exog_df=None, hours_to_forecast=48, arima_order=(10, 0, 1), seasonal_order=(0, 0, 0, 0),

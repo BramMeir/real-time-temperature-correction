@@ -7,7 +7,7 @@ Source: https://www.digitalocean.com/community/tutorials/a-guide-to-time-series-
 import pandas as pd
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
-from src.evaluation.evaluate import evaluate_forecasts
+from src.evaluation.evaluate_forecasts import evaluate_forecasts
 
 
 def sarima_forecast_with_confidence_score(
