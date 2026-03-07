@@ -4,7 +4,7 @@ Script: plot_different_stations.py
 Plot and compare temperature (or other variable) readings from different weather stations over a specified date range.
 
 Example usage:
-python -m src.visualisation.plot_different_stations --path data/weather_stations.csv --start 2025-09-01
+python -m src.visualisation.plot_different_stations --input_file data/weather_stations.csv --start 2025-09-01
         --end 2025-10-01 --station-col station_name --datetime-col datetime --value-col temp_dry_avg_2m --resample 1h
 """
 import argparse
@@ -117,9 +117,18 @@ def plot_difference_stations(csv_path, start_date, end_date, station_col, dateti
                 mask = (mean_rolling.index >= start_date) & (mean_rolling.index <= end_date)
                 plt.plot(mean_rolling.index[mask], mean_rolling[mask], label=f"{station_a} & {station_b}")
 
+    # Add a horizontal line at y=0 for reference
+    plt.axhline(
+        y=0,
+        color="black",
+        linestyle="--",
+        linewidth=1.5,
+        alpha=0.8
+    )
+
     plt.xlabel("Time")
-    plt.ylabel("Mean Difference (station A - station B) last 3 hours" if not base_station
-               else f"Mean Difference from {base_station} last 3 hours")
+    plt.ylabel("Mean Difference (station A - station B) last 14 days (°C)" if not base_station
+               else "Mean Difference last 14 days (°C)")
     plt.legend()
     plt.tight_layout()
     plt.savefig("station_differences.png", dpi=300)
@@ -127,7 +136,7 @@ def plot_difference_stations(csv_path, start_date, end_date, station_col, dateti
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plot temperature (or other variable) comparisons between weather stations.")
-    parser.add_argument("--path", type=str, required=True, help="Path to CSV file containing the data.")
+    parser.add_argument("--input_file", type=str, required=True, help="Path to CSV file containing the data.")
     parser.add_argument("--start", type=str, required=True, help="Start date (e.g., 2025-09-01).")
     parser.add_argument("--end", type=str, required=True, help="End date (e.g., 2025-10-01).")
     parser.add_argument("--station-col", type=str, default="station_name", help="Column name for station identifiers.")
@@ -150,7 +159,7 @@ if __name__ == "__main__":
     # )
 
     plot_difference_stations(
-        csv_path=args.path,
+        csv_path=args.input_file,
         start_date=args.start,
         end_date=args.end,
         station_col=args.station_col,

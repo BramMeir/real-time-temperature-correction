@@ -66,7 +66,7 @@ def _simulate_real_forecast(i, series, exog_df, start_date, end_date, hours_to_f
             sub_series = sub_series.loc[common_idx]
             sub_exog = sub_exog.loc[common_idx]
 
-    print(f"\n🔹 Run {i+1}: using data from {start_date} to {end_date}")
+    print(f"\n🔹 Run {i + 1}: using data from {start_date} to {end_date}")
 
     # Split the data into training and test sets
     training_period = pd.DateOffset(weeks=2)

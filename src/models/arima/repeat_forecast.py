@@ -95,6 +95,7 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
     hours_to_forecast: Number of hours to forecast into the future (default is 48)
     arima_order: Tuple specifying the (p, d, q) parameters for the ARIMA model (default is (10, 0, 1))
     seasonal_order: Tuple specifying the (P, D, Q, S) parameters for the SARIMA model (default is (0, 0, 0, 0))
+    confidence_score: Whether to calculate confidence scores for the forecasts (default is False)
     n_repeats: Number of random segments to test (default is 5)
     random_seed: Seed for random number generator for reproducibility (default is 42)
     max_iter: Maximum number of iterations for model fitting (default is 1000)
@@ -144,8 +145,8 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
                 avg_conf_interval_sizes.append(avg_conf_interval_size)
 
     if verbose:
-        print(f"\nAverage MAE across {len(mae_scores)} runs: {np.mean(mae_scores):.3f}")
-        print(f"Average MSE across {len(mse_scores)} runs: {np.mean(mse_scores):.3f}")
+        print(f"\nAverage MAE across {len(mae_scores)} runs: {np.mean(mae_scores):.3f} ± {np.std(mae_scores):.3f}")
+        print(f"Average MSE across {len(mse_scores)} runs: {np.mean(mse_scores):.3f} ± {np.std(mse_scores):.3f}")
         print(f"Average Duration per run: {np.mean(durations).total_seconds():.2f} seconds")
 
     # Print the average feature importance if exogenous variables were used

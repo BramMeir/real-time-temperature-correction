@@ -26,6 +26,7 @@ def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=No
     ------
     mae: Mean Absolute Error on the test set
     mse: Mean Squared Error on the test set
+    best_hp: Best hyperparameters found by Bayesian search (if mode is "bayes_search"), otherwise None
     """
     # Print the date range being used
     print(f"Running forecast from {start} to {test_end} with training until {train_end}")
@@ -47,14 +48,15 @@ def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=No
     y_test = y[test_mask]
 
     # Dependant on the mode, train the model using the selected parameters or Bayesian search
+    best_hp = None
     if mode == "bayes_search":
-        model, _ = bayes_search_tcn(X_train, y_train, X_test, y_test)
+        model, best_hp = bayes_search_tcn(X_train, y_train)
     else:
         model = train_tcn_model(X_train, y_train)
 
     # Evaluate using recursive multi-step forecasting
     mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, dates[train_mask], dates[test_mask],
-                                  previous_time_steps, target_station, plot=True)
+                                  previous_time_steps, target_station, plot=False)
     mse = rmse ** 2
 
-    return mae, mse
+    return mae, mse, best_hp

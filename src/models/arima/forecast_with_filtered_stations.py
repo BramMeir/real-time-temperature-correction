@@ -17,6 +17,7 @@ import pandas as pd
 from sklearn.linear_model import LassoCV, ElasticNetCV
 from sklearn.preprocessing import StandardScaler
 from src.models.arima.repeat_forecast import repeat_forecasts
+from src.data.add_time_features import add_time_features
 
 
 if __name__ == "__main__":
@@ -24,6 +25,8 @@ if __name__ == "__main__":
     parser.add_argument("--ranking_method", type=str, default="none",
                         choices=["pearson", "LASSO", "elasticnet", "none"],
                         help="Method to rank stations by importance (default: 'none', so all stations are used).")
+    parser.add_argument("--time_features", action="store_true",
+                        help="Include time-based features (hour of day, day of week) if set.")
     parser.add_argument("--weeks", type=int, default=2,
                         help="Number of weeks of data to include (default: 2).")
     parser.add_argument("--resample", type=str, default="1h",
@@ -153,6 +156,10 @@ if __name__ == "__main__":
     else:
         top_exog_df = exog_df
 
+    # If time features are requested, add hour of day and day of year as additional exogenous variables
+    if args.time_features:
+        top_exog_df = add_time_features(top_exog_df)
+
     results_all = repeat_forecasts(
         series,
         exog_df=top_exog_df,
@@ -164,7 +171,7 @@ if __name__ == "__main__":
         n_repeats=30,
         random_seed=47,
         max_iter=1000,
-        n_jobs=10,
+        n_jobs=4,
     )
 
     print(f"Average MAE across 30 runs: {results_all['mae_mean']:.4f}")

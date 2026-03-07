@@ -17,7 +17,7 @@ def build_LSTM_model(hp, num_features, sequence_length):
 
     model.add(
         keras.layers.LSTM(
-            units=hp.Int("units", min_value=1024, max_value=2048, step=256),
+            units=hp.Int("units", min_value=128, max_value=512, step=128),
         )
     )
     model.add(keras.layers.Dense(1))
@@ -67,7 +67,7 @@ def bayesian_search_LSTM(df, target_station, number, previous_time_steps=24):
     tuner = kt.BayesianOptimization(
         lambda hp: build_LSTM_model(hp, num_features, sequence_length),
         objective="val_loss",
-        max_trials=4,                      # number of different configs to try
+        max_trials=3,                      # number of different configs to try
         executions_per_trial=1,
         directory="tuner_results",
         project_name=f"bayesian_lstm_{number}",

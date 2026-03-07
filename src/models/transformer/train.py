@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 def train_transformer_model(df, target_station, previous_time_steps=24, num_layers=2,
-                            d_model=192, num_heads=2, dff=32, dropout_rate=0.1, learning_rate=1e-4, batch_size=64):
+                            d_model=256, num_heads=2, dff=32, dropout_rate=0.1, learning_rate=1e-4, batch_size=64):
     """
     Train a Transformer model with specified hyperparameters.
 
@@ -16,9 +16,13 @@ def train_transformer_model(df, target_station, previous_time_steps=24, num_laye
     df: DataFrame with time series data, indexed by datetime
     target_station: Name of the target station column to predict
     previous_time_steps: Number of previous time steps to include as features (default is 24)
-    number_of_neurons: Number of neurons in the LSTM layer (default is 128)
-    nr_epochs: Number of training epochs (default is 100)
-    learning_rate: Learning rate for the Adam optimizer (default is 0.01)
+    num_layers: Number of Transformer blocks (default is 2)
+    d_model: Embedding dimension (default is 256)
+    num_heads: Number of attention heads (default is 2)
+    dff: Dimension of the feed-forward network (default is 32)
+    dropout_rate: Dropout rate for regularization (default is 0.1)
+    learning_rate: Learning rate for the optimizer (default is 1e-4)
+    batch_size: Batch size for training (default is 64)
 
     Output
     ------

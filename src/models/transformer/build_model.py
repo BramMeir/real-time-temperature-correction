@@ -91,7 +91,7 @@ def build_bayes_transformer_model(hp, num_features, sequence_length):
     num_heads = hp.Int("num_heads", min_value=2, max_value=6, step=2)
     ff_dim = hp.Int("ff_dim", min_value=4, max_value=256, step=16)
     num_blocks = hp.Int("num_blocks", min_value=2, max_value=6, step=1)
-    dropout_rate = hp.Float("dropout", min_value=0.1, max_value=0.2, step=0.1)
+    dropout_rate = hp.Float("dropout_rate", min_value=0.1, max_value=0.2, step=0.1)
 
     x = layers.Dense(embed_dim)(inputs)
 
