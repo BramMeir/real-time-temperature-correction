@@ -45,8 +45,7 @@ def repeat_task(df, target_station, previous_time_steps, random_seed=42, n_repea
     date_ranges = [(start, start + weeks_offset, start + weeks_offset + hours_offset)
                    for start in start_dates]
 
-    mae_scores, mse_scores = [], []
-    best_hp_list, optimal_epochs_list = [], []
+    mae_scores, mse_scores, best_hp_list = [], [], []
 
     with ProcessPoolExecutor() as executor:
         futures = []
@@ -60,11 +59,10 @@ def repeat_task(df, target_station, previous_time_steps, random_seed=42, n_repea
             )
 
         for f in as_completed(futures):
-            mae, mse, best_hp, optimal_epochs = f.result()
+            mae, mse, best_hp = f.result()
             mae_scores.append(mae)
             mse_scores.append(mse)
             best_hp_list.append(best_hp)
-            optimal_epochs_list.append(optimal_epochs)
 
     if mode == "bayes_search":
         print("Best hyperparameters from Bayesian search (most frequent/average values):")
@@ -87,12 +85,6 @@ def repeat_task(df, target_station, previous_time_steps, random_seed=42, n_repea
             print("\nMost frequent hyperparameters:")
             for k, v in most_frequent_hp.items():
                 print(f"  {k}: {v}")
-
-        # Average optimal epochs if available
-        filtered_epochs = [ep for ep in optimal_epochs_list if ep is not None]
-        if filtered_epochs:
-            avg_epochs = int(np.mean(filtered_epochs))
-            print(f"\nAverage optimal epochs: {avg_epochs}")
 
     print(f"\nRunning with previous_time_steps={previous_time_steps} and weeks={weeks}")
     print(f"Average MAE over {n_repeats} runs: {np.mean(mae_scores):.4f} ± {np.std(mae_scores):.4f}")

@@ -37,16 +37,15 @@ def run_single_forecast(df, number, target_station, previous_time_steps=24,
 
     # Dependant on the mode, train the model using the selected parameters or Bayesian search
     best_hp = None
-    optimal_epochs = None
     if mode == "bayes_search":
-        model, best_hp, optimal_epochs = bayesian_search_LSTM(df_train, target_station, number, previous_time_steps=previous_time_steps)
+        model, best_hp, _ = bayesian_search_LSTM(df_train, target_station, number, previous_time_steps=previous_time_steps)
     else:
         model = train_LSTM_model(df_train, target_station, previous_time_steps=previous_time_steps)
 
     # Evaluate using recursive multi-step forecasting
     mae, rmse = evaluate_LSTM_forecast(
-        model, number, df_train, df_test, previous_time_steps, target_station, plot=True
+        model, number, df_train, df_test, previous_time_steps, target_station, plot=False
     )
     mse = rmse ** 2
 
-    return mae, mse, best_hp, optimal_epochs
+    return mae, mse, best_hp
