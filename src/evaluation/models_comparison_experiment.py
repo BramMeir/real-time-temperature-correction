@@ -37,7 +37,6 @@ SEED = 42
 HORIZONS = [24, 48, 168, 336]
 # HORIZONS = [336]
 
-OUTPUT_FILE = "output/models_comparison_experiment.csv"
 NUMBER_OF_REPEATS = 10
 
 MODELS = {
@@ -152,7 +151,7 @@ def run_all_experiments(model_name):
     -----
     model_name: Name of the model to run (must be a key in the MODELS dictionary)
     """
-    with open(OUTPUT_FILE, "w", newline="") as f:
+    with open(f"output/models_comparison_{model_name}.csv", "w", newline="") as f:
         # Create CSV writer and write header
         writer = csv.writer(f)
 
