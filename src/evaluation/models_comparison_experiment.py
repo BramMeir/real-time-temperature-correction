@@ -12,6 +12,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.models.arima.repeat_forecast import _run_single_forecast as run_arimax
 from src.models.random_forest.execute_forecast import run_single_forecast as run_rf
 from src.models.LSTM.execute_forecast import run_single_forecast as run_lstm
+from src.models.MLP.execute_forecast import run_single_forecast as run_mlp
 
 # Metadata about the used datasets and stations to evaluate on
 DATASETS = {
@@ -41,13 +42,15 @@ NUMBER_OF_REPEATS = 10
 MODELS = {
     "ARIMAX": run_arimax,
     "LSTM": run_lstm,
-    "RF": run_rf
+    "RF": run_rf,
+    "MLP": run_mlp
 }
 
 MODEL_TRAINING_DAYS = {
     "ARIMAX": 2 * 7,  # 2 weeks of hourly data (336 hours)
     "LSTM": 8 * 7,    # 8 weeks of hourly data (1344 hours)
-    "RF": 8 * 7       # 8 weeks of hourly data (1344 hours)
+    "RF": 8 * 7,      # 8 weeks of hourly data (1344 hours)
+    "MLP": 8 * 7      # 8 weeks of hourly data (1344 hours)
 }
 
 
@@ -119,7 +122,7 @@ def run_single_experiment(task):
         )
 
     else:
-        mae, mse, _, _ = model_fn(
+        result = model_fn(
             df=df_complete,
             target_station=station,
             exog_cols=exog_df.columns.tolist(),
@@ -128,6 +131,8 @@ def run_single_experiment(task):
             test_end=test_end,
             mode="forecast"
         )
+
+        mae, mse = result[:2]
 
     return [
         dataset_name,

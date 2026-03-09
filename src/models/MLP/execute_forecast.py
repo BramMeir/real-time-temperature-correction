@@ -48,7 +48,7 @@ def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=No
         model = train_mlp_model(X_train, y_train)
 
     # Evaluate using recursive multi-step forecasting
-    mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, plot=True)
+    mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, plot=False)
     mse = rmse ** 2
 
     return mae, mse, best_hp
