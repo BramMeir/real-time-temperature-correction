@@ -2,11 +2,13 @@
 Main script to run the full experiment comparing all models across all datasets, different stations, training periods,
 and forecast horizons. The results are saved to a CSV file for later analysis.
 
-python -m src.evaluation.models_comparison_experiment
+python -m src.evaluation.models_comparison_experiment --model RF
 """
 import csv
 import pandas as pd
 import numpy as np
+import argparse
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.models.arima.repeat_forecast import _run_single_forecast as run_arimax
 from src.models.random_forest.execute_forecast import run_single_forecast as run_rf
 from src.models.LSTM.execute_forecast import run_single_forecast as run_lstm
@@ -22,7 +24,7 @@ DATASETS = {
         "stations": ["Betel", "Virastotalo", "Ylijoki", "Kurala"]
     },
     "SYNTHETIC": {
-        "file": "data/Synthetic/temperatue_data.csv",
+        "file": "data/Synthetic/temperature_data.csv",
         "stations": ["Stadhuis_Brussel_Grote_Markt", "Stadhuis_Antwerpen_Grote_Markt", "Grote_Markt_Kortrijk",
                      "Tielt", "Gembloux", "Slag_om_Ardennen_Museum_La_Roche_en_Ardenne", "Abdij_Tongerlo"]
     }
@@ -51,10 +53,104 @@ MODEL_TRAINING_DAYS = {
 }
 
 
-def run_all_experiments():
+def run_single_experiment(task):
+    """
+    Run a single experiment with the given parameters.
+
+    Input
+    -----
+    task: A tuple containing (dataset_name, repeat_id, horizon, model_name, station, series, exog_df, df_complete)
+
+    Output
+    ------
+    A list containing the results of the experiment:
+        [dataset_name, station, model_name, train_start, train_end, horizon, mae, mse]
+    """
+    dataset_name, repeat_id, horizon, model_name, station, series, exog_df, df_complete = task
+
+    # Generate random training period (start and end date) for the given dataset and station
+    forecast_start = generate_forecast_start(
+        series=series,
+        seed=SEED,
+        repeat_id=repeat_id,
+        max_history_days=max(MODEL_TRAINING_DAYS.values()),
+        max_horizon=max(HORIZONS)
+    )
+
+    # Determine the required training period for the model
+    training_days = MODEL_TRAINING_DAYS[model_name]
+
+    train_start = forecast_start - pd.Timedelta(days=training_days)
+    train_end = forecast_start
+    test_end = train_end + pd.Timedelta(hours=horizon)
+
+    model_fn = MODELS[model_name]
+
+    print(
+        dataset_name,
+        station,
+        model_name,
+        train_start,
+        train_end,
+        horizon
+    )
+
+    if model_name == "ARIMAX":
+        mae, mse, _, _, _, _ = model_fn(
+            repeat_id,
+            series=series,
+            exog_df=exog_df,
+            start_date=train_start,
+            end_date=test_end,
+            hours_to_forecast=horizon,
+            arima_order=(2, 0, 0),
+            seasonal_order=(1, 0, 1, 24),
+            confidence_score=False,
+            max_iter=1000,
+            plot=False
+        )
+    elif model_name in ["LSTM", "Transformer"]:
+        mae, mse, _ = model_fn(
+            df=df_complete,
+            number=repeat_id,
+            target_station=station,
+            start=train_start,
+            train_end=train_end,
+            test_end=test_end,
+            mode="forecast"
+        )
+
+    else:
+        mae, mse, _, _ = model_fn(
+            df=df_complete,
+            target_station=station,
+            exog_cols=exog_df.columns.tolist(),
+            start=train_start,
+            train_end=train_end,
+            test_end=test_end,
+            mode="forecast"
+        )
+
+    return [
+        dataset_name,
+        station,
+        model_name,
+        train_start,
+        train_end,
+        horizon,
+        mae,
+        mse
+    ]
+
+
+def run_all_experiments(model_name):
     """
     Main function to run all experiments across datasets, stations, training periods, and forecast horizons. The results are
     saved to a CSV file for later analysis.
+
+    Input
+    -----
+    model_name: Name of the model to run (must be a key in the MODELS dictionary)
     """
     with open(OUTPUT_FILE, "w", newline="") as f:
         # Create CSV writer and write header
@@ -76,11 +172,11 @@ def run_all_experiments():
             # Retrieve the file path for the dataset
             dataset_file = dataset_info["file"]
 
+            # Read the preprocessed data
+            df = pd.read_csv(dataset_file)
+
             for station in dataset_info["stations"]:
                 # Create the pandas DataFrame for the dataset with hourly frequency and datetime index
-                # Read the preprocessed data
-                df = pd.read_csv(dataset_file)
-
                 # Select target station
                 station_data = df[df['station_name'] == station]
 
@@ -113,81 +209,30 @@ def run_all_experiments():
                 # Create also a complete version of the DataFrame for some of the models that require it (e.g., LSTM, Transformer)
                 df_complete = series.to_frame(name=station).join(exog_df)
 
+                # Build a list of taks to run in parallel
+                tasks = []
+
                 # Generate NUMBER_OF_REPEATS random training periods for the given dataset and station
                 for i in range(NUMBER_OF_REPEATS):
-                    # Generate random training period (start and end date) for the given dataset and station
-                    forecast_start = generate_forecast_start(
-                        series=series,
-                        seed=SEED,
-                        repeat_id=i,
-                        max_history_days=max(MODEL_TRAINING_DAYS.values()),
-                        max_horizon=max(HORIZONS)
-                    )
-
                     for horizon in HORIZONS:
-                        for model_name, model_fn in MODELS.items():
-                            # Determine the required training period for the model
-                            training_days = MODEL_TRAINING_DAYS[model_name]
-                            train_start = forecast_start - pd.Timedelta(days=training_days)
-                            train_end = forecast_start
-                            test_end = train_end + pd.Timedelta(hours=horizon)
+                        tasks.append((
+                            dataset_name,
+                            i,
+                            horizon,
+                            model_name,
+                            station,
+                            series,
+                            exog_df,
+                            df_complete
+                        ))
 
-                            print(
-                                dataset_name,
-                                station,
-                                model_name,
-                                train_start,
-                                train_end,
-                                horizon
-                            )
+                # Run the tasks in parallel using ProcessPoolExecutor
+                with ProcessPoolExecutor() as executor:
+                    futures = [executor.submit(run_single_experiment, task) for task in tasks]
 
-                            if model_name == "ARIMAX":
-                                mae, mse, _, _, _, _ = model_fn(
-                                    i,
-                                    series=series,
-                                    exog_df=exog_df,
-                                    start_date=train_start,
-                                    end_date=test_end,
-                                    hours_to_forecast=horizon,
-                                    arima_order=(2, 0, 0),
-                                    seasonal_order=(1, 0, 1, 24),
-                                    confidence_score=False,
-                                    max_iter=1000,
-                                    plot=False
-                                )
-
-                            elif model_name in ["LSTM", "Transformer"]:
-                                mae, mse, _ = model_fn(
-                                    df=df_complete,
-                                    number=i,
-                                    target_station=station,
-                                    start=train_start,
-                                    train_end=train_end,
-                                    test_end=test_end,
-                                    mode="forecast"
-                                )
-
-                            else:
-                                mae, mse, _, _ = model_fn(
-                                    df=df_complete,
-                                    target_station=station,
-                                    exog_cols=exog_df.columns.tolist(),
-                                    start=train_start,
-                                    train_end=train_end,
-                                    test_end=test_end,
-                                    mode="forecast"
-                                )
-
-                            writer.writerow([
-                                dataset_name,
-                                station,
-                                model_name,
-                                train_start,
-                                train_end,
-                                horizon,
-                                mae,
-                                mse
-                            ])
+                    for future in as_completed(futures):
+                        result = future.result()
+                        writer.writerow(result)
 
 
 def generate_forecast_start(series, seed, repeat_id, max_history_days, max_horizon):
@@ -227,5 +272,13 @@ def generate_forecast_start(series, seed, repeat_id, max_history_days, max_horiz
 
 
 if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Run the full experiment comparing all models across all datasets, "
+                                                 "different stations, training periods, and forecast horizons. The results "
+                                                 "are saved to a CSV file for later analysis.")
+    parser.add_argument("--model", choices=MODELS.keys(), required=True,
+                        help="Name of the model to run (must be a key in the MODELS dictionary)")
+    args = parser.parse_args()
+
     # Run all experiments and save results to CSV
-    run_all_experiments()
+    run_all_experiments(args.model)
