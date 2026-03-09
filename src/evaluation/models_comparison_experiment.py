@@ -35,7 +35,6 @@ SEED = 42
 
 # Forecasting horizons in hours (24h, 48h, 1 week, 2 weeks)
 HORIZONS = [24, 48, 168, 336]
-# HORIZONS = [336]
 
 NUMBER_OF_REPEATS = 10
 
