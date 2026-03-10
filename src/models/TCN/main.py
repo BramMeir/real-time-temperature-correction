@@ -125,10 +125,8 @@ if __name__ == "__main__":
         with open(f"output/transformer_bayes_search_{target_station}.csv", "w") as f:
             f.write("previous_time_steps,weeks,mae,mse,most_frequent_hp\n")
 
-            # for repeat_step in [8, 12, 24]:
-            #     for weeks in [4, 8, 12]:
-            for repeat_step in [2]:
-                for weeks in [2]:
+            for repeat_step in [8, 24, 24 * 3]:
+                for weeks in [2, 4, 8]:
                     mae, mse, most_frequent_hp = repeat_task(df_pivot, target_station, previous_time_steps=repeat_step,
                                                              exog_cols=exog_cols, random_seed=47, n_repeats=10, weeks=weeks,
                                                              hours_to_forecast=48, mode=args.mode)

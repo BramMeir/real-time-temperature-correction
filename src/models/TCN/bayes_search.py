@@ -1,6 +1,6 @@
 from skopt import BayesSearchCV
 from sklearn.model_selection import TimeSeriesSplit
-from skopt.space import Integer, Real, Categorical
+from skopt.space import Integer, Categorical
 from src.models.TCN.skoptTCN import create_tcn_model
 from scikeras.wrappers import KerasRegressor
 from keras.callbacks import EarlyStopping
@@ -36,14 +36,14 @@ def bayes_search_tcn(X_train, y_train, random_seed=42):
         verbose=0,
         epochs=100,
         batch_size=32,
+        learning_rate=0.005,
         callbacks=[early_stopping]
     )
 
     # Hyperparameter search space
     search_space = {
-        "model__nb_filters": Integer(16, 128),                             # Number of filters in convolutional layer
+        "model__nb_filters": Integer(32, 256),                             # Number of filters in convolutional layer
         "model__kernel_size": Integer(2, 8),                               # Size of the convolutional kernel
-        "model__learning_rate": Real(1e-4, 1e-2, prior="log-uniform"),
         "model__dilations": Categorical([                                  # List/Tuple of dilation rates for TCN layers
             "(1, 2)",
             "(1, 2, 4)",
@@ -52,7 +52,7 @@ def bayes_search_tcn(X_train, y_train, random_seed=42):
     }
 
     # Same cross-validation structure as RF
-    tscv = TimeSeriesSplit(n_splits=5)
+    tscv = TimeSeriesSplit(n_splits=4)
 
     # Bayesian search
     bayes_search = BayesSearchCV(
@@ -61,7 +61,7 @@ def bayes_search_tcn(X_train, y_train, random_seed=42):
         n_iter=15,
         cv=tscv,
         scoring="neg_mean_absolute_error",
-        n_jobs=8,
+        n_jobs=1,
         random_state=random_seed,
         verbose=2,
     )
