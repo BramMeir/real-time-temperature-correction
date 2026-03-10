@@ -21,6 +21,7 @@ keras-tcn = "^3.5.6"
 scikeras = "^0.13.0"
 xarray = "^2026.1.0"
 netcdf4 = "^1.7.4"
+jinja2 = "^3.1.6"
 
 
 [build-system]

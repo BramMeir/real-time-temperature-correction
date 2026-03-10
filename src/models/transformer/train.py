@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Suppress TensorFlow logging
 from tensorflow import keras
@@ -6,8 +5,8 @@ from src.models.transformer.build_model import build_transformer_model
 from sklearn.preprocessing import StandardScaler
 
 
-def train_transformer_model(df, target_station, previous_time_steps=24, num_layers=2,
-                            d_model=256, num_heads=2, dff=32, dropout_rate=0.1, learning_rate=1e-4, batch_size=64):
+def train_transformer_model(df, target_station, previous_time_steps=24, num_layers=4,
+                            d_model=448, num_heads=2, dff=64, dropout_rate=0.1, learning_rate=1e-4, batch_size=64):
     """
     Train a Transformer model with specified hyperparameters.
 
@@ -93,21 +92,12 @@ def train_transformer_model(df, target_station, previous_time_steps=24, num_laye
         monitor="val_loss", patience=10, restore_best_weights=True
     )
 
-    history = model.fit(
+    model.fit(
         dataset_train,
         validation_data=dataset_val,
         epochs=200,
         callbacks=[early_stopping],
         verbose=0,
     )
-
-    loss = history.history["loss"]
-    epochs = range(len(loss))
-    plt.figure()
-    plt.plot(epochs, loss, "b", label="Training loss")
-    plt.title("Training Loss")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.savefig("training_loss.png")
 
     return model, x_scaler, y_scaler

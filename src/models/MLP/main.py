@@ -138,5 +138,5 @@ if __name__ == "__main__":
                     f.write(f"{repeat_step},{weeks},{mae:.4f},{mse:.4f},{most_frequent_hp}\n")
 
     else:
-        repeat_task(df_pivot, target_station, previous_time_steps=4, exog_cols=exog_cols,
+        repeat_task(df_pivot, target_station, previous_time_steps=24, exog_cols=exog_cols,
                     random_seed=47, n_repeats=30, weeks=8, hours_to_forecast=48, mode=args.mode)
