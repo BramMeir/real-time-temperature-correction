@@ -13,6 +13,7 @@ from src.models.arima.repeat_forecast import _run_single_forecast as run_arimax
 from src.models.random_forest.execute_forecast import run_single_forecast as run_rf
 from src.models.LSTM.execute_forecast import run_single_forecast as run_lstm
 from src.models.MLP.execute_forecast import run_single_forecast as run_mlp
+from src.models.transformer.execute_forecast import run_single_forecast as run_transformer
 
 # Metadata about the used datasets and stations to evaluate on
 DATASETS = {
@@ -40,17 +41,21 @@ HORIZONS = [24, 48, 168, 336]
 NUMBER_OF_REPEATS = 10
 
 MODELS = {
+    "ARIMA": run_arimax,
     "ARIMAX": run_arimax,
     "LSTM": run_lstm,
     "RF": run_rf,
-    "MLP": run_mlp
+    "MLP": run_mlp,
+    "Transformer": run_transformer
 }
 
 MODEL_TRAINING_DAYS = {
-    "ARIMAX": 2 * 7,  # 2 weeks of hourly data (336 hours)
-    "LSTM": 8 * 7,    # 8 weeks of hourly data (1344 hours)
-    "RF": 8 * 7,      # 8 weeks of hourly data (1344 hours)
-    "MLP": 8 * 7      # 8 weeks of hourly data (1344 hours)
+    "ARIMA": 2 * 7,         # 2 weeks of hourly data (336 hours)
+    "ARIMAX": 2 * 7,        # 2 weeks of hourly data (336 hours)
+    "LSTM": 8 * 7,          # 8 weeks of hourly data (1344 hours)
+    "RF": 8 * 7,            # 8 weeks of hourly data (1344 hours)
+    "MLP": 8 * 7,           # 8 weeks of hourly data (1344 hours)
+    "Transformer": 4 * 7    # 4 weeks of hourly data (672 hours)
 }
 
 
@@ -96,11 +101,11 @@ def run_single_experiment(task):
         horizon
     )
 
-    if model_name == "ARIMAX":
+    if model_name in ["ARIMA", "ARIMAX"]:
         mae, mse, _, _, _, _ = model_fn(
             repeat_id,
             series=series,
-            exog_df=exog_df,
+            exog_df=exog_df if model_name == "ARIMAX" else None,
             start_date=train_start,
             end_date=test_end,
             hours_to_forecast=horizon,
@@ -160,14 +165,14 @@ def run_all_experiments(model_name):
         writer = csv.writer(f)
 
         writer.writerow([
-            "dataset",
-            "station",
-            "model",
-            "train_start",
-            "train_end",
-            "horizon",
-            "mae",
-            "mse"
+            "Dataset",
+            "Station",
+            "Model",
+            "Train_start",
+            "Train_end",
+            "Horizon",
+            "MAE",
+            "MSE"
         ])
 
         # Loop through all combinations of dataset, station, training period, forecast horizon, and model
