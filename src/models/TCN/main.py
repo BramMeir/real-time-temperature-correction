@@ -75,7 +75,7 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
             # Collect all values per hyperparameter
             hp_values = collections.defaultdict(list)
             for hp in filtered_hp:
-                for key, value in hp.values.items():
+                for key, value in hp.items():
                     hp_values[key].append(value)
 
             # Compute most frequent values
