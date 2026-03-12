@@ -9,11 +9,20 @@ import pandas as pd
 import numpy as np
 import argparse
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from src.models.arima.train import train_sarima_model
+from src.models.LSTM.train import train_LSTM_model
+from src.models.MLP.train import train_mlp_model
+from src.models.transformer.train import train_transformer_model
+from src.models.random_forest.train import train_random_forest
+from src.models.TCN.train import train_tcn_model
 from src.models.arima.repeat_forecast import _run_single_forecast as run_arimax
 from src.models.random_forest.execute_forecast import run_single_forecast as run_rf
 from src.models.LSTM.execute_forecast import run_single_forecast as run_lstm
 from src.models.MLP.execute_forecast import run_single_forecast as run_mlp
 from src.models.transformer.execute_forecast import run_single_forecast as run_transformer
+from src.models.TCN.execute_forecast import run_single_forecast as run_tcn
+from src.data.create_supervised import create_supervised_dataset
+from src.data.create_3d_dataset import create_3d_dataset
 
 # Metadata about the used datasets and stations to evaluate on
 DATASETS = {
@@ -40,13 +49,24 @@ HORIZONS = [24, 48, 168, 336]
 
 NUMBER_OF_REPEATS = 10
 
-MODELS = {
+TRAIN_MODELS = {
+    "ARIMA": train_sarima_model,
+    "ARIMAX": train_sarima_model,
+    "LSTM": train_LSTM_model,
+    "RF": train_random_forest,
+    "MLP": train_mlp_model,
+    "Transformer": train_transformer_model,
+    "TCN": train_tcn_model
+}
+
+FORECAST_MODELS = {
     "ARIMA": run_arimax,
     "ARIMAX": run_arimax,
     "LSTM": run_lstm,
     "RF": run_rf,
     "MLP": run_mlp,
-    "Transformer": run_transformer
+    "Transformer": run_transformer,
+    "TCN": run_tcn
 }
 
 MODEL_TRAINING_DAYS = {
@@ -55,7 +75,8 @@ MODEL_TRAINING_DAYS = {
     "LSTM": 8 * 7,          # 8 weeks of hourly data (1344 hours)
     "RF": 8 * 7,            # 8 weeks of hourly data (1344 hours)
     "MLP": 8 * 7,           # 8 weeks of hourly data (1344 hours)
-    "Transformer": 4 * 7    # 4 weeks of hourly data (672 hours)
+    "Transformer": 4 * 7,   # 4 weeks of hourly data (672 hours)
+    "TCN": 8 * 7            # 8 weeks of hourly data (1344 hours)
 }
 
 
@@ -65,14 +86,14 @@ def run_single_experiment(task):
 
     Input
     -----
-    task: A tuple containing (dataset_name, repeat_id, horizon, model_name, station, series, exog_df, df_complete)
+    task: A tuple containing (dataset_name, repeat_id, model_name, station, series, exog_df, df_complete)
 
     Output
     ------
     A list containing the results of the experiment:
         [dataset_name, station, model_name, train_start, train_end, horizon, mae, mse]
     """
-    dataset_name, repeat_id, horizon, model_name, station, series, exog_df, df_complete = task
+    dataset_name, repeat_id, model_name, station, series, exog_df, df_complete = task
 
     # Generate random training period (start and end date) for the given dataset and station
     forecast_start = generate_forecast_start(
@@ -88,58 +109,127 @@ def run_single_experiment(task):
 
     train_start = forecast_start - pd.Timedelta(days=training_days)
     train_end = forecast_start
-    test_end = train_end + pd.Timedelta(hours=horizon)
 
-    model_fn = MODELS[model_name]
-
-    print(
-        dataset_name,
-        station,
-        model_name,
-        train_start,
-        train_end,
-        horizon
-    )
+    # Train the model once on the training period (if applicable) to reuse for all horizons
+    train_model_fn = TRAIN_MODELS[model_name]
 
     if model_name in ["ARIMA", "ARIMAX"]:
-        mae, mse, _, _, _, _ = model_fn(
-            repeat_id,
-            series=series,
-            exog_df=exog_df if model_name == "ARIMAX" else None,
-            start_date=train_start,
-            end_date=test_end,
-            hours_to_forecast=horizon,
+        model = train_model_fn(
+            series=series[train_start:train_end],
+            exog_df=exog_df[train_start:train_end] if model_name == "ARIMAX" else None,
             arima_order=(2, 0, 0),
             seasonal_order=(1, 0, 1, 24),
-            confidence_score=False,
-            max_iter=1000,
-            plot=False
+            max_iter=1000
         )
-    elif model_name in ["LSTM", "Transformer"]:
-        mae, mse, _ = model_fn(
-            df=df_complete,
-            number=repeat_id,
+    elif model_name == "LSTM":
+        model = train_model_fn(
+            df=df_complete[train_start:train_end],
             target_station=station,
-            start=train_start,
-            train_end=train_end,
-            test_end=test_end,
-            mode="forecast"
+            previous_time_steps=24,
+        )
+    elif model_name == "Transformer":
+        model, x_scaler, y_scaler = train_model_fn(
+            df=df_complete[train_start:train_end],
+            target_station=station,
+            previous_time_steps=24,
+        )
+    elif model_name in ["RF", "MLP"]:
+        # Create supervised dataset
+        X, y = create_supervised_dataset(
+            df_complete, target_station=station, previous_time_steps=24, exog_cols=exog_df.columns.tolist(), exog_lags=0
         )
 
-    else:
-        result = model_fn(
-            df=df_complete,
-            target_station=station,
-            exog_cols=exog_df.columns.tolist(),
-            start=train_start,
-            train_end=train_end,
-            test_end=test_end,
-            mode="forecast"
+        # Select the data based on the training period
+        X_train, y_train = X.loc[train_start:train_end], y.loc[train_start:train_end]
+
+        # Train the model
+        train_result = train_model_fn(X_train, y_train)
+        model = train_result[0] if model_name == "RF" else train_result
+    elif model_name == "TCN":
+        # Create supervised dataset
+        X, y, dates = create_3d_dataset(
+            df_complete, target_station=station, previous_time_steps=24 * 3, exog_cols=exog_df.columns.tolist()
         )
+
+        # Select the data based on the training period
+        train_mask = (dates >= train_start) & (dates <= train_end)
+        X_train, y_train = X[train_mask], y[train_mask]
+
+        # Train the TCN model
+        model = train_model_fn(X_train, y_train)
+
+    # Evaluate the model for each forecast horizon and save the results
+    results = []
+    for horizon in HORIZONS:
+        test_end = train_end + pd.Timedelta(hours=horizon)
+
+        forecast_model_fn = FORECAST_MODELS[model_name]
+
+        print(
+            dataset_name,
+            station,
+            model_name,
+            train_start,
+            train_end,
+            horizon
+        )
+
+        if model_name in ["ARIMA", "ARIMAX"]:
+            result = forecast_model_fn(
+                repeat_id,
+                series=series,
+                exog_df=exog_df if model_name == "ARIMAX" else None,
+                model=model,
+                start_date=train_start,
+                end_date=test_end,
+                hours_to_forecast=horizon,
+                arima_order=(2, 0, 0),
+                seasonal_order=(1, 0, 1, 24),
+                confidence_score=False,
+                max_iter=1000,
+                plot=False
+            )
+        elif model_name == "LSTM":
+            result = forecast_model_fn(
+                df=df_complete,
+                number=repeat_id,
+                target_station=station,
+                model=model,
+                start=train_start,
+                train_end=train_end,
+                test_end=test_end,
+                mode="forecast"
+            )
+        elif model_name == "Transformer":
+            result = forecast_model_fn(
+                df=df_complete,
+                number=repeat_id,
+                target_station=station,
+                model=model,
+                x_scaler=x_scaler,
+                y_scaler=y_scaler,
+                start=train_start,
+                train_end=train_end,
+                test_end=test_end,
+                mode="forecast"
+            )
+        elif model_name in ["RF", "MLP", "TCN"]:
+            result = forecast_model_fn(
+                df=df_complete,
+                target_station=station,
+                model=model,
+                exog_cols=exog_df.columns.tolist(),
+                start=train_start,
+                train_end=train_end,
+                test_end=test_end,
+                mode="forecast"
+            )
 
         mae, mse = result[:2]
 
-    return [
+        results.append((horizon, mae, mse))
+
+    return [[
         dataset_name,
         station,
         model_name,
@@ -148,7 +238,7 @@ def run_single_experiment(task):
         horizon,
         mae,
         mse
-    ]
+    ] for horizon, mae, mse in results]
 
 
 def run_all_experiments(model_name):
@@ -160,7 +250,7 @@ def run_all_experiments(model_name):
     -----
     model_name: Name of the model to run (must be a key in the MODELS dictionary)
     """
-    with open(f"output/models_comparison_{model_name}.csv", "w", newline="") as f:
+    with open(f"output/models_comparison_{model_name}_bis.csv", "w", newline="") as f:
         # Create CSV writer and write header
         writer = csv.writer(f)
 
@@ -222,25 +312,26 @@ def run_all_experiments(model_name):
 
                 # Generate NUMBER_OF_REPEATS random training periods for the given dataset and station
                 for i in range(NUMBER_OF_REPEATS):
-                    for horizon in HORIZONS:
-                        tasks.append((
-                            dataset_name,
-                            i,
-                            horizon,
-                            model_name,
-                            station,
-                            series,
-                            exog_df,
-                            df_complete
-                        ))
+                    tasks.append((
+                        dataset_name,
+                        i,
+                        model_name,
+                        station,
+                        series,
+                        exog_df,
+                        df_complete
+                    ))
 
                 # Run the tasks in parallel using ProcessPoolExecutor
                 with ProcessPoolExecutor() as executor:
                     futures = [executor.submit(run_single_experiment, task) for task in tasks]
 
                     for future in as_completed(futures):
-                        result = future.result()
-                        writer.writerow(result)
+                        results = future.result()
+
+                        # Write each result to the CSV file
+                        for result in results:
+                            writer.writerow(result)
 
 
 def generate_forecast_start(series, seed, repeat_id, max_history_days, max_horizon):
@@ -284,7 +375,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the full experiment comparing all models across all datasets, "
                                                  "different stations, training periods, and forecast horizons. The results "
                                                  "are saved to a CSV file for later analysis.")
-    parser.add_argument("--model", choices=MODELS.keys(), required=True,
+    parser.add_argument("--model", choices=TRAIN_MODELS.keys(), required=True,
                         help="Name of the model to run (must be a key in the MODELS dictionary)")
     args = parser.parse_args()
 

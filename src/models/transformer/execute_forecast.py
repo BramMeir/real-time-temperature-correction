@@ -3,7 +3,7 @@ from src.models.transformer.bayes_search import bayesian_search_transformer
 from src.models.transformer.train import train_transformer_model
 
 
-def run_single_forecast(df, number, target_station, previous_time_steps=24,
+def run_single_forecast(df, number, target_station, model=None, x_scaler=None, y_scaler=None, previous_time_steps=24,
                         start=None, train_end=None, test_end=None, mode="bayes_search"):
     """
     Runs a single forecast using transformer model, either with Bayesian hyperparameter search or
@@ -14,6 +14,9 @@ def run_single_forecast(df, number, target_station, previous_time_steps=24,
     df: DataFrame with the complete dataset
     number: An identifier number for the run
     target_station: The target station for forecasting
+    model: Optional pre-trained model to use for forecasting (if mode is "forecast")
+    x_scaler: Optional pre-fitted scaler for input features (if mode is "forecast")
+    y_scaler: Optional pre-fitted scaler for target variable (if mode is "forecast")
     previous_time_steps: Number of previous time steps to include as lags
     start: Start date for the dataset
     train_end: End date for the training set
@@ -39,7 +42,8 @@ def run_single_forecast(df, number, target_station, previous_time_steps=24,
         )
     else:
         # Train with default parameters if not searching
-        model, x_scaler, y_scaler = train_transformer_model(df_train, target_station, previous_time_steps=previous_time_steps)
+        if model is None:
+            model, x_scaler, y_scaler = train_transformer_model(df_train, target_station, previous_time_steps=previous_time_steps)
 
     # Evaluate
     mae, rmse = evaluate_forecast(
