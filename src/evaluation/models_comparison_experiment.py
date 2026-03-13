@@ -250,7 +250,7 @@ def run_all_experiments(model_name):
     -----
     model_name: Name of the model to run (must be a key in the MODELS dictionary)
     """
-    with open(f"output/models_comparison_{model_name}_bis.csv", "w", newline="") as f:
+    with open(f"output/models_comparison_{model_name}_expanded.csv", "w", newline="") as f:
         # Create CSV writer and write header
         writer = csv.writer(f)
 
@@ -322,16 +322,25 @@ def run_all_experiments(model_name):
                         df_complete
                     ))
 
-                # Run the tasks in parallel using ProcessPoolExecutor
-                with ProcessPoolExecutor() as executor:
-                    futures = [executor.submit(run_single_experiment, task) for task in tasks]
-
-                    for future in as_completed(futures):
-                        results = future.result()
+                # If on GPU (for LSTM + Transformer), do not use too much parallelism to avoid out-of-memory errors,
+                # so we run sequentially
+                if model_name in ["LSTM", "Transformer", "TCN"]:
+                    for task in tasks:
+                        results = run_single_experiment(task)
 
                         # Write each result to the CSV file
                         for result in results:
                             writer.writerow(result)
+                else:
+                    with ProcessPoolExecutor() as executor:
+                        futures = [executor.submit(run_single_experiment, task) for task in tasks]
+
+                        for future in as_completed(futures):
+                            results = future.result()
+
+                            # Write each result to the CSV file
+                            for result in results:
+                                writer.writerow(result)
 
 
 def generate_forecast_start(series, seed, repeat_id, max_history_days, max_horizon):
