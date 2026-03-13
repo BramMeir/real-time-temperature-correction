@@ -60,7 +60,7 @@ def repeat_task(df, target_station, previous_time_steps, random_seed=42, n_repea
             df_slice = df.loc[start:end].copy()
             futures.append(
                 executor.submit(
-                    run_single_forecast, df_slice, i, target_station, previous_time_steps, start, train_end, end, mode
+                    run_single_forecast, df_slice, i, target_station, None, previous_time_steps, start, train_end, end, mode
                 )
             )
 
