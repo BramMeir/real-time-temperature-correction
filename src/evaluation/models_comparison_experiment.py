@@ -44,8 +44,8 @@ DATASETS = {
 # Seed that is used to define the training periods (for reproducibility)
 SEED = 42
 
-# Forecasting horizons in hours (24h, 48h, 1 week, 2 weeks)
-HORIZONS = [24, 48, 168, 336]
+# Forecasting horizons in hours (4h, 12h, 1D, 2D, 4D, 7D, 14D, 21D, 30D)
+HORIZONS = [4, 12, 24, 48, 96, 168, 336, 504, 720]
 
 NUMBER_OF_REPEATS = 10
 
@@ -75,7 +75,7 @@ MODEL_TRAINING_DAYS = {
     "LSTM": 8 * 7,          # 8 weeks of hourly data (1344 hours)
     "RF": 8 * 7,            # 8 weeks of hourly data (1344 hours)
     "MLP": 8 * 7,           # 8 weeks of hourly data (1344 hours)
-    "Transformer": 4 * 7,   # 4 weeks of hourly data (672 hours)
+    "Transformer": 8 * 7,   # 8 weeks of hourly data (1344 hours)
     "TCN": 8 * 7            # 8 weeks of hourly data (1344 hours)
 }
 

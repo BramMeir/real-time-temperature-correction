@@ -5,7 +5,7 @@ from src.models.transformer.build_model import build_transformer_model
 from sklearn.preprocessing import StandardScaler
 
 
-def train_transformer_model(df, target_station, previous_time_steps=24, num_layers=4,
+def train_transformer_model(df, target_station, previous_time_steps=8, num_layers=4,
                             d_model=448, num_heads=2, dff=64, dropout_rate=0.1, learning_rate=1e-4, batch_size=64):
     """
     Train a Transformer model with specified hyperparameters.
