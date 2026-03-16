@@ -131,7 +131,7 @@ def run_single_experiment(task):
         model, x_scaler, y_scaler = train_model_fn(
             df=df_complete[train_start:train_end],
             target_station=station,
-            previous_time_steps=24,
+            previous_time_steps=8,
         )
     elif model_name in ["RF", "MLP"]:
         # Create supervised dataset

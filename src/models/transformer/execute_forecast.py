@@ -3,7 +3,7 @@ from src.models.transformer.bayes_search import bayesian_search_transformer
 from src.models.transformer.train import train_transformer_model
 
 
-def run_single_forecast(df, number, target_station, model=None, x_scaler=None, y_scaler=None, previous_time_steps=24,
+def run_single_forecast(df, number, target_station, model=None, x_scaler=None, y_scaler=None, previous_time_steps=8,
                         start=None, train_end=None, test_end=None, mode="bayes_search"):
     """
     Runs a single forecast using transformer model, either with Bayesian hyperparameter search or
