@@ -120,13 +120,10 @@ if __name__ == "__main__":
     df_pivot = df_pivot.resample('1h').mean()
 
     # Define the target station
-    target_station = "Kurala"
+    target_station = "MELLE"
 
     # Define the other stations as exogenous variables
     exog_cols = [col for col in df_pivot.columns if col != target_station]
-
-    # Limit the data from 2015-10-21 00:00:00 to 2015-12-16 00:00:00 for faster execution during testing
-    df_pivot = df_pivot.loc["2015-10-21 00:00:00":"2015-12-30 00:00:00"]
 
     if args.mode == "bayes_search":
         mae, mse, most_frequent_hp = repeat_task(df_pivot, target_station, previous_time_steps=args.previous_time_steps,
