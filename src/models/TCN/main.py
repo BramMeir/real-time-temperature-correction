@@ -55,7 +55,7 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
             df_slice = df.loc[start:end].copy()
             futures.append(
                 executor.submit(
-                    run_single_forecast, df_slice, target_station, previous_time_steps, exog_cols, start, train_end, end, mode
+                    run_single_forecast, df_slice, target_station, None, previous_time_steps, exog_cols, start, train_end, end, mode
                 )
             )
 
@@ -75,7 +75,7 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
             # Collect all values per hyperparameter
             hp_values = collections.defaultdict(list)
             for hp in filtered_hp:
-                for key, value in hp.values.items():
+                for key, value in hp.items():
                     hp_values[key].append(value)
 
             # Compute most frequent values
@@ -98,6 +98,10 @@ if __name__ == "__main__":
     parser.add_argument('--input_file', type=str, required=True, help='Path to the input CSV file')
     parser.add_argument("--mode", choices=["repeat_forecast", "bayes_search"],
                         default="repeat_forecast", help="Select which TCN task to run.")
+    parser.add_argument("--previous_time_steps", type=int, default=24,
+                        help="Number of previous time steps to include as features (default is 24)")
+    parser.add_argument("--weeks", type=int, default=2,
+                        help="Number of weeks for the training period (default is 2)")
     args = parser.parse_args()
 
     # Read the dataset
@@ -122,18 +126,11 @@ if __name__ == "__main__":
     exog_cols = [col for col in df_pivot.columns if col != target_station]
 
     if args.mode == "bayes_search":
-        with open(f"output/transformer_bayes_search_{target_station}.csv", "w") as f:
-            f.write("previous_time_steps,weeks,mae,mse,most_frequent_hp\n")
-
-            # for repeat_step in [8, 12, 24]:
-            #     for weeks in [4, 8, 12]:
-            for repeat_step in [2]:
-                for weeks in [2]:
-                    mae, mse, most_frequent_hp = repeat_task(df_pivot, target_station, previous_time_steps=repeat_step,
-                                                             exog_cols=exog_cols, random_seed=47, n_repeats=10, weeks=weeks,
-                                                             hours_to_forecast=48, mode=args.mode)
-                    f.write(f"{repeat_step},{weeks},{mae:.4f},{mse:.4f},{most_frequent_hp}\n")
+        mae, mse, most_frequent_hp = repeat_task(df_pivot, target_station, previous_time_steps=args.previous_time_steps,
+                                                 exog_cols=exog_cols, random_seed=47, n_repeats=10, weeks=args.weeks,
+                                                 hours_to_forecast=48, mode=args.mode)
+        print(f"{args.previous_time_steps},{args.weeks},{mae:.4f},{mse:.4f},{most_frequent_hp}\n")
 
     else:
         repeat_task(df_pivot, target_station, previous_time_steps=24 * 3, exog_cols=exog_cols,
-                    random_seed=47, n_repeats=30, weeks=2, hours_to_forecast=48, mode=args.mode)
+                    random_seed=47, n_repeats=1, weeks=8, hours_to_forecast=336, mode=args.mode)

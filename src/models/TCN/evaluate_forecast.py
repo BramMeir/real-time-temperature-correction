@@ -35,7 +35,7 @@ def evaluate_forecast(model, y_train, X_test, y_test, dates_train, dates_test, p
     for i in range(len(y_test)):
 
         # Predict the next step (y_pred for time t+i)
-        y_pred = model.predict(X_current_window)[0]
+        y_pred = model.predict(X_current_window, verbose=0)[0]
         predictions.append(y_pred)
 
         # B. Prepare for the next iteration (t+i+1)

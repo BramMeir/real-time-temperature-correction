@@ -39,7 +39,7 @@ def evaluate_forecast(model, number, df_train, df_test, previous_time_steps, tar
         current_sequence_reshaped = np.expand_dims(last_known_sequence, axis=0)
 
         # Predict
-        y_pred_scaled = model.predict(current_sequence_reshaped, verbose=1)[0][0]
+        y_pred_scaled = model.predict(current_sequence_reshaped, verbose=0)[0][0]
         predictions_scaled.append(y_pred_scaled)
 
         # Build next timestep input (scaled)

@@ -4,7 +4,7 @@ from src.models.MLP.train import train_mlp_model
 from src.models.random_forest.evaluate_forecast import evaluate_forecast
 
 
-def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=None,
+def run_single_forecast(df, target_station, model=None, previous_time_steps=24, exog_cols=None,
                         start=None, train_end=None, test_end=None, mode="bayes_search"):
     """
     Runs a single forecast using MLP, either with Bayesian hyperparameter search or
@@ -15,6 +15,7 @@ def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=No
     -----
     df: DataFrame with the complete dataset
     target_station: The target station for forecasting
+    model: Optional pre-trained model to use for forecasting (if None, a new model will be trained)
     previous_time_steps: Number of previous time steps to include as lags
     exog_cols: List of exogenous feature column names
     start: Start date for the dataset
@@ -45,10 +46,11 @@ def run_single_forecast(df, target_station, previous_time_steps=24, exog_cols=No
     if mode == "bayes_search":
         model, best_hp = bayes_search_mlp(X_train, y_train)
     else:
-        model = train_mlp_model(X_train, y_train)
+        if model is None:
+            model = train_mlp_model(X_train, y_train)
 
     # Evaluate using recursive multi-step forecasting
-    mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, plot=True)
+    mae, rmse = evaluate_forecast(model, y_train, X_test, y_test, plot=False)
     mse = rmse ** 2
 
     return mae, mse, best_hp

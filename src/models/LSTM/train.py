@@ -59,7 +59,6 @@ def train_LSTM_model(df, target_station, previous_time_steps=24, number_of_neuro
 
     model = keras.Model(name="Temperature_forecast", inputs=inputs, outputs=outputs)
     model.compile(optimizer=keras.optimizers.Adam(learning_rate=learning_rate), loss="mse")
-    model.summary()
 
     # Add early stopping to prevent overfitting
     early_stopping = keras.callbacks.EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)
@@ -70,7 +69,7 @@ def train_LSTM_model(df, target_station, previous_time_steps=24, number_of_neuro
         epochs=nr_epochs,
         validation_data=dataset_val,
         callbacks=[early_stopping],
-        verbose=1
+        verbose=0
     )
 
     return model

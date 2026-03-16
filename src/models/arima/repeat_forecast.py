@@ -15,7 +15,7 @@ from src.models.arima.sarima_forecast import sarima_forecast
 from src.models.arima.confidence_score import sarima_forecast_with_confidence_score
 
 
-def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_forecast,
+def _run_single_forecast(i, series, exog_df, model, start_date, end_date, hours_to_forecast,
                          arima_order, seasonal_order, confidence_score, max_iter, plot=False):
     """
     Helper function to run a single forecast on a sub-series.
@@ -25,6 +25,7 @@ def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_fore
     i: Index of the current run (for logging purposes)
     series: Pandas Series with the time series data
     exog_df: DataFrame with exogenous variables
+    model: Optional pre-trained SARIMA model (if None, a new model will be trained)
     start_date: Start date for the sub-series
     end_date: End date for the sub-series
     hours_to_forecast: Number of hours to forecast into the future
@@ -68,6 +69,7 @@ def _run_single_forecast(i, series, exog_df, start_date, end_date, hours_to_fore
         errors, importance = sarima_forecast(
             sub_series,
             exog_df=sub_exog,
+            model=model,
             hours_to_forecast=hours_to_forecast,
             arima_order=arima_order,
             seasonal_order=seasonal_order,
@@ -128,7 +130,7 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
     with ProcessPoolExecutor(max_workers=n_jobs) as executor:
         futures = [
             executor.submit(
-                _run_single_forecast, i, series, exog_df, start, end,
+                _run_single_forecast, i, series, exog_df, None, start, end,
                 hours_to_forecast, arima_order, seasonal_order, confidence_score, max_iter, plot
             )
             for i, (start, end) in enumerate(date_ranges)

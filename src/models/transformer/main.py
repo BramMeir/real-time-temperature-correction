@@ -60,7 +60,7 @@ def repeat_task(df, target_station, previous_time_steps, random_seed=42, n_repea
             df_slice = df.loc[start:end].copy()
             futures.append(
                 executor.submit(
-                    run_single_forecast, df_slice, i, target_station, previous_time_steps, start, train_end, end, mode
+                    run_single_forecast, df_slice, i, target_station, None, None, None, previous_time_steps, start, train_end, end, mode
                 )
             )
 
@@ -132,17 +132,6 @@ if __name__ == "__main__":
     # Define the other stations as exogenous variables
     exog_cols = [col for col in df_pivot.columns if col != target_station]
 
-    # if args.mode == "bayes_search":
-    #     with open(f"output/transformer_bayes_search_{target_station}.csv", "w") as f:
-    #         f.write("previous_time_steps,weeks,mae,mse,most_frequent_hp\n")
-
-    #         for repeat_step in [8, 12, 24]:
-    #             for weeks in [4, 8, 12]:
-    #                 mae, mse, most_frequent_hp = repeat_task(df_pivot, target_station, previous_time_steps=repeat_step,
-    #                                                          random_seed=47, n_repeats=5, weeks=weeks,
-    #                                                          hours_to_forecast=48, mode=args.mode)
-    #                 f.write(f"{repeat_step},{weeks},{mae:.4f},{mse:.4f},{most_frequent_hp}\n")
-
     if args.mode == "bayes_search":
         mae, mse, most_frequent_hp = repeat_task(df_pivot, target_station, previous_time_steps=args.previous_time_steps,
                                                  random_seed=47, n_repeats=6, weeks=args.weeks,
@@ -150,5 +139,5 @@ if __name__ == "__main__":
         print(f"{args.previous_time_steps},{args.weeks},{mae:.4f},{mse:.4f},{most_frequent_hp}\n")
 
     else:
-        repeat_task(df_pivot, target_station, previous_time_steps=args.previous_time_steps,
-                    random_seed=47, n_repeats=30, weeks=args.weeks, hours_to_forecast=48, mode=args.mode)
+        repeat_task(df_pivot, target_station, previous_time_steps=8,
+                    random_seed=47, n_repeats=30, weeks=4, hours_to_forecast=48, mode=args.mode)

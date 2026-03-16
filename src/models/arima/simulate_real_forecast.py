@@ -8,7 +8,7 @@ import pandas as pd
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 import numpy as np
-from src.evaluation.evaluate import evaluate_forecasts
+from src.evaluation.evaluate_forecasts import evaluate_forecasts
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 

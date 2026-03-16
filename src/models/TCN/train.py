@@ -4,7 +4,7 @@ from src.models.TCN.skoptTCN import create_tcn_model
 from sklearn.model_selection import train_test_split
 
 
-def train_tcn_model(X_train, y_train, nb_filters=128, kernel_size=2, dilations='(1, 2)',
+def train_tcn_model(X_train, y_train, nb_filters=166, kernel_size=2, dilations='(1, 2, 4, 8)',
                     learning_rate=0.01, epochs=100, random_seed=42) -> KerasRegressor:
     """
     Trains the TCN model using the optimal hyperparameters found by BayesSearchCV.
@@ -47,7 +47,7 @@ def train_tcn_model(X_train, y_train, nb_filters=128, kernel_size=2, dilations='
         kernel_size=kernel_size,
         dilations=dilations,
         learning_rate=learning_rate,
-        verbose=1,
+        verbose=0,
         epochs=epochs,
         batch_size=32,
         random_state=random_seed,
@@ -60,7 +60,7 @@ def train_tcn_model(X_train, y_train, nb_filters=128, kernel_size=2, dilations='
         y_t,
         callbacks=[early_stopping],
         validation_data=(X_val, y_val),
-        verbose=1
+        verbose=0
     )
 
     return final_estimator

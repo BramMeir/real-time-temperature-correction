@@ -3,7 +3,7 @@ from src.models.LSTM.evaluate_forecast import evaluate_LSTM_forecast
 from src.models.LSTM.bayes_search import bayesian_search_LSTM
 
 
-def run_single_forecast(df, number, target_station, previous_time_steps=24,
+def run_single_forecast(df, number, target_station, model=None, previous_time_steps=24,
                         start=None, train_end=None, test_end=None, mode="bayes_search"):
     """
     Runs a single forecast using Random Forest, either with Bayesian hyperparameter search or
@@ -15,6 +15,7 @@ def run_single_forecast(df, number, target_station, previous_time_steps=24,
     df: DataFrame with the complete dataset
     number: An identifier number for the forecast run
     target_station: The target station for forecasting
+    model: Optional pre-trained model to use for forecasting (if mode is "forecast")
     previous_time_steps: Number of previous time steps to include as lags
     start: Start date for the dataset
     train_end: End date for the training set
@@ -37,16 +38,16 @@ def run_single_forecast(df, number, target_station, previous_time_steps=24,
 
     # Dependant on the mode, train the model using the selected parameters or Bayesian search
     best_hp = None
-    optimal_epochs = None
     if mode == "bayes_search":
-        model, best_hp, optimal_epochs = bayesian_search_LSTM(df_train, target_station, number, previous_time_steps=previous_time_steps)
+        model, best_hp, _ = bayesian_search_LSTM(df_train, target_station, number, previous_time_steps=previous_time_steps)
     else:
-        model = train_LSTM_model(df_train, target_station, previous_time_steps=previous_time_steps)
+        if model is None:
+            model = train_LSTM_model(df_train, target_station, previous_time_steps=previous_time_steps)
 
     # Evaluate using recursive multi-step forecasting
     mae, rmse = evaluate_LSTM_forecast(
-        model, number, df_train, df_test, previous_time_steps, target_station, plot=True
+        model, number, df_train, df_test, previous_time_steps, target_station, plot=False
     )
     mse = rmse ** 2
 
-    return mae, mse, best_hp, optimal_epochs
+    return mae, mse, best_hp

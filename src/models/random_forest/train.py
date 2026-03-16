@@ -21,8 +21,8 @@ def train_random_forest(X_train, y_train, random_seed=42, n_estimators=200, max_
     ------
     model: Trained Random Forest model
     """
-    # Initialize the base Random Forest model (n_jobs=-1 to use all available cores)
-    rf_model = RandomForestRegressor(random_state=random_seed, n_jobs=-1,
+    # Initialize the base Random Forest model (n_jobs=1 to prevent issues with parallel processing in some environments)
+    rf_model = RandomForestRegressor(random_state=random_seed, n_jobs=1,
                                      n_estimators=n_estimators, max_depth=max_depth,
                                      min_samples_leaf=min_samples_leaf, min_samples_split=min_samples_split)
 

@@ -39,7 +39,7 @@ def evaluate_LSTM_forecast(model, number, df_train, df_test, previous_time_steps
 
         # Predict next step
         # The model outputs a nested array, so we get the scalar value with [0][0]
-        y_pred = model.predict(current_sequence_reshaped)[0][0]
+        y_pred = model.predict(current_sequence_reshaped, verbose=0)[0][0]
         predictions.append(y_pred)
 
         # Construct the new input sequence for the next prediction

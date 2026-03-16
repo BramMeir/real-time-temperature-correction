@@ -23,9 +23,7 @@ series = pd.Series(
 # 3. Resample to hourly frequency (average temperature per hour)
 df_hourly = series.resample('1h').mean()
 
-print(df_hourly.head())
-
-# Select 6 months
+# Select 1 month of data for decomposition
 df_hourly = df_hourly['2023-05-15':'2023-06-15']
 
 # 4. STL Decomposition
@@ -46,5 +44,6 @@ axes[2].set_title("Seizoensgebonden (dagelijkse cyclus)")
 axes[3].plot(df_hourly.index, res.resid, linewidth=0.8)
 axes[3].set_title("Resterende component (remainder)")
 
+fig.supylabel("Temperatuur (°C)")
 plt.tight_layout()
 plt.savefig('STL_time_series_decomposition.png')
