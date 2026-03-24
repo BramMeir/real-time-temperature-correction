@@ -93,7 +93,7 @@ def sarima_forecast(series, exog_df=None, model=None, hours_to_forecast=48, arim
     # Compute the feature importance for exogenous variables if provided
     importance = None
     if exog_df is not None:
-        # Exogene parameters do not contain numbers
+        # Exogenous parameters do not contain numbers
         importance = results.params[exog_df.columns].abs().sort_values(ascending=False)
 
     return errors, importance

@@ -152,12 +152,12 @@ if __name__ == "__main__":
         df_results = experiment_exog_scaling(
             series,
             full_exog_df=exog_df,
-            k_values=list(range(1, exog_df.shape[1] + 1, 3)),
+            k_values=list(range(1, exog_df.shape[1] + 1, 2)),
             weeks=args.weeks,
             hours_to_forecast=args.hours_to_forecast,
             arima_order=(2, 0, 0),
             seasonal_order=(1, 0, 1, 24),
-            n_repeats=15,
+            n_repeats=30,
             max_iter=1000,
             n_jobs=10
         )
