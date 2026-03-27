@@ -13,6 +13,8 @@ python -m src.scripts.determine_optimal_nr_stations --target_station "Sint_Baafs
 import argparse
 import os
 import pandas as pd
+from sklearn.linear_model import LassoCV
+from sklearn.preprocessing import StandardScaler
 from src.models.arima.repeat_forecast import repeat_forecasts
 
 
@@ -24,7 +26,7 @@ def run_station_experiment(
     hours_to_forecast
 ):
     """
-    Executes the experiment to determine the optimal number of stations for forecasting a target station.
+    Executes the experiment to determine the LASSO performance compared to using all stations.
 
     Input:
     -----
@@ -65,7 +67,7 @@ def run_station_experiment(
     series = series.resample(args.resample).mean().interpolate(limit_direction="both")
     exog_df = exog_df.resample(args.resample).mean().interpolate(limit_direction="both")
 
-    # Step 1: Rank all the stations based on their importance for forecasting the target station
+    # Step 1: Determine the performance of using all stations as exogenous variables
     results_all = repeat_forecasts(
         series,
         exog_df=exog_df,
@@ -80,50 +82,67 @@ def run_station_experiment(
         n_jobs=10
     )
 
-    importance_ranking = results_all["importance"]
-    ordered_stations = importance_ranking.index.tolist()
-
+    mae_all = results_all["mae_mean"]
     mse_all = results_all["mse_mean"]
+    duration_all = results_all["duration_mean_seconds"]
 
-    # Step 2: Determine the optimal number of stations by iteratively testing
-    # the performance using the top k stations as exogenous variables
-    subset_results = []
+    # Step 2: Determine the performance of the model using subsets of stations selected by LASSO
+    # Timing for LASSO ranking
+    start_time = pd.Timestamp.now()
 
-    max_k = min(len(ordered_stations), 25)
+    # Standardize features (important for LASSO)
+    scaler = StandardScaler()
+    exog_scaled = scaler.fit_transform(exog_df)
 
-    for k in range(1, max_k + 1):
-        selected = ordered_stations[:k]
+    # Cross-validated LASSO
+    lasso = LassoCV(
+        cv=5,
+        random_state=47,
+        n_jobs=10,
+        max_iter=10000
+    )
+    lasso.fit(exog_scaled, series.values)
 
-        res_k = repeat_forecasts(
-            series,
-            exog_df=exog_df[selected],
-            weeks=weeks,
-            hours_to_forecast=hours_to_forecast,
-            arima_order=(2, 0, 0),
-            seasonal_order=(1, 0, 1, 24),
-            confidence_score=False,
-            n_repeats=20,
-            random_seed=47,
-            max_iter=1000,
-            n_jobs=10
-        )
+    coefs = pd.Series(lasso.coef_, index=exog_df.columns)
+    ranking = coefs.abs().sort_values(ascending=False)
 
-        subset_results.append({
-            "k": k,
-            "mse": res_k["mse_mean"],
-            "mae": res_k["mae_mean"]
-        })
+    # Select the stations with non-zero coefficients
+    ranking = ranking[ranking > 0]
+    top_exog_df = exog_df[ranking.index]
 
-    subset_df = pd.DataFrame(subset_results)
+    # Timing for LASSO ranking
+    duration_lasso_selection = (pd.Timestamp.now() - start_time).total_seconds()
 
-    best_row = subset_df.loc[subset_df["mse"].idxmin()]
+    lasso_result = repeat_forecasts(
+        series,
+        exog_df=top_exog_df,
+        weeks=weeks,
+        hours_to_forecast=hours_to_forecast,
+        arima_order=(2, 0, 0),
+        seasonal_order=(1, 0, 1, 24),
+        confidence_score=False,
+        n_repeats=20,
+        random_seed=47,
+        max_iter=1000,
+        n_jobs=10
+    )
+
+    mae_lasso = lasso_result["mae_mean"]
+    mse_lasso = lasso_result["mse_mean"]
+    duration_lasso_forecast = lasso_result["duration_mean_seconds"]
 
     return {
         "target_station": target_station,
-        "optimal_k": int(best_row["k"]),
-        "optimal_mse": best_row["mse"],
+        "nr_stations": len(ranking),
+        "optimal_mse": mse_lasso,
         "all_mse": mse_all,
-        "mse_difference": mse_all - best_row["mse"]
+        "mse_difference": mse_all - mse_lasso,
+        "optimal_mae": mae_lasso,
+        "all_mae": mae_all,
+        "mae_difference": mae_all - mae_lasso,
+        "duration_all_seconds": duration_all,
+        "duration_lasso_selection_seconds": duration_lasso_selection,
+        "duration_lasso_forecast_seconds": duration_lasso_forecast
     }
 
 
@@ -136,7 +155,7 @@ if __name__ == "__main__":
     parser.add_argument("--hours_to_forecast", type=int, default=48,
                         help="Number of hours to forecast into the future (default: 48).")
     parser.add_argument("--station_index", type=int, default=0,
-                        help="Index of the target station to analyze (default: 0).")
+                        help="Index of the target station to run the experiment on (default: 0).")
     parser.add_argument("--input_file", type=str, default="data/Part_AWS/preprocessed.csv",
                         help="Path to the preprocessed data CSV file (default: 'data/Part_AWS/preprocessed.csv').")
     args = parser.parse_args()
@@ -148,7 +167,7 @@ if __name__ == "__main__":
     stations = sorted(df['station_name'].unique())
     target_station = stations[args.station_index]
 
-    # Run the experiment
+    # Run the experiment for each station and save results
     result = run_station_experiment(
         df,
         target_station,
@@ -158,7 +177,7 @@ if __name__ == "__main__":
     )
 
     # Make sure the output directory exists
-    os.makedirs("output/optimal_nr_stations", exist_ok=True)
+    os.makedirs("output/LASSO_stations", exist_ok=True)
 
     # Save the result to a CSV file
-    pd.DataFrame([result]).to_csv(f"output/optimal_nr_stations/optimal_station_{args.station_index}.csv", index=False)
+    pd.DataFrame([result]).to_csv(f"output/LASSO_stations/performance_{args.station_index}.csv", index=False)
