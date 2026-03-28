@@ -10,7 +10,7 @@ Example usage:
 python -m src.models.arima.main --mode forecast --model arima --weeks 6 --resample 1h --hours_to_forecast 48
 python -m src.models.arima.main --mode grid_search
 """
-
+import os
 import argparse
 import pandas as pd
 import numpy as np
@@ -162,10 +162,15 @@ if __name__ == "__main__":
             n_jobs=10
         )
 
+        # Make sure the output directory exists
+        os.makedirs("output/experiment_exog_scaling", exist_ok=True)
+
         # Save the results to a CSV file
-        df_results.to_csv("output/experiment_exog_scaling.csv", index=False)
+        df_results.to_csv(f"output/experiment_exog_scaling/{args.target_station}.csv", index=False)
 
         # Plot the results
-        plot_exog_scaling_results(csv_path="output/experiment_exog_scaling.csv",
-                                  save_path="output/experiment_exog_scaling.png",
-                                  log_scale=False)
+        plot_exog_scaling_results(
+            csv_path=f"output/experiment_exog_scaling/{args.target_station}.csv",
+            save_path=f"output/experiment_exog_scaling/{args.target_station}_training_time_versus_nr_exog_stations.png",
+            log_scale=False
+        )
