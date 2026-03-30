@@ -168,9 +168,9 @@ if __name__ == "__main__":
         # Save the results to a CSV file
         df_results.to_csv(f"output/experiment_exog_scaling/{args.target_station}.csv", index=False)
 
-        # Plot the results
+        # Plot the results, averaged over all the different stations that are present in the output directory
         plot_exog_scaling_results(
-            csv_path=f"output/experiment_exog_scaling/{args.target_station}.csv",
+            output_dir="output/experiment_exog_scaling/",
             save_path=f"output/experiment_exog_scaling/{args.target_station}_training_time_versus_nr_exog_stations.png",
             log_scale=False
         )
