@@ -10,6 +10,7 @@ repeats.
 Functionality:
 - experiment_exog_scaling: Main function to run the experiment with different numbers of exogenous stations and collect results.
 """
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from src.models.arima.repeat_forecast import repeat_forecasts
@@ -80,23 +81,34 @@ def experiment_exog_scaling(
     return pd.DataFrame(results)
 
 
-def plot_exog_scaling_results(csv_path, save_path="output/experiment_exog_scaling.png", log_scale=False):
+def plot_exog_scaling_results(output_dir, save_path="output/training_time_versus_nr_exog_stations.png", log_scale=False):
     """
     Plot runtime behaviour as a function of the number of exogenous stations.
 
     Input:
-    - csv_path: Path to the CSV file containing the results of the experiment.
+    - output_dir: Path to the directory containing the CSV files with the results of the experiment.
     - save_path: Path to save the generated plot.
     - log_scale: Whether to use a logarithmic scale for the y-axis.
     """
-    df = pd.read_csv(csv_path)
+    # Find all the CSV files in the output directory and read them into a single DataFrame
+    csv_files = [f for f in os.listdir(output_dir) if f.endswith(".csv")]
+    if not csv_files:
+        raise FileNotFoundError("No CSV files found in the specified output directory.")
 
-    plt.figure()
+    # Read and concatenate all the CSV files into a single DataFrame
+    dfs = [pd.read_csv(os.path.join(output_dir, f)) for f in csv_files]
+    df = pd.concat(dfs, ignore_index=True)
+
+    # Average the results for each k_exog value
+    df = df.groupby("k_exog").agg({
+        "duration_mean_seconds": "mean"
+    }).reset_index()
+
+    plt.figure(figsize=(10, 6))
 
     plt.plot(df["k_exog"], df["duration_mean_seconds"])
-    plt.xlabel("Aantal exogene stations")
+    plt.xlabel("Aantal exogene stations in het model")
     plt.ylabel("Gemiddelde duur (seconden)")
-    plt.title("Runtime vs Aantal exogene stations")
 
     if log_scale:
         plt.yscale("log")
