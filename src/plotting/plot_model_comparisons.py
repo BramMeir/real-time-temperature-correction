@@ -25,7 +25,7 @@ def plot_overall_model_performance(df):
     plt.bar(summary_mae["Model"], summary_mae["mean"], yerr=summary_mae["std"], capsize=5)
     plt.xlabel("Model")
     plt.ylabel("Gemiddelde MAE (°C)")
-    plt.title("Algemene modelprestaties")
+    # plt.title("Algemene modelprestaties")
     plt.savefig("plots/overall_model_performance.png")
     plt.close()
 
@@ -120,7 +120,7 @@ def plot_performance_vs_horizon(df):
 
     plt.xlabel("Voorspellingshorizon (uren)")
     plt.ylabel("Gemiddelde MAE (°C)")
-    plt.title("Modelprestaties over verschillende voorspellingshorizonnen")
+    # plt.title("Modelprestaties over verschillende voorspellingshorizonnen")
 
     # Set both axis limits to start at 0 for better visualization
     plt.xlim(left=0)
@@ -178,7 +178,7 @@ def plot_performance_vs_horizon_with_zoom(df):
 
     # Top plot
     ax_top.set_ylabel("Gemiddelde MAE (°C)")
-    ax_top.set_title("Modelprestaties over verschillende voorspellingshorizonnen")
+    # ax_top.set_title("Modelprestaties over verschillende voorspellingshorizonnen")
     ax_top.set_xlim(left=0)
     ax_top.legend()
 
@@ -213,7 +213,7 @@ def plot_dataset_comparison(df):
     pivot.plot(kind="bar", ax=ax, width=0.9)
 
     ax.set_ylabel("Gemiddelde MAE (°C)")
-    ax.set_title("Modelprestaties per dataset")
+    # ax.set_title("Modelprestaties per dataset")
 
     # Add value labels on top of bars
     for container in ax.containers:
@@ -251,7 +251,7 @@ def plot_station_variability(df):
     pivot.plot(kind="bar", ax=ax)
 
     ax.set_ylabel("Gemiddelde MAE (°C)")
-    ax.set_title("Modelprestaties per station")
+    # ax.set_title("Modelprestaties per station")
 
     plt.xticks(rotation=45)
     plt.tight_layout()
@@ -314,9 +314,9 @@ def plot_urban_vs_rural_comparison(df):
         label="Gemengd landelijk/stedelijk"
     )
 
-    plt.xticks(x, models, rotation=45)
+    plt.xticks(x, models, rotation=0)
     plt.ylabel("Gemiddelde MAE (°C)")
-    plt.title("Vergelijking modelprestaties tussen landelijke en gemengde datasets")
+    # plt.title("Vergelijking modelprestaties tussen landelijke en gemengde datasets")
 
     plt.legend()
 
@@ -337,6 +337,7 @@ if __name__ == "__main__":
 
     # Read and concatenate all the csv files into a single DataFrame
     dfs = [pd.read_csv(f) for f in csv_files]
+
     df = pd.concat(dfs, ignore_index=True)
 
     # Create plot directory if it does not exist

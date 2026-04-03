@@ -10,7 +10,7 @@ Example usage:
 python -m src.models.arima.main --mode forecast --model arima --weeks 6 --resample 1h --hours_to_forecast 48
 python -m src.models.arima.main --mode grid_search
 """
-
+import os
 import argparse
 import pandas as pd
 import numpy as np
@@ -152,20 +152,25 @@ if __name__ == "__main__":
         df_results = experiment_exog_scaling(
             series,
             full_exog_df=exog_df,
-            k_values=list(range(1, exog_df.shape[1] + 1, 3)),
+            k_values=list(range(1, exog_df.shape[1] + 1, 2)),
             weeks=args.weeks,
             hours_to_forecast=args.hours_to_forecast,
             arima_order=(2, 0, 0),
             seasonal_order=(1, 0, 1, 24),
-            n_repeats=15,
+            n_repeats=30,
             max_iter=1000,
             n_jobs=10
         )
 
-        # Save the results to a CSV file
-        df_results.to_csv("output/experiment_exog_scaling.csv", index=False)
+        # Make sure the output directory exists
+        os.makedirs("output/experiment_exog_scaling", exist_ok=True)
 
-        # Plot the results
-        plot_exog_scaling_results(csv_path="output/experiment_exog_scaling.csv",
-                                  save_path="output/experiment_exog_scaling.png",
-                                  log_scale=False)
+        # Save the results to a CSV file
+        df_results.to_csv(f"output/experiment_exog_scaling/{args.target_station}.csv", index=False)
+
+        # Plot the results, averaged over all the different stations that are present in the output directory
+        plot_exog_scaling_results(
+            output_dir="output/experiment_exog_scaling/",
+            save_path=f"output/experiment_exog_scaling/{args.target_station}_training_time_versus_nr_exog_stations.png",
+            log_scale=False
+        )
