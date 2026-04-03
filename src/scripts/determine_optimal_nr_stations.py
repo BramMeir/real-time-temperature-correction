@@ -13,7 +13,31 @@ python -m src.scripts.determine_optimal_nr_stations --target_station "Sint_Baafs
 import argparse
 import os
 import pandas as pd
+import signal
+import sys
 from src.models.arima.repeat_forecast import repeat_forecasts
+
+# Global variable to store the final results
+final_result = None
+args_global = None  # store args to use in signal handler
+
+
+def save_partial_results(signal_number=None, frame=None):
+    """
+    Save results to CSV even if the job is killed by a timeout or manual interrupt.
+    """
+    if final_result is not None and args_global is not None:
+        os.makedirs("output/optimal_nr_stations_full", exist_ok=True)
+        pd.DataFrame([final_result]).to_csv(
+            f"output/optimal_nr_stations_full/optimal_station_{args_global.station_index}.csv",
+            index=False
+        )
+    sys.exit(0)
+
+
+# Register the signal handler for SIGTERM (Slurm timeout) and SIGINT (manual kill)
+signal.signal(signal.SIGTERM, save_partial_results)
+signal.signal(signal.SIGINT, save_partial_results)
 
 
 def run_station_experiment(
@@ -83,15 +107,15 @@ def run_station_experiment(
     importance_ranking = results_all["importance"]
     ordered_stations = importance_ranking.index.tolist()
 
+    mae_all = results_all["mae_mean"]
     mse_all = results_all["mse_mean"]
+    duration_all = results_all["duration_mean_seconds"]
 
     # Step 2: Determine the optimal number of stations by iteratively testing
     # the performance using the top k stations as exogenous variables
     subset_results = []
 
-    max_k = min(len(ordered_stations), 25)
-
-    for k in range(1, max_k + 1):
+    for k in range(1, len(ordered_stations)):
         selected = ordered_stations[:k]
 
         res_k = repeat_forecasts(
@@ -108,23 +132,41 @@ def run_station_experiment(
             n_jobs=10
         )
 
+        duration_k = res_k["duration_mean_seconds"]
+
         subset_results.append({
             "k": k,
             "mse": res_k["mse_mean"],
-            "mae": res_k["mae_mean"]
+            "mae": res_k["mae_mean"],
+            "duration_seconds": duration_k
         })
+
+        # Save intermediate results in case of timeout
+        global final_result
+        final_result = pd.DataFrame(subset_results).iloc[-1].to_dict()
 
     subset_df = pd.DataFrame(subset_results)
 
-    best_row = subset_df.loc[subset_df["mse"].idxmin()]
+    best_row_mse = subset_df.loc[subset_df["mse"].idxmin()]
+    best_row_mae = subset_df.loc[subset_df["mae"].idxmin()]
 
-    return {
+    final_result = {
         "target_station": target_station,
-        "optimal_k": int(best_row["k"]),
-        "optimal_mse": best_row["mse"],
+        "optimal_k_mse": int(best_row_mse["k"]),
+        "optimal_mse": best_row_mse["mse"],
+        "optimal_k_mae": int(best_row_mae["k"]),
+        "optimal_mae": best_row_mae["mae"],
         "all_mse": mse_all,
-        "mse_difference": mse_all - best_row["mse"]
+        "mse_difference": mse_all - best_row_mse["mse"],
+        "all_mae": mae_all,
+        "mae_difference": mae_all - best_row_mae["mae"],
+        "duration_all_seconds": duration_all,
+        "duration_mae_optimal_seconds": best_row_mae["duration_seconds"],
+        "duration_mse_optimal_seconds": best_row_mse["duration_seconds"],
+        "nr_stations": len(ordered_stations)
     }
+
+    return final_result
 
 
 if __name__ == "__main__":
@@ -140,6 +182,8 @@ if __name__ == "__main__":
     parser.add_argument("--input_file", type=str, default="data/Part_AWS/preprocessed.csv",
                         help="Path to the preprocessed data CSV file (default: 'data/Part_AWS/preprocessed.csv').")
     args = parser.parse_args()
+
+    args_global = args  # store globally for signal handler
 
     # Read the preprocessed data
     df = pd.read_csv(args.input_file)
@@ -158,7 +202,7 @@ if __name__ == "__main__":
     )
 
     # Make sure the output directory exists
-    os.makedirs("output/optimal_nr_stations", exist_ok=True)
+    os.makedirs("output/optimal_nr_stations_full", exist_ok=True)
 
     # Save the result to a CSV file
-    pd.DataFrame([result]).to_csv(f"output/optimal_nr_stations/optimal_station_{args.station_index}.csv", index=False)
+    pd.DataFrame([result]).to_csv(f"output/optimal_nr_stations_full/optimal_station_{args.station_index}.csv", index=False)

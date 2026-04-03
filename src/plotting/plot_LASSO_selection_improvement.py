@@ -87,6 +87,7 @@ def generate_lasso_summary_table(df):
     extra_rows = f"""
     \\\\
     \\midrule
+    \\multicolumn{{3}}{{l}}{{\\textit{{Totaal aantal beschikbare stations}}: {48}}} \\\\
     \\multicolumn{{3}}{{l}}{{\\textit{{Gemiddeld aantal geselecteerde stations}}: {mean_nr_stations:.1f}}} \\\\
     \\multicolumn{{3}}{{l}}{{\\textit{{LASSO selectietijd}}: {mean_selection_time:.2f} s}} \\\\
     \\multicolumn{{3}}{{l}}{{\\textit{{LASSO voorspellingstijd}}: {mean_forecast_time:.2f} s}} \\\\
