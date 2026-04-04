@@ -16,7 +16,7 @@ from src.models.arima.confidence_score import sarima_forecast_with_confidence_sc
 
 
 def _run_single_forecast(i, series, exog_df, model, start_date, end_date, hours_to_forecast,
-                         arima_order, seasonal_order, confidence_score, max_iter, plot=False):
+                         arima_order, seasonal_order, confidence_score, max_iter=1000, plot=False):
     """
     Helper function to run a single forecast on a sub-series.
 
@@ -31,6 +31,7 @@ def _run_single_forecast(i, series, exog_df, model, start_date, end_date, hours_
     hours_to_forecast: Number of hours to forecast into the future
     arima_order: Tuple specifying the (p, d, q) parameters for the ARIMA model
     seasonal_order: Tuple specifying the (P, D, Q, S) parameters for the SARIMA model
+    confidence_score: Whether to calculate confidence scores for the forecasts
     max_iter: Maximum number of iterations for model fitting
     plot: Whether to plot the forecast results (default is False)
 

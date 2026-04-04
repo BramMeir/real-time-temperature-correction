@@ -13,8 +13,7 @@ python -m src.scripts.determine_optimal_nr_stations --target_station "Sint_Baafs
 import argparse
 import os
 import pandas as pd
-from sklearn.linear_model import LassoCV
-from sklearn.preprocessing import StandardScaler
+from src.utils.select_LASSO_stations import select_LASSO_stations
 from src.models.arima.repeat_forecast import repeat_forecasts
 
 
@@ -90,25 +89,8 @@ def run_station_experiment(
     # Timing for LASSO ranking
     start_time = pd.Timestamp.now()
 
-    # Standardize features (important for LASSO)
-    scaler = StandardScaler()
-    exog_scaled = scaler.fit_transform(exog_df)
-
-    # Cross-validated LASSO
-    lasso = LassoCV(
-        cv=5,
-        random_state=47,
-        n_jobs=10,
-        max_iter=10000
-    )
-    lasso.fit(exog_scaled, series.values)
-
-    coefs = pd.Series(lasso.coef_, index=exog_df.columns)
-    ranking = coefs.abs().sort_values(ascending=False)
-
-    # Select the stations with non-zero coefficients
-    ranking = ranking[ranking > 0]
-    top_exog_df = exog_df[ranking.index]
+    # Execute LASSO variable selection
+    top_exog_df, _, ranking = select_LASSO_stations(series, exog_df)
 
     # Timing for LASSO ranking
     duration_lasso_selection = (pd.Timestamp.now() - start_time).total_seconds()
