@@ -21,18 +21,18 @@ DATASETS = {
         "file": "data/Turku/Turku_preprocessed.csv",
         "stations": ["Betel", "Virastotalo", "Ylijoki", "Kurala"]
     },
-    "SYNTHETIC": {
-        "file": "data/Synthetic/temperature_data.csv",
-        "stations": [
-            "Stadhuis_Brussel_Grote_Markt",
-            "Stadhuis_Antwerpen_Grote_Markt",
-            "Grote_Markt_Kortrijk",
-            "Tielt",
-            "Gembloux",
-            "Slag_om_Ardennen_Museum_La_Roche_en_Ardenne",
-            "Abdij_Tongerlo"
-        ]
-    }
+    # "SYNTHETIC": {
+    #     "file": "data/Synthetic/temperature_data.csv",
+    #     "stations": [
+    #         "Stadhuis_Brussel_Grote_Markt",
+    #         "Stadhuis_Antwerpen_Grote_Markt",
+    #         "Grote_Markt_Kortrijk",
+    #         "Tielt",
+    #         "Gembloux",
+    #         "Slag_om_Ardennen_Museum_La_Roche_en_Ardenne",
+    #         "Abdij_Tongerlo"
+    #     ]
+    # }
 }
 
 # Seed that is used to define the training periods (for reproducibility)
@@ -83,6 +83,9 @@ def run_single_experiment(task):
         _, selected_stations, _ = select_LASSO_stations(series[train_start:train_end], exog_df[train_start:train_end])
         exog_df = exog_df[selected_stations]
 
+    # Start the timing of the model training
+    start_time = pd.Timestamp.now()
+
     # Train the model once on the training period to reuse for all horizons
     model = train_sarima_model(
         series=series[train_start:train_end],
@@ -91,6 +94,9 @@ def run_single_experiment(task):
         seasonal_order=(1, 0, 1, 24),
         max_iter=10000
     )
+
+    end_time = pd.Timestamp.now()
+    training_duration = end_time - start_time
 
     # Evaluate the model for each forecast horizon and save the results
     results = []
@@ -129,7 +135,8 @@ def run_single_experiment(task):
             train_end,
             horizon,
             mae,
-            mse
+            mse,
+            training_duration
         ])
 
     return results
@@ -211,7 +218,8 @@ def run_all_experiments(training_weeks):
             "train_end",
             "horizon",
             "mae",
-            "mse"
+            "mse",
+            "training_duration"
         ])
 
         writer.writerows(results_all)
