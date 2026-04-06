@@ -15,8 +15,21 @@ from src.models.arima.sarima_forecast import sarima_forecast
 from src.models.arima.confidence_score import sarima_forecast_with_confidence_score
 
 
-def _run_single_forecast(i, series, exog_df, model, start_date, end_date, hours_to_forecast,
-                         arima_order, seasonal_order, confidence_score, max_iter=1000, plot=False):
+def _run_single_forecast(
+    i,
+    series,
+    exog_df,
+    model,
+    start_date,
+    end_date,
+    hours_to_forecast,
+    arima_order,
+    seasonal_order,
+    confidence_score,
+    use_LASSO_selection=False,
+    max_iter=1000,
+    plot=False,
+):
     """
     Helper function to run a single forecast on a sub-series.
 
@@ -32,6 +45,7 @@ def _run_single_forecast(i, series, exog_df, model, start_date, end_date, hours_
     arima_order: Tuple specifying the (p, d, q) parameters for the ARIMA model
     seasonal_order: Tuple specifying the (P, D, Q, S) parameters for the SARIMA model
     confidence_score: Whether to calculate confidence scores for the forecasts
+    use_LASSO_selection: Whether to use LASSO for feature selection of exogenous variables
     max_iter: Maximum number of iterations for model fitting
     plot: Whether to plot the forecast results (default is False)
 
@@ -64,16 +78,17 @@ def _run_single_forecast(i, series, exog_df, model, start_date, end_date, hours_
         end_time = pd.Timestamp.now()
         duration = end_time - start_time
 
-        return errors['MAE'], errors['MSE'], importance, duration, confidence_score_value, avg_conf_interval_size
+        return errors['MAE'], errors['MSE'], importance, duration, confidence_score_value, avg_conf_interval_size, None, None
 
     else:
-        errors, importance = sarima_forecast(
+        errors, importance, duration_station_selection, number_selected_stations = sarima_forecast(
             sub_series,
             exog_df=sub_exog,
             model=model,
             hours_to_forecast=hours_to_forecast,
             arima_order=arima_order,
             seasonal_order=seasonal_order,
+            use_LASSO_selection=use_LASSO_selection,
             max_iter=max_iter,
             plot=plot
         )
@@ -81,12 +96,25 @@ def _run_single_forecast(i, series, exog_df, model, start_date, end_date, hours_
         end_time = pd.Timestamp.now()
         duration = end_time - start_time
 
-        return errors['MAE'], errors['MSE'], importance, duration, None, None
+        return errors['MAE'], errors['MSE'], importance, duration, None, None, duration_station_selection, number_selected_stations
 
 
-def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_order=(10, 0, 1),
-                     seasonal_order=(0, 0, 0, 0), confidence_score=False, n_repeats=5, random_seed=42,
-                     max_iter=1000, n_jobs=4, plot=False, verbose=False):
+def repeat_forecasts(
+    series,
+    exog_df=None,
+    weeks=2,
+    hours_to_forecast=48,
+    arima_order=(10, 0, 1),
+    seasonal_order=(0, 0, 0, 0),
+    confidence_score=False,
+    use_LASSO_selection=False,
+    n_repeats=5,
+    random_seed=42,
+    max_iter=1000,
+    n_jobs=4,
+    plot=False,
+    verbose=False,
+):
     """
     Perform multiple forecasts on random n-month segments of the data.
 
@@ -99,6 +127,7 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
     arima_order: Tuple specifying the (p, d, q) parameters for the ARIMA model (default is (10, 0, 1))
     seasonal_order: Tuple specifying the (P, D, Q, S) parameters for the SARIMA model (default is (0, 0, 0, 0))
     confidence_score: Whether to calculate confidence scores for the forecasts (default is False)
+    use_LASSO_selection: Whether to use LASSO for feature selection of exogenous variables (default is False)
     n_repeats: Number of random segments to test (default is 5)
     random_seed: Seed for random number generator for reproducibility (default is 42)
     max_iter: Maximum number of iterations for model fitting (default is 1000)
@@ -127,25 +156,49 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
     durations = []
     confidence_scores = []
     avg_conf_interval_sizes = []
+    duration_station_selections = []
+    number_selected_stations_list = []
 
     with ProcessPoolExecutor(max_workers=n_jobs) as executor:
         futures = [
             executor.submit(
-                _run_single_forecast, i, series, exog_df, None, start, end,
-                hours_to_forecast, arima_order, seasonal_order, confidence_score, max_iter, plot
+                _run_single_forecast,
+                i,
+                series,
+                exog_df,
+                None,
+                start,
+                end,
+                hours_to_forecast,
+                arima_order,
+                seasonal_order,
+                confidence_score,
+                use_LASSO_selection,
+                max_iter,
+                plot,
             )
             for i, (start, end) in enumerate(date_ranges)
         ]
 
         for f in as_completed(futures):
-            mae, mse, importance, duration, confidence_score_value, avg_conf_interval_size = f.result()
+            (
+                mae,
+                mse,
+                importance,
+                duration,
+                confidence_score_value,
+                avg_conf_interval_size,
+                duration_station_selection,
+                number_selected_stations,
+            ) = f.result()
             mae_scores.append(mae)
             mse_scores.append(mse)
             importances.append(importance)
             durations.append(duration)
-            if confidence_score:
-                confidence_scores.append(confidence_score_value)
-                avg_conf_interval_sizes.append(avg_conf_interval_size)
+            confidence_scores.append(confidence_score_value)
+            avg_conf_interval_sizes.append(avg_conf_interval_size)
+            duration_station_selections.append(duration_station_selection)
+            number_selected_stations_list.append(number_selected_stations)
 
     if verbose:
         print(f"\nAverage MAE across {len(mae_scores)} runs: {np.mean(mae_scores):.3f} ± {np.std(mae_scores):.3f}")
@@ -170,6 +223,26 @@ def repeat_forecasts(series, exog_df=None, weeks=2, hours_to_forecast=48, arima_
         "mse_mean": np.mean(mse_scores),
         "importance": avg_importance,
         "duration_mean_seconds": np.mean(durations).total_seconds(),
-        "confidence_score_mean": np.mean(confidence_scores) if confidence_scores else 0,
-        "avg_conf_interval_size": np.mean(avg_conf_interval_sizes) if avg_conf_interval_sizes else 0,
+
+        # Only compute the mean scores for these metrics if no None values are present
+        "confidence_score_mean": (
+            np.mean(confidence_scores)
+            if all(score is not None for score in confidence_scores)
+            else None
+        ),
+        "avg_conf_interval_size_mean": (
+            np.mean(avg_conf_interval_sizes)
+            if all(size is not None for size in avg_conf_interval_sizes)
+            else None
+        ),
+        "duration_station_selection_mean": (
+            np.mean(duration_station_selections)
+            if all(duration is not None for duration in duration_station_selections)
+            else None
+        ),
+        "number_selected_stations_mean": (
+            np.mean(number_selected_stations_list)
+            if all(number is not None for number in number_selected_stations_list)
+            else None
+        ),
     }

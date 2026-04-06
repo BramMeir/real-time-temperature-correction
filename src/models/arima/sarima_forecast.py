@@ -8,10 +8,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from src.evaluation.evaluate_forecasts import evaluate_forecasts
 from src.models.arima.train import train_sarima_model
+from src.utils.select_LASSO_stations import select_LASSO_stations
 
 
 def sarima_forecast(series, exog_df=None, model=None, hours_to_forecast=48, arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24),
-                    max_iter=1000, plot=True):
+                    use_LASSO_selection=False, max_iter=1000, plot=True):
     """
     Fit an SARIMA model to the series and forecast values for a specified date range.
 
@@ -23,6 +24,7 @@ def sarima_forecast(series, exog_df=None, model=None, hours_to_forecast=48, arim
     hours_to_forecast: Number of hours to forecast into the future (default is 48 = 2 days)
     arima_order: Tuple specifying the (p, d, q) parameters for the SARIMA model (default is (2, 0, 0))
     seasonal_order: Tuple specifying the (P, D, Q, s) seasonal parameters for the SARIMA model (default is (1, 0, 1, 24))
+    use_LASSO_selection: Whether to use LASSO for feature selection of exogenous variables (default is False)
     max_iter: Maximum number of iterations for the model fitting (default is 1000)
     plot: Whether to display the forecast plot (default is True)
 
@@ -45,6 +47,20 @@ def sarima_forecast(series, exog_df=None, model=None, hours_to_forecast=48, arim
         common_idx = train.index.intersection(exog_train.index)
         train = train.loc[common_idx]
         exog_train = exog_train.loc[common_idx]
+
+    # Determine the LASSO selection if requested, only on the training data to avoid data leakage
+    duration_station_selection = None
+    number_selected_stations = None
+    if use_LASSO_selection and exog_df is not None:
+        start_time = pd.Timestamp.now()
+
+        # Perform the actual LASSO variable selection on the training data
+        _, selected_stations, _ = select_LASSO_stations(train, exog_train)
+        exog_train = exog_train[selected_stations]
+        exog_test = exog_test[selected_stations]
+
+        duration_station_selection = (pd.Timestamp.now() - start_time).total_seconds()
+        number_selected_stations = len(selected_stations)
 
     # Train the SARIMA model on the training data (if no pre-trained model is provided)
     if model is not None:
@@ -93,7 +109,7 @@ def sarima_forecast(series, exog_df=None, model=None, hours_to_forecast=48, arim
     # Compute the feature importance for exogenous variables if provided
     importance = None
     if exog_df is not None:
-        # Exogenous parameters do not contain numbers
-        importance = results.params[exog_df.columns].abs().sort_values(ascending=False)
+        # Select the coefficients corresponding to the exogenous variables (only the used ones if LASSO was applied)
+        importance = results.params[exog_train.columns].abs().sort_values(ascending=False)
 
-    return errors, importance
+    return errors, importance, duration_station_selection, number_selected_stations

@@ -104,10 +104,10 @@ if __name__ == "__main__":
     if args.mode == "forecast":
         if args.model == "sarima":
             sarima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(10, 0, 1),
-                            seasonal_order=(1, 0, 1, 24), max_iter=1000)
+                            seasonal_order=(1, 0, 1, 24), use_LASSO_selection=False, max_iter=1000)
         else:
             sarima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(2, 0, 0),
-                            seasonal_order=(1, 0, 1, 24), max_iter=1000)
+                            seasonal_order=(1, 0, 1, 24), use_LASSO_selection=False, max_iter=1000)
 
     elif args.mode == "repeat_forecast":
         if args.model == "sarima":
@@ -163,14 +163,14 @@ if __name__ == "__main__":
         )
 
         # Make sure the output directory exists
-        os.makedirs("output/experiment_exog_scaling", exist_ok=True)
+        os.makedirs("output/experiment_exog_scaling_8weeks", exist_ok=True)
 
         # Save the results to a CSV file
-        df_results.to_csv(f"output/experiment_exog_scaling/{args.target_station}.csv", index=False)
+        df_results.to_csv(f"output/experiment_exog_scaling_8weeks/{args.target_station}.csv", index=False)
 
         # Plot the results, averaged over all the different stations that are present in the output directory
         plot_exog_scaling_results(
-            output_dir="output/experiment_exog_scaling/",
-            save_path=f"output/experiment_exog_scaling/{args.target_station}_training_time_versus_nr_exog_stations.png",
+            output_dir="output/experiment_exog_scaling_8weeks/",
+            save_path=f"output/experiment_exog_scaling_8weeks/{args.target_station}_training_time_versus_nr_exog_stations.png",
             log_scale=False
         )

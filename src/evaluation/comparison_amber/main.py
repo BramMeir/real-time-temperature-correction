@@ -119,12 +119,13 @@ def test_SARIMA_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
                     hours_to_forecast,
                     (25, 0, 0),
                     (0, 0, 0, 0),
+                    False,
                     1000,
                     False,
                 ))
 
             for future in as_completed(futures):
-                errors = future.result()
+                errors, _, _, _ = future.result()
                 temp_mse_list.append(errors["MSE"])
                 temp_mae_list.append(errors["MAE"])
 
