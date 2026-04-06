@@ -13,6 +13,7 @@ import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.models.arima.sarima_forecast import sarima_forecast
 from src.models.arima.confidence_score import sarima_forecast_with_confidence_score
+from src.utils.select_LASSO_stations import select_LASSO_stations
 
 
 def _run_single_forecast(
@@ -53,12 +54,32 @@ def _run_single_forecast(
     ------
     Returns a tuple of (MAE, MSE) for the forecast on the sub-series.
     """
+    # Determine the LASSO selection if requested, only on historical data to avoid data leakage
+    duration_station_selection = None
+    number_selected_stations = None
+    if use_LASSO_selection and exog_df is not None:
+        start_time = pd.Timestamp.now()
+
+        # Perform the actual LASSO variable selection passing all the historical data up to training end date
+        train_end_date = end_date - pd.Timedelta(hours=hours_to_forecast)
+        _, selected_stations, _ = select_LASSO_stations(
+            series=series[series.index < train_end_date],
+            exog_df=exog_df[exog_df.index < train_end_date],
+        )
+
+        duration_station_selection = (pd.Timestamp.now() - start_time).total_seconds()
+        number_selected_stations = len(selected_stations)
+
     # Extract the sub-series for the current run
     sub_series = series[(series.index >= start_date) & (series.index <= end_date)]
     sub_exog = None
 
     if exog_df is not None:
         sub_exog = exog_df.loc[sub_series.index]
+
+        # Keep only the selected stations if LASSO selection was performed
+        if use_LASSO_selection:
+            sub_exog = sub_exog[selected_stations]
 
     print(f"\n🔹 Run {i + 1}: using data from {start_date} to {end_date}")
 
@@ -81,14 +102,13 @@ def _run_single_forecast(
         return errors['MAE'], errors['MSE'], importance, duration, confidence_score_value, avg_conf_interval_size, None, None
 
     else:
-        errors, importance, duration_station_selection, number_selected_stations = sarima_forecast(
+        errors, importance = sarima_forecast(
             sub_series,
             exog_df=sub_exog,
             model=model,
             hours_to_forecast=hours_to_forecast,
             arima_order=arima_order,
             seasonal_order=seasonal_order,
-            use_LASSO_selection=use_LASSO_selection,
             max_iter=max_iter,
             plot=plot
         )
@@ -141,7 +161,8 @@ def repeat_forecasts(
     """
     np.random.seed(random_seed)
     weeks_offset = pd.DateOffset(weeks=weeks)
-    max_start = series.index.max() - weeks_offset
+    forecast_offset = pd.Timedelta(hours=hours_to_forecast)
+    max_start = series.index.max() - weeks_offset - forecast_offset
 
     possible_starts = series.index[(series.index >= series.index.min()) & (series.index <= max_start)]
     if len(possible_starts) == 0:
@@ -149,7 +170,7 @@ def repeat_forecasts(
 
     # Pre-generate all start and end dates
     start_dates = np.random.choice(possible_starts, size=n_repeats, replace=False)
-    date_ranges = [(start, start + weeks_offset) for start in start_dates]
+    date_ranges = [(start, start + weeks_offset + forecast_offset) for start in start_dates]
 
     mae_scores, mse_scores = [], []
     importances = []

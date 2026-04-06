@@ -78,7 +78,7 @@ FORECAST_MODELS = {
 
 MODEL_TRAINING_DAYS = {
     "ARIMA": 2 * 7,         # 2 weeks of hourly data (336 hours)
-    "ARIMAX": 2 * 7,        # 2 weeks of hourly data (336 hours)
+    "ARIMAX": 8 * 7,        # 8 weeks of hourly data (1344 hours)
     "LSTM": 8 * 7,          # 8 weeks of hourly data (1344 hours)
     "RF": 8 * 7,            # 8 weeks of hourly data (1344 hours)
     "MLP": 8 * 7,           # 8 weeks of hourly data (1344 hours)
@@ -193,6 +193,7 @@ def run_single_experiment(task):
                 arima_order=(2, 0, 0),
                 seasonal_order=(1, 0, 1, 24),
                 confidence_score=False,
+                use_LASSO_selection=False,
                 max_iter=1000,
                 plot=False
             )
@@ -257,7 +258,7 @@ def run_all_experiments(model_name):
     -----
     model_name: Name of the model to run (must be a key in the MODELS dictionary)
     """
-    with open(f"output/models_comparison_{model_name}_expanded.csv", "w", newline="") as f:
+    with open(f"output/models_comparison_{model_name}_expanded_8_weeks.csv", "w", newline="") as f:
         # Create CSV writer and write header
         writer = csv.writer(f)
 

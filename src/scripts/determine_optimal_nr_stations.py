@@ -86,15 +86,15 @@ def run_station_experiment(
     exog_df = exog_pivot.reindex(series.index)
 
     # Resample data by taking the mean
-    series = series.resample(args.resample).mean().interpolate(limit_direction="both")
-    exog_df = exog_df.resample(args.resample).mean().interpolate(limit_direction="both")
+    series = series.resample(resample).mean().interpolate(limit_direction="both")
+    exog_df = exog_df.resample(resample).mean().interpolate(limit_direction="both")
 
     # Step 1: Rank all the stations based on their importance for forecasting the target station
     results_all = repeat_forecasts(
         series,
         exog_df=exog_df,
-        weeks=args.weeks,
-        hours_to_forecast=args.hours_to_forecast,
+        weeks=weeks,
+        hours_to_forecast=hours_to_forecast,
         arima_order=(2, 0, 0),
         seasonal_order=(1, 0, 1, 24),
         confidence_score=False,
@@ -115,7 +115,8 @@ def run_station_experiment(
     # the performance using the top k stations as exogenous variables
     subset_results = []
 
-    for k in range(1, len(ordered_stations)):
+    # for k in range(1, len(ordered_stations)):
+    for k in range(1, min(26, len(ordered_stations))):  # limit to top 25 stations for speed
         selected = ordered_stations[:k]
 
         res_k = repeat_forecasts(
@@ -202,7 +203,7 @@ if __name__ == "__main__":
     )
 
     # Make sure the output directory exists
-    os.makedirs("output/optimal_nr_stations_full", exist_ok=True)
+    os.makedirs("output/optimal_nr_stations_8weeks", exist_ok=True)
 
     # Save the result to a CSV file
-    pd.DataFrame([result]).to_csv(f"output/optimal_nr_stations_full/optimal_station_{args.station_index}.csv", index=False)
+    pd.DataFrame([result]).to_csv(f"output/optimal_nr_stations_8weeks/optimal_station_{args.station_index}.csv", index=False)
