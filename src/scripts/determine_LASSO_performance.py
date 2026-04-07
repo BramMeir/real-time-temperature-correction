@@ -150,7 +150,10 @@ if __name__ == "__main__":
     )
 
     # Make sure the output directory exists
-    os.makedirs(f"output/LASSO_stations_{args.weeks}weeks", exist_ok=True)
+    os.makedirs(f"output/LASSO_stations_train{args.weeks}weeks_lasso_full_historical", exist_ok=True)
 
     # Save the result to a CSV file
-    pd.DataFrame([result]).to_csv(f"output/LASSO_stations_{args.weeks}weeks/performance_{args.station_index}.csv", index=False)
+    pd.DataFrame([result]).to_csv(
+        f"output/LASSO_stations_train{args.weeks}weeks_lasso_full_historical/performance_{args.station_index}.csv",
+        index=False
+    )
