@@ -94,6 +94,7 @@ def run_station_experiment(
         seasonal_order=(1, 0, 1, 24),
         confidence_score=False,
         use_LASSO_selection=True,
+        use_all_historical_data_for_LASSO=False,
         n_repeats=20,
         random_seed=47,
         max_iter=1000,

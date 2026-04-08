@@ -28,6 +28,7 @@ def _run_single_forecast(
     seasonal_order,
     confidence_score,
     use_LASSO_selection=False,
+    use_all_historical_data_for_LASSO=False,
     max_iter=1000,
     plot=False,
 ):
@@ -47,6 +48,7 @@ def _run_single_forecast(
     seasonal_order: Tuple specifying the (P, D, Q, S) parameters for the SARIMA model
     confidence_score: Whether to calculate confidence scores for the forecasts
     use_LASSO_selection: Whether to use LASSO for feature selection of exogenous variables
+    use_all_historical_data_for_LASSO: Whether to use all historical data up to the training date for LASSO selection or only training data
     max_iter: Maximum number of iterations for model fitting
     plot: Whether to plot the forecast results (default is False)
 
@@ -62,10 +64,17 @@ def _run_single_forecast(
 
         # Perform the actual LASSO variable selection passing all the historical data up to training end date
         train_end_date = end_date - pd.Timedelta(hours=hours_to_forecast)
-        _, selected_stations, _ = select_LASSO_stations(
-            series=series[series.index < train_end_date],
-            exog_df=exog_df[exog_df.index < train_end_date],
-        )
+
+        if use_all_historical_data_for_LASSO:
+            _, selected_stations, _ = select_LASSO_stations(
+                series=series[series.index < train_end_date],
+                exog_df=exog_df[exog_df.index < train_end_date],
+            )
+        else:
+            _, selected_stations, _ = select_LASSO_stations(
+                series=series[(series.index >= start_date) & (series.index < train_end_date)],
+                exog_df=exog_df[(exog_df.index >= start_date) & (exog_df.index < train_end_date)],
+            )
 
         duration_station_selection = (pd.Timestamp.now() - start_time).total_seconds()
         number_selected_stations = len(selected_stations)
@@ -128,6 +137,7 @@ def repeat_forecasts(
     seasonal_order=(0, 0, 0, 0),
     confidence_score=False,
     use_LASSO_selection=False,
+    use_all_historical_data_for_LASSO=False,
     n_repeats=5,
     random_seed=42,
     max_iter=1000,
@@ -148,6 +158,8 @@ def repeat_forecasts(
     seasonal_order: Tuple specifying the (P, D, Q, S) parameters for the SARIMA model (default is (0, 0, 0, 0))
     confidence_score: Whether to calculate confidence scores for the forecasts (default is False)
     use_LASSO_selection: Whether to use LASSO for feature selection of exogenous variables (default is False)
+    use_all_historical_data_for_LASSO: Whether to use all historical data up to the training date for
+      LASSO selection or only training data (default is False)
     n_repeats: Number of random segments to test (default is 5)
     random_seed: Seed for random number generator for reproducibility (default is 42)
     max_iter: Maximum number of iterations for model fitting (default is 1000)
@@ -195,6 +207,7 @@ def repeat_forecasts(
                 seasonal_order,
                 confidence_score,
                 use_LASSO_selection,
+                use_all_historical_data_for_LASSO,
                 max_iter,
                 plot,
             )
