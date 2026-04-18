@@ -240,6 +240,7 @@ def repeat_forecasts(
         print(f"Average Duration per run: {np.mean(durations).total_seconds():.2f} seconds")
 
     # Print the average feature importance if exogenous variables were used
+    avg_importance = None
     if exog_df is not None and importances:
         avg_importance = pd.concat(importances, axis=1).mean(axis=1).sort_values(ascending=False)
 

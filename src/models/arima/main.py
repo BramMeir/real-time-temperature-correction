@@ -56,6 +56,7 @@ if __name__ == "__main__":
         station_data['temp_dry_avg_2m'].values,
         index=pd.to_datetime(station_data['datetime'])
     ).asfreq('1h').dropna()
+    series.name = args.target_station
 
     # Create exogenous DataFrame if requested
     exog_df = None

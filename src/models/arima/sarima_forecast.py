@@ -60,35 +60,83 @@ def sarima_forecast(series, exog_df=None, model=None, hours_to_forecast=48, arim
     forecast_index = test.index
     y_forecasted = pd.Series(pred.predicted_mean.values, index=forecast_index)
 
+    # Calculate and print the Mean Absolute Error (MAE) and Mean Squared Error (MSE) of the forecast
+    errors = evaluate_forecasts(test, y_forecasted)
+    print(errors)
+
     if plot:
-        # Plot observed (train + test) and forecasted values
-        plt.figure(figsize=(12, 6))
-        plt.plot(train.index, train, label='Training data', color='blue')
-        plt.plot(test.index, test, label='Real future data', color='green')
-        plt.plot(forecast_index, y_forecasted, label='Forecast', color='red')
+        _, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 9), sharex=True)
+
+        # Top plot: observed vs forecasted values (limit always trained data to last week for better visualization)
+        train_vis = train[train.index >= (test.index.min() - pd.DateOffset(days=3))]
+
+        ax1.plot(train_vis.index, train_vis, label='Trainingsdata', color='blue', alpha=0.6, linewidth=2)
+        ax1.plot(test.index, test, label='Werkelijke waarden', color='green', linewidth=2)
+        ax1.plot(forecast_index, y_forecasted, label='Modelvoorspelling', color='red', linewidth=2)
 
         # Add confidence intervals
-        plt.fill_between(
+        ax1.fill_between(
             forecast_index,
             pred_ci.iloc[:, 0],
             pred_ci.iloc[:, 1],
             color='gray',
             alpha=0.3,
-            label='Confidence interval'
+            label='Betrouwbaarheidsinterval (95%)'
         )
 
-        plt.xlabel('Datetime')
-        plt.ylabel('Temperature (°C)')
-        plt.legend()
-        plt.title('SARIMA Forecast (1-hour data)')
+        ax1.axvline(x=test.index.min(), color='grey', linestyle='--', alpha=0.5, label='Start voorspelling')
+        ax1.set_ylabel('Temperatuur (°C)')
+        ax1.legend(loc='upper left')
+        ax1.grid(alpha=0.2)
 
-        # Generate random filename to save the plot
-        random_filename = f"sarima_forecast_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.png"
-        plt.savefig(f"plot_results/{random_filename}")
+        # Bottom plot: error between forecasted and actual values
+        error = y_forecasted - test
 
-    # Calculate and print the Mean Absolute Error (MAE) and Mean Squared Error (MSE) of the forecast
-    errors = evaluate_forecasts(test, y_forecasted)
-    print(errors)
+        ax2.fill_between(
+            forecast_index,
+            0,
+            error,
+            where=(error >= 0),
+            alpha=0.4,
+            label='Overschatting'
+        )
+
+        ax2.fill_between(
+            forecast_index,
+            0,
+            error,
+            where=(error < 0),
+            alpha=0.4,
+            label='Onderschatting'
+        )
+
+        ax2.axhline(0, color='black', linewidth=1)
+        ax2.axvline(x=test.index.min(), color='grey', linestyle='--', alpha=0.5, label='Start voorspelling')
+
+        # Plot the error line
+        ax2.plot(forecast_index, error, color='grey', linewidth=1)
+
+        ax2.set_ylabel('Fout (°C)')
+        ax2.set_xlabel('Tijdstip')
+        ax2.legend(loc='upper left')
+        ax2.grid(alpha=0.2)
+
+        ax1.axvspan(test.index.min(), test.index.max(), color='grey', alpha=0.05)
+        ax2.axvspan(test.index.min(), test.index.max(), color='grey', alpha=0.05)
+
+        # Force symmetry in the error plot by setting the same limits on the y-axis
+        max_abs_error = max(abs(error.min()), abs(error.max()))
+        ax2.set_ylim(-max_abs_error, max_abs_error)
+
+        plt.tight_layout()
+
+        station_name = series.name
+        mae = errors['MAE']
+        mse = errors['MSE']
+
+        # Generate filename to save the plot
+        filename = f"ARIMAX_{station_name}_{hours_to_forecast}h_MAE_{mae:.2f}_MSE_{mse:.2f}.png"
+        plt.savefig(f"plots/forecasts/{filename}", bbox_inches='tight', pad_inches=0.1)
 
     # Compute the feature importance for exogenous variables if provided
     importance = None
