@@ -107,8 +107,9 @@ def plot_exog_scaling_results(output_dir, save_path="output/training_time_versus
     plt.figure(figsize=(10, 6))
 
     plt.plot(df["k_exog"], df["duration_mean_seconds"])
+    plt.grid(True, linestyle="-", alpha=0.4)
     plt.xlabel("Aantal exogene stations in het model")
-    plt.ylabel("Gemiddelde duur (seconden)")
+    plt.ylabel("Gemiddelde trainingsduur (seconden)")
 
     if log_scale:
         plt.yscale("log")

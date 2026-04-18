@@ -2,13 +2,13 @@
 Main script to run the full experiment comparing all models across all datasets, different stations, training periods,
 and forecast horizons. The results are saved to a CSV file for later analysis.
 
-python -m src.evaluation.models_comparison_experiment --model RF
+python -m src.scripts.models_comparison_experiment --model RF
 """
 import csv
 import pandas as pd
-import numpy as np
 import argparse
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from src.utils.generate_forecast_start import generate_forecast_start
 from src.models.arima.train import train_sarima_model
 from src.models.LSTM.train import train_LSTM_model
 from src.models.MLP.train import train_mlp_model
@@ -36,8 +36,15 @@ DATASETS = {
     },
     "SYNTHETIC": {
         "file": "data/Synthetic/temperature_data.csv",
-        "stations": ["Stadhuis_Brussel_Grote_Markt", "Stadhuis_Antwerpen_Grote_Markt", "Grote_Markt_Kortrijk",
-                     "Tielt", "Gembloux", "Slag_om_Ardennen_Museum_La_Roche_en_Ardenne", "Abdij_Tongerlo"]
+        "stations": [
+            "Stadhuis_Brussel_Grote_Markt",
+            "Stadhuis_Antwerpen_Grote_Markt",
+            "Grote_Markt_Kortrijk",
+            "Tielt",
+            "Gembloux",
+            "Slag_om_Ardennen_Museum_La_Roche_en_Ardenne",
+            "Abdij_Tongerlo"
+        ]
     }
 }
 
@@ -71,7 +78,7 @@ FORECAST_MODELS = {
 
 MODEL_TRAINING_DAYS = {
     "ARIMA": 2 * 7,         # 2 weeks of hourly data (336 hours)
-    "ARIMAX": 2 * 7,        # 2 weeks of hourly data (336 hours)
+    "ARIMAX": 8 * 7,        # 8 weeks of hourly data (1344 hours)
     "LSTM": 8 * 7,          # 8 weeks of hourly data (1344 hours)
     "RF": 8 * 7,            # 8 weeks of hourly data (1344 hours)
     "MLP": 8 * 7,           # 8 weeks of hourly data (1344 hours)
@@ -110,7 +117,7 @@ def run_single_experiment(task):
     train_start = forecast_start - pd.Timedelta(days=training_days)
     train_end = forecast_start
 
-    # Train the model once on the training period (if applicable) to reuse for all horizons
+    # Train the model once on the training period to reuse for all horizons
     train_model_fn = TRAIN_MODELS[model_name]
 
     if model_name in ["ARIMA", "ARIMAX"]:
@@ -186,6 +193,7 @@ def run_single_experiment(task):
                 arima_order=(2, 0, 0),
                 seasonal_order=(1, 0, 1, 24),
                 confidence_score=False,
+                use_LASSO_selection=False,
                 max_iter=1000,
                 plot=False
             )
@@ -250,7 +258,7 @@ def run_all_experiments(model_name):
     -----
     model_name: Name of the model to run (must be a key in the MODELS dictionary)
     """
-    with open(f"output/models_comparison_{model_name}_expanded.csv", "w", newline="") as f:
+    with open(f"output/models_comparison_{model_name}_expanded_8_weeks.csv", "w", newline="") as f:
         # Create CSV writer and write header
         writer = csv.writer(f)
 
@@ -341,42 +349,6 @@ def run_all_experiments(model_name):
                             # Write each result to the CSV file
                             for result in results:
                                 writer.writerow(result)
-
-
-def generate_forecast_start(series, seed, repeat_id, max_history_days, max_horizon):
-    """
-    Generate a reproducible random forecast start date for a given time series, ensuring
-    that there is enough historical data for training and enough future data for forecasting.
-
-    Input
-    -----
-    series: Target time series with datetime index.
-    seed: Base seed for reproducibility.
-    repeat_id: Repeat number to ensure different samples.
-    max_history_days: Maximum number of days of historical data to use for training.
-    max_horizon: Largest forecast horizon (hours).
-
-    Output
-    ------
-    forecast_start: Start timestamp of the forecast period.
-    """
-    # Create a random number generator with a seed that combines the base seed and repeat ID
-    rng = np.random.default_rng(seed + repeat_id)
-
-    # Minimum date is the earliest timestamp plus the maximum number of training days, to ensure enough history for training
-    # Maximum date is the latest timestamp minus the maximum forecast horizon, to ensure enough future data for forecasting
-    min_date = series.index.min() + pd.Timedelta(days=max_history_days)
-    max_date = series.index.max() - pd.Timedelta(hours=max_horizon)
-
-    if max_date <= min_date:
-        raise ValueError("Series too short for chosen configuration")
-
-    random_fraction = rng.random()
-
-    forecast_start = min_date + (max_date - min_date) * random_fraction
-    forecast_start = forecast_start.floor('h')
-
-    return forecast_start
 
 
 if __name__ == "__main__":

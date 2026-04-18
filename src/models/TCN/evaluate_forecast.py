@@ -75,7 +75,7 @@ def evaluate_forecast(model, y_train, X_test, y_test, dates_train, dates_test, p
         ax.set_title('TCN Recursive Forecast')
 
         random_filename = f"TCN_forecast_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.png"
-        fig.savefig(f'plot_results/{random_filename}')
+        fig.savefig(f'plots/forecasts/{random_filename}')
         plt.close(fig)
 
     return mae, rmse

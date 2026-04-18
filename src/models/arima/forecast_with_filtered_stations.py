@@ -14,7 +14,8 @@ python -m src.models.arima.forecast_with_filtered_stations
 
 import argparse
 import pandas as pd
-from sklearn.linear_model import LassoCV, ElasticNetCV
+from src.utils.select_LASSO_stations import select_LASSO_stations
+from sklearn.linear_model import ElasticNetCV
 from sklearn.preprocessing import StandardScaler
 from src.models.arima.repeat_forecast import repeat_forecasts
 from src.data.add_time_features import add_time_features
@@ -85,33 +86,7 @@ if __name__ == "__main__":
         # Timing for LASSO ranking
         start_time = pd.Timestamp.now()
 
-        # Align and drop NaNs
-        X = exog_df.copy()
-        y = series.copy()
-
-        valid_idx = X.dropna().index.intersection(y.dropna().index)
-        X = X.loc[valid_idx]
-        y = y.loc[valid_idx]
-
-        # Standardize features (important for LASSO)
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-
-        # Cross-validated LASSO
-        lasso = LassoCV(
-            cv=5,
-            random_state=47,
-            n_jobs=10,
-            max_iter=10000
-        )
-        lasso.fit(X_scaled, y.values)
-
-        coefs = pd.Series(lasso.coef_, index=X.columns)
-        ranking = coefs.abs().sort_values(ascending=False)
-
-        # Select the stations with non-zero coefficients
-        ranking = ranking[ranking > 0]
-        top_exog_df = exog_df[ranking.index]
+        top_exog_df, _, ranking = select_LASSO_stations(series, exog_df)
 
         print("Station ranking based on LASSO coefficients:")
         print(ranking)

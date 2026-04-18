@@ -61,7 +61,7 @@ def evaluate_forecast(model, y_train, X_test, y_test, plot=False):
 
         # Generate random filename to avoid overwriting
         random_filename = f"RF_forecast_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.png"
-        plt.savefig(f'plot_results/{random_filename}')
+        plt.savefig(f'plots/forecasts/{random_filename}')
         plt.close()
 
     return mae, rmse

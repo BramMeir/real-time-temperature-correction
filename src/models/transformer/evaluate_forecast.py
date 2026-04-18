@@ -76,7 +76,7 @@ def evaluate_forecast(model, number, df_train, df_test, previous_time_steps, tar
 
         # Generate random filename to avoid overwriting
         random_filename = f"Transformer_forecast_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.png"
-        plt.savefig(f"plot_results/{random_filename}")
+        plt.savefig(f"plots/forecasts/{random_filename}")
         plt.close()
 
     return mae, rmse
