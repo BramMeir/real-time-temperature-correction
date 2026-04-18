@@ -1,5 +1,5 @@
 # Masterproef
-VLINDER: missing data strategieën voor weer- en klimaatdata.
+Real-time correction of temperature measurements in urban sensor networks.
 
 ## Project Setup
 ### Requirements
