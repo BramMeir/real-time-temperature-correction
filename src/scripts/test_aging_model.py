@@ -34,15 +34,18 @@ DATASETS = {
             "Tielt",
             "Gembloux",
             "Slag_om_Ardennen_Museum_La_Roche_en_Ardenne",
-            "Abdij_Tongerlo"
+            "Abdij_Tongerlo",
+            "Etalle",
+            "Centrum_Malmedy",
+            "Markt_Hoei"
         ]
     }
 }
 
 # Seed that is used to define the training periods (for reproducibility)
-SEED = 42
+SEED = 47
 
-AGING_GAPS = [0, 1, 2, 4, 7, 14, 21, 30, 60, 90]
+MAX_AGING_GAP_DAYS = 90
 
 NUMBER_OF_REPEATS = 100
 
@@ -72,7 +75,7 @@ def run_single_experiment(task):
         seed=SEED,
         repeat_id=repeat_id,
         max_history_days=8 * 7,                     # Max of 8 weeks of history to train the model on
-        max_horizon=max(AGING_GAPS) * 24 + 48       # Max aging gap in hours + 2 days of forecast to evaluate on
+        max_horizon=MAX_AGING_GAP_DAYS * 24 + 48       # Max aging gap in hours + 2 days of forecast to evaluate on
     )
 
     # Determine the required training period for the model
@@ -101,15 +104,16 @@ def run_single_experiment(task):
     end_time = pd.Timestamp.now()
     training_duration = end_time - start_time
 
-    # Evaluate the model for all the 'aging gaps' to see how performance degrades with aging (forecast horizon = 48h)
+    # Evaluate the model for all the 'aging gaps' (0 to MAX_AGING_GAP_DAYS, step 3)
+    #  to see how performance degrades with aging (forecast horizon = 48h)
     results = []
-    for age_gap in AGING_GAPS:
+    for age_gap in range(0, MAX_AGING_GAP_DAYS + 1, 3):
         # Set the test period as [train_end + age_gap, train_end + age_gap + 48h]
         test_begin = train_end + pd.Timedelta(days=age_gap)
         test_end = test_begin + pd.Timedelta(days=2)
 
         gap_start = train_end + pd.Timedelta(hours=1)  # Start the gap right after the training period
-        gap_end = test_begin - pd.Timedelta(hours=1)   # End the gap right before the test period
+        gap_end = test_begin                           # End the gap right before the test period
 
         gap_series = series[gap_start:gap_end]
         gap_exog = exog_df[gap_start:gap_end]
@@ -157,7 +161,7 @@ def run_single_experiment(task):
     return results
 
 
-def run_all_experiments(training_weeks):
+def run_all_experiments(training_weeks, dataset_name=None):
     """
     Main function to run all experiments across datasets, stations, training periods and age gaps. The results are
     saved to a CSV file for later analysis.
@@ -165,63 +169,66 @@ def run_all_experiments(training_weeks):
     results_all = []
 
     # Loop through all combinations of datasets, station, and training period
-    for dataset_name, dataset_info in DATASETS.items():
-        # Read the preprocessed data
-        df = pd.read_csv(dataset_info["file"])
+    dataset_info = DATASETS[dataset_name] if dataset_name else None
 
-        for station in dataset_info["stations"]:
-            # Create the pandas DataFrame for the dataset with hourly frequency and datetime index
-            # Select target station
-            station_data = df[df['station_name'] == station]
+    # Read the preprocessed data
+    df = pd.read_csv(dataset_info["file"])
 
-            # Create target time series with a datetime index
-            series = pd.Series(
-                station_data['temp_dry_avg_2m'].values,
-                index=pd.to_datetime(station_data['datetime'])
-            ).asfreq('1h').dropna()
+    for station in dataset_info["stations"]:
+        print(f"Running experiments for dataset {dataset_name}, station {station}...")
 
-            # Create exogenous DataFrame
-            other_stations = [s for s in df['station_name'].unique() if s != station]
+        # Create the pandas DataFrame for the dataset with hourly frequency and datetime index
+        # Select target station
+        station_data = df[df['station_name'] == station]
 
-            exog_data = df[df['station_name'].isin(other_stations)]
+        # Create target time series with a datetime index
+        series = pd.Series(
+            station_data['temp_dry_avg_2m'].values,
+            index=pd.to_datetime(station_data['datetime'])
+        ).asfreq('1h').dropna()
 
-            # Pivot to get each station as a separate column
-            exog_pivot = exog_data.pivot_table(
-                index='datetime', columns='station_name', values='temp_dry_avg_2m'
-            )
+        # Create exogenous DataFrame
+        other_stations = [s for s in df['station_name'].unique() if s != station]
 
-            # Create datetime index
-            exog_pivot.index = pd.to_datetime(exog_pivot.index)
+        exog_data = df[df['station_name'].isin(other_stations)]
 
-            # Remove the missing timestamps and align with the main series
-            exog_df = exog_pivot.reindex(series.index)
+        # Pivot to get each station as a separate column
+        exog_pivot = exog_data.pivot_table(
+            index='datetime', columns='station_name', values='temp_dry_avg_2m'
+        )
 
-            # Resample data by taking the mean
-            series = series.resample('1h').mean().interpolate(limit_direction="both")
-            exog_df = exog_df.resample('1h').mean().interpolate(limit_direction="both")
+        # Create datetime index
+        exog_pivot.index = pd.to_datetime(exog_pivot.index)
 
-            # Build a list of taks to run in parallel
-            tasks = []
+        # Remove the missing timestamps and align with the main series
+        exog_df = exog_pivot.reindex(series.index)
 
-            # Generate NUMBER_OF_REPEATS random training periods for the given dataset and station
-            for repeat_id in range(NUMBER_OF_REPEATS):
-                tasks.append((
-                    dataset_name,
-                    repeat_id,
-                    station,
-                    training_weeks,
-                    series,
-                    exog_df
-                ))
+        # Resample data by taking the mean
+        series = series.resample('1h').mean().interpolate(limit_direction="both")
+        exog_df = exog_df.resample('1h').mean().interpolate(limit_direction="both")
 
-            with ProcessPoolExecutor() as executor:
-                futures = [executor.submit(run_single_experiment, t) for t in tasks]
+        # Build a list of taks to run in parallel
+        tasks = []
 
-                for f in as_completed(futures):
-                    results_all.extend(f.result())
+        # Generate NUMBER_OF_REPEATS random training periods for the given dataset and station
+        for repeat_id in range(NUMBER_OF_REPEATS):
+            tasks.append((
+                dataset_name,
+                repeat_id,
+                station,
+                training_weeks,
+                series,
+                exog_df
+            ))
+
+        with ProcessPoolExecutor() as executor:
+            futures = [executor.submit(run_single_experiment, t) for t in tasks]
+
+            for f in as_completed(futures):
+                results_all.extend(f.result())
 
     # Save all results to a CSV file for later analysis
-    with open("output/aging_model/results.csv", "w", newline="") as f:
+    with open(f"output/aging_model/results_{dataset_name}_100.csv", "w", newline="") as f:
         # Create CSV writer and write header
         writer = csv.writer(f)
 
@@ -246,6 +253,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the full experiment with the given number of training weeks"
                                                  " across all datasets, stations, and age gaps. The results"
                                                  " are saved to a CSV file for later analysis.")
+    parser.add_argument("--dataset", type=str, choices=DATASETS.keys(), default=None,
+                        help="The dataset to run the experiment on.")
     args = parser.parse_args()
 
     # Make sure the output directory exists
@@ -253,4 +262,4 @@ if __name__ == "__main__":
 
     # Run all experiments and save results to CSV
     nr_training_weeks = 8
-    run_all_experiments(nr_training_weeks)
+    run_all_experiments(nr_training_weeks, dataset_name=args.dataset)
