@@ -25,7 +25,6 @@ def plot_overall_model_performance(df):
     plt.bar(summary_mae["Model"], summary_mae["mean"], yerr=summary_mae["std"], capsize=5)
     plt.xlabel("Model")
     plt.ylabel("Gemiddelde MAE (°C)")
-    # plt.title("Algemene modelprestaties")
     plt.savefig("plots/overall_model_performance.png")
     plt.close()
 
@@ -120,7 +119,6 @@ def plot_performance_vs_horizon(df):
 
     plt.xlabel("Voorspellingshorizon (uren)")
     plt.ylabel("Gemiddelde MAE (°C)")
-    # plt.title("Modelprestaties over verschillende voorspellingshorizonnen")
 
     # Set both axis limits to start at 0 for better visualization
     plt.xlim(left=0)
@@ -178,9 +176,7 @@ def plot_performance_vs_horizon_with_zoom(df):
 
     # Top plot
     ax_top.set_ylabel("Gemiddelde MAE (°C)")
-    # ax_top.set_title("Modelprestaties over verschillende voorspellingshorizonnen")
     ax_top.set_xlim(left=0)
-    ax_top.legend()
 
     # Show zoom region
     ax_top.axhline(zoom_min, linestyle="--", color="gray")
@@ -316,7 +312,6 @@ def plot_urban_vs_rural_comparison(df):
 
     plt.xticks(x, models, rotation=0)
     plt.ylabel("Gemiddelde MAE (°C)")
-    # plt.title("Vergelijking modelprestaties tussen landelijke en gemengde datasets")
 
     plt.legend()
 
