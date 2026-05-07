@@ -77,7 +77,7 @@ FORECAST_MODELS = {
 }
 
 MODEL_TRAINING_DAYS = {
-    "ARIMA": 2 * 7,         # 2 weeks of hourly data (336 hours)
+    "ARIMA": 8 * 7,         # 8 weeks of hourly data (1344 hours)
     "ARIMAX": 8 * 7,        # 8 weeks of hourly data (1344 hours)
     "LSTM": 8 * 7,          # 8 weeks of hourly data (1344 hours)
     "RF": 8 * 7,            # 8 weeks of hourly data (1344 hours)
@@ -121,6 +121,7 @@ def run_single_experiment(task):
     train_model_fn = TRAIN_MODELS[model_name]
 
     if model_name in ["ARIMA", "ARIMAX"]:
+        train_start_time = pd.Timestamp.now()
         model = train_model_fn(
             series=series[train_start:train_end],
             exog_df=exog_df[train_start:train_end] if model_name == "ARIMAX" else None,
@@ -128,22 +129,33 @@ def run_single_experiment(task):
             seasonal_order=(1, 0, 1, 24),
             max_iter=1000
         )
+        train_duration = pd.Timestamp.now() - train_start_time
     elif model_name == "LSTM":
+        train_start_time = pd.Timestamp.now()
         model = train_model_fn(
             df=df_complete[train_start:train_end],
             target_station=station,
             previous_time_steps=24,
         )
+        train_duration = pd.Timestamp.now() - train_start_time
     elif model_name == "Transformer":
+        train_start_time = pd.Timestamp.now()
         model, x_scaler, y_scaler = train_model_fn(
             df=df_complete[train_start:train_end],
             target_station=station,
             previous_time_steps=8,
         )
+        train_duration = pd.Timestamp.now() - train_start_time
     elif model_name in ["RF", "MLP"]:
+        train_start_time = pd.Timestamp.now()
+
+        # Limit the dataframe so only the relevant range is used for creating the supervised dataset
+        history_start = train_start - pd.Timedelta(hours=24)
+        df_subset = df_complete.loc[history_start:train_end]
+
         # Create supervised dataset
         X, y = create_supervised_dataset(
-            df_complete, target_station=station, previous_time_steps=24, exog_cols=exog_df.columns.tolist(), exog_lags=0
+            df_subset, target_station=station, previous_time_steps=24, exog_cols=exog_df.columns.tolist(), exog_lags=0
         )
 
         # Select the data based on the training period
@@ -151,11 +163,18 @@ def run_single_experiment(task):
 
         # Train the model
         train_result = train_model_fn(X_train, y_train)
+        train_duration = pd.Timestamp.now() - train_start_time
         model = train_result[0] if model_name == "RF" else train_result
     elif model_name == "TCN":
+        train_start_time = pd.Timestamp.now()
+
+        # Limit the dataframe so only the relevant range is used for creating the supervised dataset
+        history_start = train_start - pd.Timedelta(hours=24 * 3)
+        df_subset = df_complete.loc[history_start:train_end]
+
         # Create supervised dataset
         X, y, dates = create_3d_dataset(
-            df_complete, target_station=station, previous_time_steps=24 * 3, exog_cols=exog_df.columns.tolist()
+            df_subset, target_station=station, previous_time_steps=24 * 3, exog_cols=exog_df.columns.tolist()
         )
 
         # Select the data based on the training period
@@ -164,6 +183,7 @@ def run_single_experiment(task):
 
         # Train the TCN model
         model = train_model_fn(X_train, y_train)
+        train_duration = pd.Timestamp.now() - train_start_time
 
     # Evaluate the model for each forecast horizon and save the results
     results = []
@@ -181,6 +201,7 @@ def run_single_experiment(task):
             horizon
         )
 
+        forecast_start_time = pd.Timestamp.now()
         if model_name in ["ARIMA", "ARIMAX"]:
             result = forecast_model_fn(
                 repeat_id,
@@ -232,10 +253,11 @@ def run_single_experiment(task):
                 test_end=test_end,
                 mode="forecast"
             )
+        forecast_duration = pd.Timestamp.now() - forecast_start_time
 
         mae, mse = result[:2]
 
-        results.append((horizon, mae, mse))
+        results.append((horizon, mae, mse, forecast_duration.total_seconds()))
 
     return [[
         dataset_name,
@@ -245,11 +267,13 @@ def run_single_experiment(task):
         train_end,
         horizon,
         mae,
-        mse
-    ] for horizon, mae, mse in results]
+        mse,
+        train_duration.total_seconds(),
+        forecast_duration
+    ] for horizon, mae, mse, forecast_duration in results]
 
 
-def run_all_experiments(model_name):
+def run_all_experiments(model_name, training_weeks):
     """
     Main function to run all experiments across datasets, stations, training periods, and forecast horizons. The results are
     saved to a CSV file for later analysis.
@@ -257,8 +281,9 @@ def run_all_experiments(model_name):
     Input
     -----
     model_name: Name of the model to run (must be a key in the MODELS dictionary)
+    training_weeks: Number of weeks to use for training
     """
-    with open(f"output/models_comparison_{model_name}_expanded_8_weeks.csv", "w", newline="") as f:
+    with open(f"output/models_comparison/{model_name}_{training_weeks}_weeks.csv", "w", newline="") as f:
         # Create CSV writer and write header
         writer = csv.writer(f)
 
@@ -270,7 +295,9 @@ def run_all_experiments(model_name):
             "Train_end",
             "Horizon",
             "MAE",
-            "MSE"
+            "MSE",
+            "Train_duration_seconds",
+            "Forecast_duration_seconds"
         ])
 
         # Loop through all combinations of dataset, station, training period, forecast horizon, and model
@@ -358,7 +385,9 @@ if __name__ == "__main__":
                                                  "are saved to a CSV file for later analysis.")
     parser.add_argument("--model", choices=TRAIN_MODELS.keys(), required=True,
                         help="Name of the model to run (must be a key in the MODELS dictionary)")
+    parser.add_argument("--training_weeks", type=int, default=8,
+                        help="Number of weeks to use for training (default: 8)")
     args = parser.parse_args()
 
     # Run all experiments and save results to CSV
-    run_all_experiments(args.model)
+    run_all_experiments(args.model, args.training_weeks)
