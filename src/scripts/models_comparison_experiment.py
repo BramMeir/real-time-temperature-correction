@@ -357,7 +357,7 @@ def run_all_experiments(model_name, training_weeks):
                         df_complete
                     ))
 
-                # If on GPU (for LSTM + Transformer), do not use too much parallelism to avoid out-of-memory errors,
+                # If on GPU (for LSTM + Transformer + TCN), do not use too much parallelism to avoid out-of-memory errors,
                 # so we run sequentially
                 if model_name in ["LSTM", "Transformer", "TCN"]:
                     for task in tasks:
