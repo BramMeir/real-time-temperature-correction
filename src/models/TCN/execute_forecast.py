@@ -1,3 +1,4 @@
+import pandas as pd
 from src.data.create_3d_dataset import create_3d_dataset
 from src.models.TCN.bayes_search import bayes_search_tcn
 from src.models.TCN.train import train_tcn_model
@@ -32,8 +33,12 @@ def run_single_forecast(df, target_station, model=None, previous_time_steps=24 *
     # Print the date range being used
     print(f"Running forecast from {start} to {test_end} with training until {train_end}")
 
+    # Limit the dataframe so only the relevant range is used for creating the supervised dataset
+    history_start = pd.to_datetime(start) - pd.Timedelta(hours=previous_time_steps)
+    df_subset = df.loc[history_start:test_end]
+
     # Create supervised dataset
-    X, y, dates = create_3d_dataset(df, target_station=target_station,
+    X, y, dates = create_3d_dataset(df_subset, target_station=target_station,
                                     previous_time_steps=previous_time_steps,
                                     exog_cols=exog_cols)
 

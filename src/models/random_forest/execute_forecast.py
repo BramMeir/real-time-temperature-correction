@@ -1,3 +1,4 @@
+import pandas as pd
 from src.data.create_supervised import create_supervised_dataset
 from src.models.random_forest.bayes_search import bayes_search_random_forest
 from src.models.random_forest.train import train_random_forest
@@ -34,8 +35,12 @@ def run_single_forecast(df, target_station, model=None, previous_time_steps=24, 
     # Print the date range being used
     print(f"Running forecast from {start} to {test_end} with training until {train_end}")
 
+    # Limit the dataframe so only the relevant range is used for creating the supervised dataset
+    history_start = pd.to_datetime(start) - pd.Timedelta(hours=previous_time_steps)
+    df_subset = df.loc[history_start:test_end]
+
     # Create supervised dataset
-    X, y = create_supervised_dataset(df, target_station=target_station,
+    X, y = create_supervised_dataset(df_subset, target_station=target_station,
                                      previous_time_steps=previous_time_steps,
                                      exog_cols=exog_cols, exog_lags=0)
 
