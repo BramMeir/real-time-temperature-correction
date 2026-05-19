@@ -1,5 +1,7 @@
 # Real-time Correction of Temperature Measurements in Urban Sensor Networks.
 
+This repository contains the implementation for the master thesis “Real-Time Correction of Temperature Measurements in Urban Sensor Networks”.
+
 ## Project Setup
 ### Requirements
 Make sure you have **Python 3.11** or higher and **Poetry** installed. You can install Poetry via:
