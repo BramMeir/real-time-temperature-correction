@@ -210,3 +210,6 @@ __marimo__/
 /data/
 /output/
 /plots/
+
+# Claude Code local overrides
+.claude/settings.local.json
