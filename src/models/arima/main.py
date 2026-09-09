@@ -105,10 +105,10 @@ if __name__ == "__main__":
     if args.mode == "forecast":
         if args.model == "sarima":
             sarima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(10, 0, 1),
-                            seasonal_order=(1, 0, 1, 24), use_LASSO_selection=False, max_iter=1000)
+                            seasonal_order=(1, 0, 1, 24), max_iter=1000)
         else:
             sarima_forecast(series, exog_df=exog_df, hours_to_forecast=args.hours_to_forecast, arima_order=(2, 0, 0),
-                            seasonal_order=(1, 0, 1, 24), use_LASSO_selection=False, max_iter=1000)
+                            seasonal_order=(1, 0, 1, 24), max_iter=1000)
 
     elif args.mode == "repeat_forecast":
         if args.model == "sarima":
