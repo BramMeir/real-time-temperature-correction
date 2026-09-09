@@ -21,16 +21,17 @@ even when they touch the same file. Never bundle them.
 (`Add rolling-window retraining to ARIMA`). Put formatting, lockfile, and generated-file
 churn in their own commit so it never hides a real change in the diff.
 
-**Push branches and open PRs without asking.** Finishing a change includes shipping it
-for review — pushing the branch and running `gh pr create` need no permission:
+**Never push or open a PR without asking.** Finishing a change means finishing it in
+the working tree, not shipping it. When the work is done, report what changed and why,
+then ask Bram:
 
-```bash
-git push -u origin <branch>
-gh pr create --fill --base main
-```
+- does this belong in a PR at all (sanity checks, throwaway plots and exploratory
+  scripts usually do not);
+- if yes, one PR or split over several, and which concern goes where.
 
-Report the PR link when done. This applies to feature branches only: pushing to `main`
-is blocked by `.claude/settings.json` and by GitHub branch protection.
+Only after that answer: commit, `git push -u origin <branch>`, `gh pr create`. Report the
+PR link when done. Pushing to `main` stays blocked by `.claude/settings.json` and by
+GitHub branch protection.
 
 **Bram merges. Claude never merges.** Claude opens the PR; Bram reviews and merges.
 Prefer squash-merge.
