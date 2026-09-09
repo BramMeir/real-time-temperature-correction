@@ -1,6 +1,3 @@
-import pandas as pd
-
-
 def train_hourly_climatology(series):
     """
     Train an hourly climatology model by averaging the observed temperature per hour of day over the

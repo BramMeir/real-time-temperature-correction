@@ -1,4 +1,3 @@
-import pandas as pd
 from src.models.climatology.train import train_hourly_climatology
 from src.evaluation.evaluate_baseline_forecast import evaluate_baseline_forecast
 

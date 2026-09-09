@@ -1,6 +1,3 @@
-import pandas as pd
-
-
 def train_persistence(series):
     """
     "Train" a persistence baseline model. Persistence has no parameters to fit: training simply means

@@ -31,7 +31,6 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
     mae: Mean Absolute Error on the test set
     mse: Mean Squared Error on the test set
     best_hp: Always None, this baseline has no hyperparameters to search
-    coefficients: DataFrame with the regression coefficients ('Feature' and 'Coefficient' columns)
     """
     # Print the date range being used
     print(f"Running forecast from {start} to {test_end} with training until {train_end}")
@@ -40,16 +39,7 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
         exog_cols = [col for col in df.columns if col != target_station]
 
     if model is None:
-        train_df = df.loc[start:train_end]
-        model, coefficients = train_neighbour_regression(train_df, target_station, exog_cols)
-    else:
-        coefficients = pd.DataFrame({
-            'Feature': exog_cols,
-            'Coefficient': model.coef_
-        })
-        coefficients = coefficients.reindex(
-            coefficients['Coefficient'].abs().sort_values(ascending=False).index
-        ).reset_index(drop=True)
+        model = train_neighbour_regression(df.loc[start:train_end], target_station, exog_cols)
 
     # Test index excludes train_end so the forecast starts one step after the training window
     test_index = df.loc[train_end:test_end].index[1:]
@@ -64,4 +54,4 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
     mae, rmse = evaluate_baseline_forecast(predictions, y_test, model_name="linear_regression", plot=False)
     mse = rmse ** 2
 
-    return mae, mse, None, coefficients
+    return mae, mse, None

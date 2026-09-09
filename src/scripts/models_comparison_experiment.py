@@ -221,7 +221,7 @@ def run_single_experiment(task):
         train_duration = pd.Timestamp.now() - train_start_time
     elif model_name == "LinearRegression":
         train_start_time = pd.Timestamp.now()
-        model, _ = train_model_fn(
+        model = train_model_fn(
             df=df_complete[train_start:train_end],
             target_station=station,
             exog_cols=exog_df.columns.tolist()

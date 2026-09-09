@@ -1,5 +1,4 @@
 from sklearn.linear_model import LinearRegression
-import pandas as pd
 
 
 def train_neighbour_regression(df, target_station, exog_cols):
@@ -16,8 +15,6 @@ def train_neighbour_regression(df, target_station, exog_cols):
     Output
     ------
     model: Trained LinearRegression model
-    coefficient_df: DataFrame with columns 'Feature' and 'Coefficient', sorted by absolute
-                    coefficient value descending
     """
     # Drop the timestamps where the target or any neighbour is missing before fitting
     data = df[[target_station] + list(exog_cols)].dropna()
@@ -34,12 +31,4 @@ def train_neighbour_regression(df, target_station, exog_cols):
     lr_model = LinearRegression()
     lr_model.fit(X_train, y_train)
 
-    coefficient_df = pd.DataFrame({
-        'Feature': X_train.columns,
-        'Coefficient': lr_model.coef_
-    })
-    coefficient_df = coefficient_df.reindex(
-        coefficient_df['Coefficient'].abs().sort_values(ascending=False).index
-    ).reset_index(drop=True)
-
-    return lr_model, coefficient_df
+    return lr_model
