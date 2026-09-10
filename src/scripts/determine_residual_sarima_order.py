@@ -113,9 +113,13 @@ def summarise(rows, criterion):
     """
     Rank the candidate orders over all evaluated windows.
 
-    The mean of the criterion is only comparable across windows that hold the same number of
-    observations, so the mean rank and the number of windows won are reported alongside it. Both are
-    invariant to the scale of the criterion and therefore stay meaningful if a window is shorter.
+    Three aggregations are reported because each is blind to something the others catch. Averaging
+    the criterion weights every window by how far apart it spreads the candidates, and that spread
+    measures how noisy the station is rather than how much it should count, so one station can carry
+    the average against the majority. The mean rank gives every window an equal vote and is
+    invariant to the scale of the criterion. The number of windows won adds nothing on its own, but
+    wins scattered over many candidates are the clearest sign that the criterion cannot separate
+    them, which is the result worth knowing before trusting whichever candidate came first.
 
     Input
     -----
