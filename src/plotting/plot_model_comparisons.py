@@ -29,17 +29,30 @@ def plot_overall_model_performance(df):
     plt.close()
 
 
+# Model keys as written in the result csv files -> the names used in the paper
+LATEX_MODEL_NAMES = {
+    "RegressionSARIMAErrors": "Regression + SARIMA errors",
+    "LinearRegression": "Neighbour regression",
+    "IDW": "IDW (concurrent)",
+    "Climatology": "Hourly climatology",
+}
+
+
+def _latex_cell(mean, std, decimals, is_best):
+    """Format 'mean ± std' as a math-mode LaTeX cell, bold if it is the best value."""
+    value = f"{mean:.{decimals}f} \\pm {std:.{decimals}f}"
+    return f"$\\mathbf{{{value}}}$" if is_best else f"${value}$"
+
+
 def generate_overall_results_table(df):
     """
-    1. Generate a summary table with
-        MAE = mean ± std
-        MSE = mean ± std
-    and export it to LaTeX.
+    1. Generate a summary table with MAE, MSE, training and prediction time (mean ± std)
+    and print it as a booktabs LaTeX table in the style of the paper (tab:overall).
+
     Input:
     ------
     df: DataFrame containing all the results (columns: dataset,station,model,train_start,train_end,horizon,mae,mse)
     """
-    # Compute statistics
     summary = (
         df.groupby("Model")
         .agg(
@@ -52,58 +65,67 @@ def generate_overall_results_table(df):
             forecast_time_mean=("Forecast_duration_seconds", "mean"),
             forecast_time_std=("Forecast_duration_seconds", "std")
         )
+        .sort_values(by="mae_mean")
         .reset_index()
     )
 
-    # Determine best values for highlighting
-    best_mae = summary["mae_mean"].min()
-    best_mse = summary["mse_mean"].min()
-    best_train_time = summary["train_time_mean"].min()
-    best_forecast_time = summary["forecast_time_mean"].min()
+    # (mean column, std column, decimals) per metric column, in table order
+    metrics = [
+        ("mae_mean", "mae_std", 3),
+        ("mse_mean", "mse_std", 3),
+        ("train_time_mean", "train_time_std", 2),
+        ("forecast_time_mean", "forecast_time_std", 2),
+    ]
 
-    # Helper function to format values and highlight best ones
-    def format_value(mean, std, best):
-        value = f"{mean:.3f} ± {std:.3f}"
-        return f"\\textbf{{{value}}}" if mean == best else value
-    
-    def format_time(mean, std, best):
-        formatted = f"{mean:.2f} ± {std:.2f} s"
-        return f"\\textbf{{{formatted}}}" if mean == best else formatted
+    header = [
+        "\\textbf{Model}",
+        "\\textbf{MAE (\\textcelsius)}",
+        "\\textbf{MSE (${}^{\\circ}$C$^2$)}",
+        "\\textbf{Train (s)}",
+        "\\textbf{Predict (s)}",
+    ]
 
-    # Sort by MAE
-    summary = summary.sort_values(by="mae_mean").reset_index(drop=True)
+    rows = []
+    for _, r in summary.iterrows():
+        row = [LATEX_MODEL_NAMES.get(r["Model"], r["Model"])]
+        for mean_col, std_col, decimals in metrics:
+            is_best = r[mean_col] == summary[mean_col].min()
+            row.append(_latex_cell(r[mean_col], r[std_col], decimals, is_best))
+        rows.append(row)
 
-    # Format as "mean ± std" and highlight best values
-    summary["MAE"] = summary.apply(
-        lambda r: format_value(r.mae_mean, r.mae_std, best_mae), axis=1
+    # Pad every column so the ampersands line up in the .tex source
+    widths = [max(len(row[i]) for row in [header] + rows) for i in range(len(header))]
+
+    def format_row(cells):
+        padded = [cell.ljust(width) for cell, width in zip(cells, widths)]
+        return "    " + " & ".join(padded).rstrip() + " \\\\"
+
+    caption = (
+        "Mean error metrics across all stations, datasets, and horizons "
+        "($\\pm$ one standard deviation over experiments). "
+        "Training and prediction times measured on the UGent HPC."
     )
-    summary["MSE"] = summary.apply(
-        lambda r: format_value(r.mse_mean, r.mse_std, best_mse), axis=1
-    )
 
-    summary["Training Time"] = summary.apply(
-        lambda r: format_time(r.train_time_mean, r.train_time_std, best_train_time), axis=1
-    )
-
-    summary["Forecasting Time"] = summary.apply(
-        lambda r: format_time(r.forecast_time_mean, r.forecast_time_std, best_forecast_time), axis=1
-    )
-
-    # Keep only formatted columns
-    summary_table = summary[["Model", "MAE", "MSE", "Training Time", "Forecasting Time"]]
+    lines = [
+        "\\begin{table}[htb]",
+        "  \\centering",
+        f"  \\caption{{{caption}}}",
+        "  \\label{tab:overall}",
+        "  \\begin{tabular}{lrrrr}",
+        "    \\toprule",
+        format_row(header),
+        "    \\midrule",
+        *[format_row(row) for row in rows],
+        "    \\bottomrule",
+        "  \\end{tabular}",
+        "\\end{table}",
+    ]
 
     print("\n=== Overall Model Performance ===")
-    print(summary_table)
-
-    # Export LaTeX table
-    latex_code = summary_table.to_latex(
-        index=False,
-        escape=False,   # important for ± symbol
-        column_format="lccccc"
-    )
+    print(summary[["Model"] + [m[0] for m in metrics]].to_string(index=False))
 
     print("\nLaTeX code for the overall results table:")
-    print(latex_code)
+    print("\n".join(lines))
 
 
 def plot_performance_vs_horizon(df):
