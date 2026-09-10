@@ -1,13 +1,7 @@
 """
-Main script to determine the SARIMA order for stage two of the two-stage regression model, by
-running a grid search on the stage-one residuals instead of on the raw temperature series. The
-results are saved in a CSV file for further analysis.
-
-The order currently used by the model was selected on the raw series, which is not the series stage
-two is fitted to: the neighbouring stations have already removed the diurnal cycle and the synoptic
-variation, so the residuals have a different correlation structure. This script selects the order on
-the residuals, pooled over datasets, stations and training periods, because a single window does not
-separate the candidates reliably.
+Main script to determine the SARIMA order for stage two of the two-stage regression model, by running
+a grid search on the stage-one residuals rather than on the raw temperature series. Runs over all
+datasets, stations and training periods, and saves the results in a CSV file for further analysis.
 
 python -m src.scripts.determine_residual_sarima_order
 """
@@ -50,18 +44,18 @@ SEED = 42
 # Forecasting horizons in hours (4h, 12h, 1D, 2D, 4D, 7D, 14D, 21D, 30D)
 HORIZONS = [4, 12, 24, 48, 96, 168, 336, 504, 720]
 
-# Number of training periods to evaluate per station. Fewer than in the comparison experiment,
-# because every window is now fitted once per candidate order instead of once in total
+# Number of training periods to evaluate per station, fewer than in the comparison experiment
+# because every window is fitted once per candidate order
 NUMBER_OF_REPEATS = 3
 
-# History that generate_forecast_start has to keep available. Matches the comparison experiment, so
-# that the order is selected on the same training windows the model is later evaluated on
+# History that generate_forecast_start has to keep available, matching the comparison experiment so
+# the order is selected on the same training windows the model is evaluated on
 MAX_HISTORY_DAYS = 8 * 7
 
 
 def load_station_series(df, station):
     """
-    Build the hourly target series and neighbour DataFrame for one station, following the same
+    Build the hourly target series and neighbour DataFrame for one station, using the same
     preprocessing as the comparison experiment.
 
     Input
@@ -113,13 +107,9 @@ def summarise(rows, criterion):
     """
     Rank the candidate orders over all evaluated windows.
 
-    Three aggregations are reported because each is blind to something the others catch. Averaging
-    the criterion weights every window by how far apart it spreads the candidates, and that spread
-    measures how noisy the station is rather than how much it should count, so one station can carry
-    the average against the majority. The mean rank gives every window an equal vote and is
-    invariant to the scale of the criterion. The number of windows won adds nothing on its own, but
-    wins scattered over many candidates are the clearest sign that the criterion cannot separate
-    them, which is the result worth knowing before trusting whichever candidate came first.
+    Reports the mean criterion, which weighs a window by how far apart it drives the candidates, the
+    mean rank, which gives every window an equal vote, and the number of windows won, which shows
+    whether the criterion separates the candidates at all.
 
     Input
     -----
@@ -205,8 +195,8 @@ def run_grid_search(training_weeks, repeats, criterion, seasonal_period, output_
                 train_start = forecast_start - pd.Timedelta(days=training_weeks * 7)
                 train_end = forecast_start
 
-                # The residuals are taken from the training window only, so the order is never
-                # selected on data the model is later evaluated on
+                # Residuals from the training window only, so the order is never selected on data
+                # the model is evaluated on
                 _, residuals = stage_one_residuals(
                     df_complete[train_start:train_end], station, exog_cols
                 )

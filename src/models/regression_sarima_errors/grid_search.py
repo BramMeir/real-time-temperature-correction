@@ -1,11 +1,6 @@
 """
 Module for performing a parallel grid search to find the best SARIMA parameters for the residuals
-that remain after the stage-one regression on the neighbouring stations.
-
-The order of the two-stage model was originally taken from a grid search on the raw temperature
-series, which is the wrong series: stage two is fitted to the stage-one residuals, from which the
-neighbouring stations have already removed the diurnal cycle and the synoptic variation. Selecting
-the order on the residuals therefore answers the question the model actually asks.
+of the stage-one regression on the neighbouring stations.
 
 Functions:
 - build_candidate_grid: Build the list of (order, seasonal_order) candidates to evaluate.
@@ -24,9 +19,7 @@ def build_candidate_grid(p_values=range(0, 4), d_values=(0,), q_values=range(0, 
     """
     Build the list of (order, seasonal_order) candidates to evaluate.
 
-    The differencing orders default to zero because the stage-one residuals are stationary and have
-    a mean of exactly zero by construction of the least squares fit, so differencing them only adds
-    noise. They are kept configurable so that assumption can be tested rather than assumed.
+    The differencing orders default to zero, as the residuals are already stationary and mean zero.
 
     Input
     -----
@@ -52,8 +45,7 @@ def fit_residual_sarima(residuals, order, seasonal_order):
     """
     Fit a SARIMA model on a residual series and return its information criteria.
 
-    No trend term is included: the stage-one residuals have a mean of exactly zero, so an intercept
-    would be estimating a quantity the least squares fit has already removed.
+    No trend term is included, as the residuals have a mean of exactly zero.
 
     Input
     -----
@@ -64,8 +56,8 @@ def fit_residual_sarima(residuals, order, seasonal_order):
     Output
     ------
     Returns a dictionary with the order, seasonal order, number of parameters, number of
-    observations, log likelihood, AIC, BIC, whether the optimiser converged and the fit duration in
-    seconds. Failed fits return infinite information criteria so they never win the search.
+    observations, log likelihood, AIC, BIC, convergence flag and fit duration in seconds. Failed
+    fits return infinite information criteria so they never win the search.
     """
     start_time = pd.Timestamp.now()
 
@@ -90,8 +82,8 @@ def fit_residual_sarima(residuals, order, seasonal_order):
             "fit_duration_seconds": (pd.Timestamp.now() - start_time).total_seconds()
         }
     except Exception:
-        # Invalid combinations return infinite information criteria instead of raising, so a single
-        # unfittable candidate does not abort the whole search
+        # Invalid combinations return infinite information criteria instead of raising, so one
+        # unfittable candidate does not abort the search
         return {
             "order": order,
             "seasonal_order": seasonal_order,

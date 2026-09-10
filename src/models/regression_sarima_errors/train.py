@@ -29,8 +29,7 @@ def stage_one_residuals(df, target_station, exog_cols, regression=None):
     """
     Compute the stage-one residuals: what the neighbouring stations cannot explain about the target.
 
-    Stage two is fitted to these residuals, and so is the grid search that selects its order, so both
-    are kept here to guarantee they see an identical series.
+    Shared by the training and the grid search, so both see an identical series.
 
     Input
     -----
@@ -47,8 +46,7 @@ def stage_one_residuals(df, target_station, exog_cols, regression=None):
     if regression is None:
         regression = train_neighbour_regression(df, target_station, exog_cols)
 
-    # Restrict to the rows the regression itself was fitted on, so the two stages see an identical
-    # training window
+    # Restrict to the rows the regression was fitted on, so both stages see the same window
     data = df[[target_station] + list(exog_cols)].dropna()
 
     residuals = pd.Series(
