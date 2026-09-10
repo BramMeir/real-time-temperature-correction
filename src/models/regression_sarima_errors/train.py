@@ -15,10 +15,46 @@ level of the target. Multi-step forecasts converge to beta' x_t once the autoreg
 contribution has decayed, so long-lead accuracy depends only on how well beta reproduces
 the level. Estimating beta by OLS and fitting the SARIMA to its residuals keeps each
 component fitted against the quantity it is used to predict.
+
+Functions:
+- stage_one_residuals: Compute the residuals the neighbouring stations cannot explain.
+- train_regression_sarima_errors: Fit the two-stage model.
 """
 import pandas as pd
 import statsmodels.api as sm
 from src.models.linear_regression.train import train_neighbour_regression
+
+
+def stage_one_residuals(df, target_station, exog_cols, regression=None):
+    """
+    Compute the stage-one residuals: what the neighbouring stations cannot explain about the target.
+
+    Shared by the training and the grid search, so both see an identical series.
+
+    Input
+    -----
+    df: DataFrame with a datetime index and one column per station, hourly frequency
+    target_station: Name of the target station column to predict
+    exog_cols: List of neighbouring station column names used as regressors
+    regression: Trained LinearRegression model to reuse (default is None, which fits a new one)
+
+    Output
+    ------
+    regression: The regression used to produce the residuals
+    residuals: Pandas Series with the residuals, indexed by the rows the regression was fitted on
+    """
+    if regression is None:
+        regression = train_neighbour_regression(df, target_station, exog_cols)
+
+    # Restrict to the rows the regression was fitted on, so both stages see the same window
+    data = df[[target_station] + list(exog_cols)].dropna()
+
+    residuals = pd.Series(
+        data[target_station].values - regression.predict(data[exog_cols]),
+        index=data.index
+    )
+
+    return regression, residuals
 
 
 def train_regression_sarima_errors(df, target_station, exog_cols, arima_order=(2, 0, 0),
@@ -43,15 +79,8 @@ def train_regression_sarima_errors(df, target_station, exog_cols, arima_order=(2
     residual_model: Fitted SARIMA results object for the regression residuals
     """
     # Stage 1: the spatial part, an OLS regression of the target on the neighbouring stations
-    regression = train_neighbour_regression(df, target_station, exog_cols)
-
-    # Stage 2: the local part, what the neighbours cannot explain. The residuals are computed on the
-    # same rows the regression was fitted on, so the two stages see an identical training window.
-    data = df[[target_station] + list(exog_cols)].dropna()
-    residuals = pd.Series(
-        data[target_station].values - regression.predict(data[exog_cols]),
-        index=data.index
-    )
+    # Stage 2: the local part, what the neighbours cannot explain
+    regression, residuals = stage_one_residuals(df, target_station, exog_cols)
 
     # The residual series carries no exogenous variables, so this fit is independent of the number
     # of stations: 5 parameters instead of 5 + len(exog_cols) as in one-stage ARIMAX
