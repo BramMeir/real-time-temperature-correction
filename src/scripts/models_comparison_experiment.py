@@ -19,6 +19,7 @@ from src.models.persistence.train import train_persistence
 from src.models.climatology.train import train_hourly_climatology
 from src.models.idw.train import train_idw
 from src.models.linear_regression.train import train_neighbour_regression
+from src.models.regression_sarima_errors.train import train_regression_sarima_errors
 from src.models.arima.repeat_forecast import _run_single_forecast as run_arimax
 from src.models.random_forest.execute_forecast import run_single_forecast as run_rf
 from src.models.LSTM.execute_forecast import run_single_forecast as run_lstm
@@ -29,6 +30,7 @@ from src.models.persistence.execute_forecast import run_single_forecast as run_p
 from src.models.climatology.execute_forecast import run_single_forecast as run_climatology
 from src.models.idw.execute_forecast import run_single_forecast as run_idw
 from src.models.linear_regression.execute_forecast import run_single_forecast as run_linear_regression
+from src.models.regression_sarima_errors.execute_forecast import run_single_forecast as run_regression_sarima_errors
 from src.data.create_supervised import create_supervised_dataset
 from src.data.create_3d_dataset import create_3d_dataset
 from src.utils.load_station_coordinates import load_station_coordinates
@@ -76,7 +78,8 @@ TRAIN_MODELS = {
     "Persistence": train_persistence,
     "Climatology": train_hourly_climatology,
     "IDW": train_idw,
-    "LinearRegression": train_neighbour_regression
+    "LinearRegression": train_neighbour_regression,
+    "RegressionSARIMAErrors": train_regression_sarima_errors
 }
 
 FORECAST_MODELS = {
@@ -90,7 +93,8 @@ FORECAST_MODELS = {
     "Persistence": run_persistence,
     "Climatology": run_climatology,
     "IDW": run_idw,
-    "LinearRegression": run_linear_regression
+    "LinearRegression": run_linear_regression,
+    "RegressionSARIMAErrors": run_regression_sarima_errors
 }
 
 MODEL_TRAINING_DAYS = {
@@ -104,7 +108,8 @@ MODEL_TRAINING_DAYS = {
     "Persistence": 8 * 7,       # Only the last observation is used, the window just keeps the forecast start aligned
     "Climatology": 8 * 7,       # 8 weeks of hourly data (1344 hours)
     "IDW": 8 * 7,               # Nothing is learned from the past, the window just keeps the forecast start aligned
-    "LinearRegression": 8 * 7   # 8 weeks of hourly data (1344 hours)
+    "LinearRegression": 8 * 7,          # 8 weeks of hourly data (1344 hours)
+    "RegressionSARIMAErrors": 8 * 7     # 8 weeks of hourly data (1344 hours)
 }
 
 
@@ -227,6 +232,17 @@ def run_single_experiment(task):
             exog_cols=exog_df.columns.tolist()
         )
         train_duration = pd.Timestamp.now() - train_start_time
+    elif model_name == "RegressionSARIMAErrors":
+        train_start_time = pd.Timestamp.now()
+        model = train_model_fn(
+            df=df_complete[train_start:train_end],
+            target_station=station,
+            exog_cols=exog_df.columns.tolist(),
+            arima_order=(2, 0, 0),
+            seasonal_order=(1, 0, 1, 24),
+            max_iter=1000
+        )
+        train_duration = pd.Timestamp.now() - train_start_time
 
     # Evaluate the model for each forecast horizon and save the results
     results = []
@@ -285,7 +301,8 @@ def run_single_experiment(task):
                 test_end=test_end,
                 mode="forecast"
             )
-        elif model_name in ["RF", "MLP", "TCN", "Persistence", "Climatology", "IDW", "LinearRegression"]:
+        elif model_name in ["RF", "MLP", "TCN", "Persistence", "Climatology", "IDW", "LinearRegression",
+                            "RegressionSARIMAErrors"]:
             result = forecast_model_fn(
                 df=df_complete,
                 target_station=station,
