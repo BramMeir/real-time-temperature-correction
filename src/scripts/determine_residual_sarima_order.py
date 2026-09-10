@@ -261,13 +261,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Make sure the output directory exists
-    os.makedirs("output/residual_sarima_order", exist_ok=True)
+    os.makedirs("output/residual_sarima_order_grid_search", exist_ok=True)
 
     run_grid_search(
         training_weeks=args.training_weeks,
         repeats=args.repeats,
         criterion=args.criterion,
         seasonal_period=args.seasonal_period,
-        output_file=f"output/residual_sarima_order/results_{args.training_weeks}_weeks_{args.criterion}.csv",
+        output_file=f"output/residual_sarima_order_grid_search/results_{args.training_weeks}_weeks_{args.criterion}.csv",
         datasets=args.datasets
     )
