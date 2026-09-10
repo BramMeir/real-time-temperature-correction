@@ -15,14 +15,23 @@ from src.models.MLP.train import train_mlp_model
 from src.models.transformer.train import train_transformer_model
 from src.models.random_forest.train import train_random_forest
 from src.models.TCN.train import train_tcn_model
+from src.models.persistence.train import train_persistence
+from src.models.climatology.train import train_hourly_climatology
+from src.models.idw.train import train_idw
+from src.models.linear_regression.train import train_neighbour_regression
 from src.models.arima.repeat_forecast import _run_single_forecast as run_arimax
 from src.models.random_forest.execute_forecast import run_single_forecast as run_rf
 from src.models.LSTM.execute_forecast import run_single_forecast as run_lstm
 from src.models.MLP.execute_forecast import run_single_forecast as run_mlp
 from src.models.transformer.execute_forecast import run_single_forecast as run_transformer
 from src.models.TCN.execute_forecast import run_single_forecast as run_tcn
+from src.models.persistence.execute_forecast import run_single_forecast as run_persistence
+from src.models.climatology.execute_forecast import run_single_forecast as run_climatology
+from src.models.idw.execute_forecast import run_single_forecast as run_idw
+from src.models.linear_regression.execute_forecast import run_single_forecast as run_linear_regression
 from src.data.create_supervised import create_supervised_dataset
 from src.data.create_3d_dataset import create_3d_dataset
+from src.utils.load_station_coordinates import load_station_coordinates
 
 # Metadata about the used datasets and stations to evaluate on
 DATASETS = {
@@ -63,7 +72,11 @@ TRAIN_MODELS = {
     "RF": train_random_forest,
     "MLP": train_mlp_model,
     "Transformer": train_transformer_model,
-    "TCN": train_tcn_model
+    "TCN": train_tcn_model,
+    "Persistence": train_persistence,
+    "Climatology": train_hourly_climatology,
+    "IDW": train_idw,
+    "LinearRegression": train_neighbour_regression
 }
 
 FORECAST_MODELS = {
@@ -73,7 +86,11 @@ FORECAST_MODELS = {
     "RF": run_rf,
     "MLP": run_mlp,
     "Transformer": run_transformer,
-    "TCN": run_tcn
+    "TCN": run_tcn,
+    "Persistence": run_persistence,
+    "Climatology": run_climatology,
+    "IDW": run_idw,
+    "LinearRegression": run_linear_regression
 }
 
 MODEL_TRAINING_DAYS = {
@@ -83,7 +100,11 @@ MODEL_TRAINING_DAYS = {
     "RF": 8 * 7,            # 8 weeks of hourly data (1344 hours)
     "MLP": 8 * 7,           # 8 weeks of hourly data (1344 hours)
     "Transformer": 8 * 7,   # 8 weeks of hourly data (1344 hours)
-    "TCN": 8 * 7            # 8 weeks of hourly data (1344 hours)
+    "TCN": 8 * 7,               # 8 weeks of hourly data (1344 hours)
+    "Persistence": 8 * 7,       # Only the last observation is used, the window just keeps the forecast start aligned
+    "Climatology": 8 * 7,       # 8 weeks of hourly data (1344 hours)
+    "IDW": 8 * 7,               # Nothing is learned from the past, the window just keeps the forecast start aligned
+    "LinearRegression": 8 * 7   # 8 weeks of hourly data (1344 hours)
 }
 
 
@@ -184,6 +205,28 @@ def run_single_experiment(task):
         # Train the TCN model
         model = train_model_fn(X_train, y_train)
         train_duration = pd.Timestamp.now() - train_start_time
+    elif model_name in ["Persistence", "Climatology"]:
+        train_start_time = pd.Timestamp.now()
+        model = train_model_fn(series=series[train_start:train_end])
+        train_duration = pd.Timestamp.now() - train_start_time
+    elif model_name == "IDW":
+        train_start_time = pd.Timestamp.now()
+
+        # IDW learns nothing from the observations: "training" only determines the spatial weights of the neighbours
+        model = train_model_fn(
+            coords=load_station_coordinates(dataset_name),
+            target_station=station,
+            neighbour_stations=exog_df.columns.tolist()
+        )
+        train_duration = pd.Timestamp.now() - train_start_time
+    elif model_name == "LinearRegression":
+        train_start_time = pd.Timestamp.now()
+        model = train_model_fn(
+            df=df_complete[train_start:train_end],
+            target_station=station,
+            exog_cols=exog_df.columns.tolist()
+        )
+        train_duration = pd.Timestamp.now() - train_start_time
 
     # Evaluate the model for each forecast horizon and save the results
     results = []
@@ -242,7 +285,7 @@ def run_single_experiment(task):
                 test_end=test_end,
                 mode="forecast"
             )
-        elif model_name in ["RF", "MLP", "TCN"]:
+        elif model_name in ["RF", "MLP", "TCN", "Persistence", "Climatology", "IDW", "LinearRegression"]:
             result = forecast_model_fn(
                 df=df_complete,
                 target_station=station,
