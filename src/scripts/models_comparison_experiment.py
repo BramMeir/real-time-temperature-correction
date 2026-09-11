@@ -238,8 +238,8 @@ def run_single_experiment(task):
             df=df_complete[train_start:train_end],
             target_station=station,
             exog_cols=exog_df.columns.tolist(),
-            arima_order=(2, 0, 0),
-            seasonal_order=(1, 0, 1, 24),
+            arima_order=(3, 0, 0),
+            seasonal_order=(1, 0, 0, 24),
             max_iter=1000
         )
         train_duration = pd.Timestamp.now() - train_start_time
