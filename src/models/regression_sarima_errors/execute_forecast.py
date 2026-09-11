@@ -40,6 +40,7 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
     mae: Mean Absolute Error on the test set
     mse: Mean Squared Error on the test set
     best_hp: Always None, this model has no hyperparameters to search
+    predictions: Series with the forecast for every hour of the test window
     """
     # Print the date range being used
     print(f"Running forecast from {start} to {test_end} with training until {train_end}")
@@ -75,4 +76,4 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
     )
     mse = rmse ** 2
 
-    return mae, mse, None
+    return mae, mse, None, predictions

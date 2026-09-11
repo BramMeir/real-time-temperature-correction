@@ -32,6 +32,7 @@ def sarima_forecast(series, exog_df=None, model=None, hours_to_forecast=48, arim
 
     errors: Dictionary containing MAE and MSE of the forecast
     importance: Series containing feature importance of exogenous variables (if provided)
+    y_forecasted: Series with the forecast for every hour of the test window
     """
     # Split the data into training and test sets
     split_date = series.index.max() - pd.DateOffset(hours=hours_to_forecast)
@@ -144,4 +145,4 @@ def sarima_forecast(series, exog_df=None, model=None, hours_to_forecast=48, arim
         # Select the coefficients corresponding to the exogenous variables (only the used ones if LASSO was applied)
         importance = results.params[exog_train.columns].abs().sort_values(ascending=False)
 
-    return errors, importance
+    return errors, importance, y_forecasted
