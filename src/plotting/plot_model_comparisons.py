@@ -21,10 +21,17 @@ def plot_overall_model_performance(df):
     """
     summary_mae = df.groupby("Model")["MAE"].agg(["mean", "std"]).reset_index()
 
-    plt.figure()
-    plt.bar(summary_mae["Model"], summary_mae["mean"], yerr=summary_mae["std"], capsize=5)
+    plt.figure(figsize=(9, 5))
+    plt.bar(
+        summary_mae["Model"].map(_display_name),
+        summary_mae["mean"],
+        yerr=summary_mae["std"],
+        capsize=5,
+    )
     plt.xlabel("Model")
-    plt.ylabel("Gemiddelde MAE (°C)")
+    plt.ylabel("Mean MAE (°C)")
+    plt.xticks(rotation=30, ha="right")
+    plt.tight_layout()
     plt.savefig("plots/overall_model_performance.png")
     plt.close()
 
@@ -36,6 +43,11 @@ LATEX_MODEL_NAMES = {
     "IDW": "IDW (concurrent)",
     "Climatology": "Hourly climatology",
 }
+
+
+def _display_name(model):
+    """Model key as written in the result csv files -> the name used in the paper."""
+    return LATEX_MODEL_NAMES.get(model, model)
 
 
 def _latex_cell(mean, std, decimals, is_best):
@@ -157,11 +169,11 @@ def plot_performance_vs_horizon(df):
             yerr=model_data["ci95"],
             marker="o",
             capsize=4,
-            label=model
+            label=_display_name(model)
         )
 
-    plt.xlabel("Voorspellingshorizon (dagen)")
-    plt.ylabel("Gemiddelde MAE (°C)")
+    plt.xlabel("Outage duration (days)")
+    plt.ylabel("Mean MAE (°C)")
 
     # Set both axis limits to start at 0 for better visualization
     plt.xlim(left=0)
@@ -206,7 +218,7 @@ def plot_performance_vs_horizon_with_zoom(df):
             yerr=model_data["ci95"],
             marker="o",
             capsize=4,
-            label=model
+            label=_display_name(model)
         )
 
         ax_zoom.errorbar(
@@ -218,7 +230,7 @@ def plot_performance_vs_horizon_with_zoom(df):
         )
 
     # Top plot
-    ax_top.set_ylabel("Gemiddelde MAE (°C)")
+    ax_top.set_ylabel("Mean MAE (°C)")
     ax_top.set_xlim(left=0)
 
     # Show zoom region
@@ -227,10 +239,11 @@ def plot_performance_vs_horizon_with_zoom(df):
 
     # Zoom plot
     ax_zoom.set_ylim(zoom_min, zoom_max)
-    ax_zoom.set_ylabel("Gemiddelde MAE (°C)")
-    ax_zoom.set_xlabel("Voorspellingshorizon (dagen)")
+    ax_zoom.set_ylabel("Mean MAE (°C)")
+    ax_zoom.set_xlabel("Outage duration (days)")
 
-    ax_top.legend(loc="upper left")
+    # Two columns keep the (now larger) legend from covering the baseline curves
+    ax_top.legend(loc="upper left", ncol=2, fontsize=9)
 
     plt.tight_layout()
     plt.savefig("plots/performance_vs_horizon_zoomed.png")
@@ -248,13 +261,14 @@ def plot_dataset_comparison(df):
     summary = df.groupby(["Dataset", "Model"])["MAE"].mean().reset_index()
 
     pivot = summary.pivot(index="Dataset", columns="Model", values="MAE")
+    pivot = pivot.rename(columns=_display_name)
 
     _, ax = plt.subplots(figsize=(8, 5))
 
     pivot.plot(kind="bar", ax=ax, width=0.9)
 
-    ax.set_ylabel("Gemiddelde MAE (°C)")
-    # ax.set_title("Modelprestaties per dataset")
+    ax.set_ylabel("Mean MAE (°C)")
+    # ax.set_title("Model performance per dataset")
 
     # Add value labels on top of bars
     for container in ax.containers:
@@ -286,13 +300,14 @@ def plot_station_variability(df):
 
     summary = df.groupby(["station_short", "Model"])["MAE"].mean().reset_index()
     pivot = summary.pivot(index="station_short", columns="Model", values="MAE")
+    pivot = pivot.rename(columns=_display_name)
 
     _, ax = plt.subplots(figsize=(8, 5))
 
     pivot.plot(kind="bar", ax=ax)
 
-    ax.set_ylabel("Gemiddelde MAE (°C)")
-    # ax.set_title("Modelprestaties per station")
+    ax.set_ylabel("Mean MAE (°C)")
+    # ax.set_title("Model performance per station")
 
     plt.xticks(rotation=45)
     plt.tight_layout()
@@ -343,7 +358,7 @@ def plot_urban_vs_rural_comparison(df):
         width,
         yerr=rural["ci95"],
         capsize=4,
-        label="Enkel landelijke stations"
+        label="Rural stations only"
     )
 
     plt.bar(
@@ -352,11 +367,16 @@ def plot_urban_vs_rural_comparison(df):
         width,
         yerr=mixed["ci95"],
         capsize=4,
-        label="Gemengd landelijk/stedelijk"
+        label="Mixed rural/urban"
     )
 
-    plt.xticks(x, models, rotation=0)
-    plt.ylabel("Gemiddelde MAE (°C)")
+    plt.xticks(
+        x,
+        [_display_name(m) for m in models],
+        rotation=30,
+        ha="right",
+    )
+    plt.ylabel("Mean MAE (°C)")
 
     plt.legend()
 

@@ -61,13 +61,13 @@ plt.plot(
 
 # Make labels clear
 labels = [
-    f"{lag}u" if not seasonal else "24u"
+    f"{lag} h" if not seasonal else "24 h"
     for lag, seasonal in zip(df["lag"], df["seasonal"])
 ]
 
 plt.xticks(df["xpos"], labels)
 
-# Ellips toevoegen in de gap
+# Add an ellipsis in the gap
 gap_center = (df["xpos"].iloc[-2] + df["xpos"].iloc[-1]) / 2
 
 plt.text(
@@ -80,8 +80,8 @@ plt.text(
     transform=plt.gca().get_xaxis_transform(),
 )
 
-plt.xlabel("Input-lags eigen station")
-plt.ylabel("Gemiddelde absolute coëfficiënt")
+plt.xlabel("Autoregressive lag of the target station")
+plt.ylabel("Mean absolute coefficient")
 
 plt.grid(axis="y", linestyle="--", alpha=0.6)
 plt.tight_layout()
