@@ -26,8 +26,10 @@ def plot_map(gdf, column, filename, label, cmap, invert_bar=False, vmin=None, vm
         norm=norm
     )
 
-    # Basemap
-    ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik, alpha=0.75)
+    # Basemap. OpenStreetMap's tile policy blocks automated requests (it serves
+    # "Access blocked" tiles) and Carto watermarks its tiles unless you hold an
+    # API key, so use Esri's grey canvas: key-free and unobtrusive under the markers.
+    ctx.add_basemap(ax, source=ctx.providers.Esri.WorldGrayCanvas, alpha=0.75)
 
     ax.set_axis_off()
 
