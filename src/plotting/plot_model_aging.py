@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 INPUT_TEMPLATE = "output/aging_model_fixed_gaps/results_{}_100.csv"
 DATASETS = ["KMI", "SYNTHETIC", "TURKU"]
 DATASET_LABELS = {
-    "KMI": "KMI",
-    "SYNTHETIC": "Synthetisch",
-    "TURKU": "Turku"
+    "KMI": "RMI",
+    "SYNTHETIC": "Synthetic",
+    "TURKU": "TURCLIM"
 }
 OUTPUT_DIR = "plots/aging_model/"
 
@@ -101,8 +101,8 @@ def plot_datasets(df):
             label=DATASET_LABELS.get(dataset, dataset)
         )
 
-    plt.xlabel("Aantal dagen sinds laatste training")
-    plt.ylabel("Gemiddelde MAE (°C)")
+    plt.xlabel("Days since last training")
+    plt.ylabel("Mean MAE (°C)")
     plt.legend(title="Datasets", frameon=True, loc="best")
     plt.grid(alpha=0.3)
 
@@ -164,8 +164,8 @@ def plot_relative(df):
         alpha=0.7
     )
 
-    plt.xlabel("Aantal dagen sinds laatste training")
-    plt.ylabel("Relatieve MAE (t.o.v. dag 0)")
+    plt.xlabel("Days since last training")
+    plt.ylabel("Relative MAE (vs. day 0)")
     plt.legend(title="Datasets", frameon=True, loc="best")
     plt.grid(alpha=0.3)
 
@@ -201,8 +201,8 @@ def plot_overall(df):
         marker="o",
     )
 
-    plt.xlabel("Aantal dagen sinds laatste training")
-    plt.ylabel("Gemiddelde MAE (°C)")
+    plt.xlabel("Days since last training")
+    plt.ylabel("Mean MAE (°C)")
     plt.grid(alpha=0.3)
 
     plt.tight_layout()

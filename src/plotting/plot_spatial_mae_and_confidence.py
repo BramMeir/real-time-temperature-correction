@@ -26,8 +26,10 @@ def plot_map(gdf, column, filename, label, cmap, invert_bar=False, vmin=None, vm
         norm=norm
     )
 
-    # Basemap
-    ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik, alpha=0.75)
+    # Basemap. OpenStreetMap's tile policy blocks automated requests (it serves
+    # "Access blocked" tiles) and Carto watermarks its tiles unless you hold an
+    # API key, so use Esri's grey canvas: key-free and unobtrusive under the markers.
+    ctx.add_basemap(ax, source=ctx.providers.Esri.WorldGrayCanvas, alpha=0.75)
 
     ax.set_axis_off()
 
@@ -111,7 +113,7 @@ plot_map(
     gdf,
     column="confidence_mean",
     filename=f"{plots_dir}/confidence_score_map.png",
-    label="Gemiddelde betrouwbaarheidsscore",
+    label="Mean reliability score",
     cmap="coolwarm",
     vmin=conf_min,
     vmax=conf_max
@@ -122,7 +124,7 @@ plot_map(
     gdf,
     column="interval_size_mean",
     filename=f"{plots_dir}/confidence_interval_size_map.png",
-    label="Gemiddelde intervalgrootte (°C)",
+    label="Mean prediction-interval width (°C)",
     cmap="coolwarm_r",
     invert_bar=True,
     vmin=interval_min,
@@ -134,7 +136,7 @@ plot_map(
     gdf,
     column="mae_mean",
     filename=f"{plots_dir}/mae_map.png",
-    label="Gemiddelde MAE (°C)",
+    label="Mean MAE (°C)",
     cmap="coolwarm_r",
     invert_bar=True,
     vmin=mae_min,

@@ -30,15 +30,15 @@ def generate_lasso_properties_table(df, total_stations=48):
     latex_code = f"""
     \\begin{{tabular*}}{{0.8\\textwidth}}{{l@{{\\extracolsep{{\\fill}}}}c}}
     \\toprule
-    \\multicolumn{{2}}{{l}}{{\\textbf{{LASSO selectie-eigenschappen}}}} \\\\
+    \\multicolumn{{2}}{{l}}{{\\textbf{{LASSO selection properties}}}} \\\\
     \\midrule
-    Totaal aantal beschikbare stations & {total_stations} \\\\
-    Gemiddeld aantal geselecteerde stations & {mean_nr_stations:.1f} \\\\
-    Range van geselecteerde stations & {minimum_nr_stations:.0f} - {maximum_nr_stations:.0f} (mediaan: {median_nr_stations:.0f}) \\\\
+    Total number of available stations & {total_stations} \\\\
+    Mean number of selected stations & {mean_nr_stations:.1f} \\\\
+    Range of selected stations & {minimum_nr_stations:.0f} - {maximum_nr_stations:.0f} (median: {median_nr_stations:.0f}) \\\\
     \\addlinespace[2pt]
-    LASSO selectietijd (s) & {mean_selection_time:.2f} \\\\
-    Trainingstijd (s) & {mean_forecast_time:.2f} \\\\
-    Gemiddelde snelheidswinst t.o.v. alle stations & $\\times${mean_speedup:.1f} \\\\
+    LASSO selection time (s) & {mean_selection_time:.2f} \\\\
+    Training time (s) & {mean_forecast_time:.2f} \\\\
+    Mean speed-up vs. all stations & $\\times${mean_speedup:.1f} \\\\
     \\bottomrule
     \\end{{tabular*}}
     """
@@ -96,9 +96,9 @@ plt.bar(
 plt.text(
     0.99, 0.98,
     (
-        f"Gemiddelde MAE (alle stations): {baseline_mae:.3f} °C\n"
-        f"Gemiddelde MAE (LASSO selectie): {optimal_mae:.3f} °C\n"
-        f"Gemiddelde verbetering: {mean_improvement:.3f} °C"
+        f"Mean MAE (all stations): {baseline_mae:.3f} °C\n"
+        f"Mean MAE (LASSO selection): {optimal_mae:.3f} °C\n"
+        f"Mean improvement: {mean_improvement:.3f} °C"
     ),
     transform=plt.gca().transAxes,
     fontsize=12,
@@ -110,8 +110,8 @@ plt.text(
 # baseline reference
 plt.axhline(0, linestyle="--")
 
-plt.ylabel("MAE verbetering ten opzichte van alle stations (°C)")
-plt.xlabel("Doelstations (gerangschikt volgens verbetering)")
+plt.ylabel("MAE improvement over using all stations (°C)")
+plt.xlabel("Target stations (ranked by improvement)")
 plt.xticks([])
 
 plt.tight_layout()

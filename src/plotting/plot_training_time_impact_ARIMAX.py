@@ -95,17 +95,17 @@ def plot_mae_vs_training_weeks(df, output_dir):
         capsize=4,
     )
 
-    # Zoom rond relevante regio
+    # Zoom in on the relevant region
     ymin = summary["mean"].min() * 0.95
     ymax = summary["mean"].min() * 1.25
 
     plt.ylim(ymin, ymax)
     plt.xlim(left=0)
 
-    plt.xlabel("Aantal trainingsweken")
-    plt.ylabel("Gemiddelde MAE (°C)")
+    plt.xlabel("Number of training weeks")
+    plt.ylabel("Mean MAE (°C)")
 
-    # Subtiele grid
+    # Subtle grid
     plt.grid(True, linestyle="--", alpha=0.6)
 
     plt.tight_layout()
@@ -144,8 +144,8 @@ def plot_training_time_vs_weeks(df, output_dir):
         capsize=4,
     )
 
-    plt.xlabel("Aantal trainingsweken")
-    plt.ylabel("Gemiddelde trainingstijd (seconden)")
+    plt.xlabel("Number of training weeks")
+    plt.ylabel("Mean training time (seconds)")
 
     plt.grid(True, linestyle="--", alpha=0.6)
 
@@ -198,10 +198,10 @@ def plot_performance_vs_training_time(df, output_dir):
         zorder=2,
     )
 
-    # Plaats labels compact en binnen de plot
+    # Place the labels compactly inside the plot
     for _, row in agg.iterrows():
         plt.annotate(
-            f'{int(row["training_weeks"])} {'weken' if row["training_weeks"] != 1 else "week"}',  # kort label
+            f'{int(row["training_weeks"])} {"weeks" if row["training_weeks"] != 1 else "week"}',  # short label
             (row["duration_mean"], row["mae_mean"]),
             xytext=(3, 5),
             textcoords="offset points",
@@ -210,13 +210,13 @@ def plot_performance_vs_training_time(df, output_dir):
             va="bottom",
         )
 
-    plt.xlabel("Gemiddelde trainingstijd (seconden)")
-    plt.ylabel("Gemiddelde MAE (°C)")
+    plt.xlabel("Mean training time (seconds)")
+    plt.ylabel("Mean MAE (°C)")
 
-    # Subtiele grid (zorder zorgt dat de punten en labels boven de grid liggen)
+    # Subtle grid (zorder keeps the points and labels above the grid)
     plt.grid(True, linestyle="-", alpha=0.4, zorder=0)
 
-    # Extra ruimte rondom de assen zodat labels niet afgesneden worden
+    # Extra padding around the axes so the labels are not clipped
     x_min, x_max = plt.xlim()
     y_min, y_max = plt.ylim()
     plt.xlim(left=x_min - 0.05 * (x_max - x_min), right=x_max + 0.05 * (x_max - x_min))
@@ -257,16 +257,16 @@ def plot_mae_vs_weeks_per_horizon(df, output_dir):
             agg["mean"],
             marker="o",
             capsize=3,
-            label=f"{horizon}u",
+            label=f"{horizon} h",
         )
 
-    plt.xlabel("Aantal trainingsweken")
-    plt.ylabel("Gemiddelde MAE (°C)")
+    plt.xlabel("Number of training weeks")
+    plt.ylabel("Mean MAE (°C)")
 
     plt.grid(True, linestyle="-", alpha=0.3)
 
     plt.legend(
-        title="Voorspellingshorizon",
+        title="Outage duration",
         ncol=2,
     )
 

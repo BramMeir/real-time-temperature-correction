@@ -37,9 +37,9 @@ m, b = np.polyfit(x, y, 1)
 ax.plot(x_sorted, m * x_sorted + b)
 
 # Labels
-ax.set_title("Foutgebaseerde score")
-ax.set_xlabel("Betrouwbaarheidsscore (1 / (1 + MAE))")
-ax.set_ylabel("Gemiddelde MAE (°C)")
+ax.set_title("Error-based score")
+ax.set_xlabel("Reliability score (1 / (1 + MAE))")
+ax.set_ylabel("Mean MAE (°C)")
 
 # Correlation annotation
 ax.text(
@@ -68,8 +68,8 @@ m, b = np.polyfit(x, y, 1)
 ax.plot(x_sorted, m * x_sorted + b)
 
 # Labels
-ax.set_title("Modelgebaseerde onzekerheid")
-ax.set_xlabel("Breedte 95%-voorspellingsinterval (°C)")
+ax.set_title("Model-based uncertainty")
+ax.set_xlabel("95 % prediction-interval width (°C)")
 
 # Correlation annotation
 ax.text(

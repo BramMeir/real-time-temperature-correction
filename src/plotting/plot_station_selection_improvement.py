@@ -43,9 +43,9 @@ plt.bar(
 plt.text(
     0.99, 0.98,
     (
-        f"Gemiddelde MAE (alle stations): {baseline_mae:.3f} °C\n"
-        f"Gemiddelde MAE (beste subset): {optimal_mae:.3f} °C\n"
-        f"Gemiddelde verbetering: {mean_improvement:.3f} °C"
+        f"Mean MAE (all stations): {baseline_mae:.3f} °C\n"
+        f"Mean MAE (best subset): {optimal_mae:.3f} °C\n"
+        f"Mean improvement: {mean_improvement:.3f} °C"
     ),
     transform=plt.gca().transAxes,
     fontsize=12,
@@ -57,8 +57,8 @@ plt.text(
 # baseline reference
 plt.axhline(0, linestyle="--")
 
-plt.ylabel("MAE verbetering ten opzichte van alle stations (°C)")
-plt.xlabel("Doelstations (gerangschikt volgens verbetering)")
+plt.ylabel("MAE improvement over using all stations (°C)")
+plt.xlabel("Target stations (ranked by improvement)")
 plt.xticks([])
 
 plt.tight_layout()
@@ -85,8 +85,8 @@ ax = plt.gca()
 
 ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
-plt.xlabel("Optimaal aantal geselecteerde stations")
-plt.ylabel("Aantal doelstations")
+plt.xlabel("Optimal number of selected stations")
+plt.ylabel("Number of target stations")
 
 plt.tight_layout()
 plt.savefig(output_dir / "optimal_number_of_stations_distribution.png")

@@ -14,16 +14,16 @@ import os
 INPUT_PATH = "output/retraining_results/results_*.csv"
 OUTPUT_DIR = "plots/retraining_results"
 DATASET_LABELS = {
-    "KMI": "KMI",
-    "SYNTHETIC": "Synthetisch",
-    "TURKU": "Turku"
+    "KMI": "RMI",
+    "SYNTHETIC": "Synthetic",
+    "TURKU": "TURCLIM"
 }
 MODEL_LABELS = {
-    "no_retrain": "Geen hertraining",
-    "inc_3d": "Incrementele hertraining (3 dagen)",
-    "inc_15d": "Incrementele hertraining (15 dagen)",
-    "full_3d": "Volledige hertraining (3 dagen)",
-    "full_15d": "Volledige hertraining (15 dagen)"
+    "no_retrain": "No retraining",
+    "inc_3d": "Incremental retraining (3 days)",
+    "inc_15d": "Incremental retraining (15 days)",
+    "full_3d": "Full retraining (3 days)",
+    "full_15d": "Full retraining (15 days)"
 }
 
 
@@ -123,8 +123,8 @@ def plot_per_dataset(df_avg):
             zorder=10
         )
 
-        plt.xlabel("Dagen sinds start van simulatie")
-        plt.ylabel("Gemiddelde MAE (°C)")
+        plt.xlabel("Days since start of simulation")
+        plt.ylabel("Mean MAE (°C)")
         plt.legend()
         plt.grid(alpha=0.3)
 
@@ -164,8 +164,8 @@ def plot_training_event_cost(df_avg):
                 alpha=0.8
             )
 
-        plt.xlabel("Dagen sinds start van simulatie")
-        plt.ylabel("Trainingstijd per hertraining (s)")
+        plt.xlabel("Days since start of simulation")
+        plt.ylabel("Training time per retraining event (s)")
         plt.legend(loc="upper left", frameon=True)
         plt.ylim(top=subset["retraining_duration"].max() + 10)
         plt.grid(alpha=0.3)
