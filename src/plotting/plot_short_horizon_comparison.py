@@ -24,6 +24,9 @@ MODEL_COLOURS = {
     "ARIMAX": "#eb6834",
 }
 
+# Horizons shown on the x axis, aggregated from the hourly rows of the experiment
+HORIZONS = [1, 2, 4, 8, 12, 24, 48, 96]
+
 # Directory holding the result csv files and the directory the figures are written to
 OUTPUT_DIR = "output/short_horizon_comparison"
 PLOT_DIR = "plots/short_horizon_comparison"
@@ -39,8 +42,7 @@ def load_results(output_dir):
 
     Output:
     -------
-    Returns a DataFrame with all results (columns: Dataset, Station, Model, Train_start, Train_end,
-    Horizon, MAE, MSE, Train_duration_seconds, Forecast_duration_seconds).
+    Returns a DataFrame with one row per forecast hour and an added Absolute_error column.
     """
     csv_files = [
         os.path.join(output_dir, f)
@@ -48,32 +50,52 @@ def load_results(output_dir):
         if f.endswith("8_weeks.csv")
     ]
 
-    return pd.concat([pd.read_csv(f) for f in csv_files], ignore_index=True)
+    df = pd.concat([pd.read_csv(f) for f in csv_files], ignore_index=True)
+
+    return df.assign(Absolute_error=(df["Forecast"] - df["Observation"]).abs())
 
 
-def plot_cumulative_mae(df, plot_dir):
+def cumulative_mae(df):
+    """
+    Average the absolute error over the first h hours of the forecast, for every horizon h.
+
+    Input:
+    ------
+    df: DataFrame containing all the results, as returned by load_results
+
+    Output:
+    -------
+    Returns a DataFrame with the models as rows and the horizons as columns.
+    """
+    return pd.concat(
+        [
+            df[df["Lead_hours"] <= horizon].groupby("Model")["Absolute_error"].mean().rename(horizon)
+            for horizon in HORIZONS
+        ],
+        axis=1
+    )
+
+
+def plot_cumulative_mae(summary, plot_dir):
     """
     1. Plot the MAE against the forecast horizon, averaged over all datasets, stations and training periods.
 
     Input:
     ------
-    df: DataFrame containing all the results, as returned by load_results
+    summary: DataFrame with the models as rows and the horizons as columns, as returned by cumulative_mae
     plot_dir: Directory to write the figure to
     """
-    summary = df.groupby(["Model", "Horizon"])["MAE"].mean()
-    horizons = sorted(df["Horizon"].unique())
-
     plt.figure(figsize=(8, 5))
 
     for model in MODEL_NAMES:
         plt.plot(
-            horizons, [summary[model, h] for h in horizons],
+            HORIZONS, summary.loc[model, HORIZONS],
             marker="o", color=MODEL_COLOURS[model], label=MODEL_NAMES[model]
         )
 
     # The horizons are spaced geometrically, so a log axis keeps the short leads readable
     plt.xscale("log")
-    plt.xticks(horizons, [str(h) for h in horizons])
+    plt.xticks(HORIZONS, [str(h) for h in HORIZONS])
     plt.xlabel("Forecast horizon (hours)")
     plt.ylabel("Mean absolute error (°C)")
     plt.title("Error averaged over the whole forecast window")
@@ -86,8 +108,8 @@ def plot_cumulative_mae(df, plot_dir):
 
     print("\n=== Mean absolute error per horizon (°C) ===")
     print(f"{'Horizon (h)':<14}" + "".join(f"{MODEL_NAMES[m]:>30}" for m in MODEL_NAMES))
-    for horizon in horizons:
-        print(f"{horizon:<14}" + "".join(f"{summary[m, horizon]:>30.4f}" for m in MODEL_NAMES))
+    for horizon in HORIZONS:
+        print(f"{horizon:<14}" + "".join(f"{summary.loc[m, horizon]:>30.4f}" for m in MODEL_NAMES))
 
 
 if __name__ == "__main__":
@@ -95,9 +117,9 @@ if __name__ == "__main__":
     df = load_results(OUTPUT_DIR)
 
     print(f"{len(df)} rows, {df['Station'].nunique()} stations, "
-          f"{df['Train_start'].nunique()} training periods")
+          f"{df['Train_start'].nunique()} forecast starts")
 
     # Create plot directory if it does not exist
     os.makedirs(PLOT_DIR, exist_ok=True)
 
-    plot_cumulative_mae(df, PLOT_DIR)
+    plot_cumulative_mae(cumulative_mae(df), PLOT_DIR)

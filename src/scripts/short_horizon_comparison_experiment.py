@@ -1,7 +1,8 @@
 """
 Main script to compare ARIMAX, the neighbour regression and the two-stage regression with SARIMA
 errors over short forecast horizons, where the three models actually differ. Runs over all datasets,
-stations and training periods, and saves one CSV file per model for later analysis.
+stations and training periods, and saves the hourly forecast and observation of every forecast path
+to one CSV file per model, so any horizon can be derived afterwards.
 
 python -m src.scripts.short_horizon_comparison_experiment --models LinearRegression RegressionSARIMAErrors
 """
@@ -22,16 +23,20 @@ from src.models.regression_sarima_errors.execute_forecast import run_single_fore
 # The three models being compared, cheapest first so a long ARIMAX run never blocks the other two
 MODELS = ["LinearRegression", "RegressionSARIMAErrors", "ARIMAX"]
 
-# Forecasting horizons in hours, concentrated in the first day where the models diverge
-HORIZONS = [1, 2, 4, 8, 12, 24, 48, 96]
+# Length of every forecast path in hours, covering the leads where the models still differ. The
+# analysis derives its horizons from the hourly rows, so this is the only horizon the script knows
+MAX_LEAD_HOURS = 96
 
-# Number of training periods to evaluate per station, matching the full comparison experiment
+# Number of training periods to evaluate per station
 NUMBER_OF_REPEATS = 10
 
-# History and tail reserved when sampling a forecast start, kept at the values of the full comparison
-# experiment so both sample identical windows and the shared horizons reproduce its numbers
+# History reserved when sampling a forecast start, matching the longest training window on offer
 MAX_HISTORY_DAYS = 8 * 7
-FORECAST_START_RESERVE_HOURS = 720
+
+# Seed offset per station, so every station draws its own forecast starts instead of every station of
+# a network repeating the same weather. generate_forecast_start adds the repeat id to the seed, so the
+# stride has to exceed the number of repeats to keep the streams apart
+STATION_SEED_STRIDE = 10_000
 
 # Orders used by the full comparison experiment, ARIMAX selected on the raw series and the two-stage
 # model on the stage-one residuals
@@ -88,9 +93,9 @@ def train_model(model_name, station, series, exog_df, df_complete, train_start, 
 
 
 def forecast_model(model_name, model, repeat_id, station, series, exog_df, df_complete,
-                   train_start, train_end, horizon):
+                   train_start, train_end):
     """
-    Forecast one horizon with an already trained model.
+    Forecast the whole path with an already trained model.
 
     Input
     -----
@@ -103,15 +108,13 @@ def forecast_model(model_name, model, repeat_id, station, series, exog_df, df_co
     df_complete: DataFrame with the target station and the neighbouring stations as columns
     train_start: Start of the training window
     train_end: End of the training window and start of the forecast
-    horizon: Number of hours to forecast
 
     Output
     ------
-    mae: Mean absolute error over the whole forecast window
-    mse: Mean squared error over the whole forecast window
+    predictions: Series with the forecast for every hour of the path
     duration: Forecast time in seconds
     """
-    test_end = train_end + pd.Timedelta(hours=horizon)
+    test_end = train_end + pd.Timedelta(hours=MAX_LEAD_HOURS)
     start_time = pd.Timestamp.now()
 
     if model_name == "ARIMAX":
@@ -122,7 +125,7 @@ def forecast_model(model_name, model, repeat_id, station, series, exog_df, df_co
             model=model,
             start_date=train_start,
             end_date=test_end,
-            hours_to_forecast=horizon,
+            hours_to_forecast=MAX_LEAD_HOURS,
             arima_order=ARIMAX_ORDER,
             seasonal_order=ARIMAX_SEASONAL_ORDER,
             confidence_score=False,
@@ -143,60 +146,64 @@ def forecast_model(model_name, model, repeat_id, station, series, exog_df, df_co
             mode="forecast"
         )
 
-    mae, mse = result[:2]
+    # Every forecast runner returns the hourly forecast as the last element of its result tuple
+    predictions = result[-1]
 
-    return mae, mse, (pd.Timestamp.now() - start_time).total_seconds()
+    return predictions, (pd.Timestamp.now() - start_time).total_seconds()
 
 
 def run_single_experiment(task):
     """
-    Train one model on one training period and evaluate it on every horizon.
+    Train one model on one training period and forecast the whole path.
 
     Input
     -----
-    task: Tuple of (dataset_name, model_name, station, repeat_id, training_days, series, exog_df, df_complete)
+    task: Tuple of (dataset_name, model_name, station, station_index, repeat_id, training_days,
+          series, exog_df, df_complete)
 
     Output
     ------
-    Returns a list of result rows, one per horizon, matching the CSV header.
+    Returns a list of result rows, one per forecast hour, matching the CSV header.
     """
-    dataset_name, model_name, station, repeat_id, training_days, series, exog_df, df_complete = task
+    (dataset_name, model_name, station, station_index, repeat_id, training_days,
+     series, exog_df, df_complete) = task
 
-    # Identical for every model, so the three are compared on exactly the same windows
+    # Drawn per station so every station samples its own weather, and identical for every model so the
+    # three are always compared on exactly the same window
     forecast_start = generate_forecast_start(
         series=series,
-        seed=SEED,
+        seed=SEED + station_index * STATION_SEED_STRIDE,
         repeat_id=repeat_id,
         max_history_days=max(MAX_HISTORY_DAYS, training_days),
-        max_horizon=FORECAST_START_RESERVE_HOURS
+        max_horizon=MAX_LEAD_HOURS
     )
 
     train_start = forecast_start - pd.Timedelta(days=training_days)
     train_end = forecast_start
 
-    # Trained once and reused for all horizons, so the training time is charged only once
+    print(dataset_name, station, model_name, train_start, train_end)
+
     model, train_duration = train_model(
         model_name, station, series, exog_df, df_complete, train_start, train_end
     )
 
-    rows = []
-    for horizon in HORIZONS:
-        print(dataset_name, station, model_name, train_start, train_end, horizon)
+    predictions, forecast_duration = forecast_model(
+        model_name, model, repeat_id, station, series, exog_df, df_complete, train_start, train_end
+    )
 
-        mae, mse, forecast_duration = forecast_model(
-            model_name, model, repeat_id, station, series, exog_df, df_complete,
-            train_start, train_end, horizon
-        )
+    observations = series.reindex(predictions.index)
 
-        rows.append([
-            dataset_name, station, model_name, train_start, train_end, horizon,
-            mae, mse, train_duration, forecast_duration
-        ])
+    return [
+        [
+            dataset_name, station, model_name, train_start, train_end,
+            int((timestamp - train_end).total_seconds() // 3600),
+            forecast, observations[timestamp], train_duration, forecast_duration
+        ]
+        for timestamp, forecast in predictions.items()
+    ]
 
-    return rows
 
-
-def run_comparison(model_name, training_weeks, repeats, output_file, datasets=None):
+def run_comparison(model_name, training_weeks, repeats, output_file, datasets=None, max_workers=None):
     """
     Run one model over all datasets, stations and training periods, and save the results to a CSV file.
 
@@ -207,29 +214,31 @@ def run_comparison(model_name, training_weeks, repeats, output_file, datasets=No
     repeats: Number of training periods to evaluate per station
     output_file: Path of the CSV file to write the results to
     datasets: List of dataset names to evaluate (default is None, which uses all of them)
+    max_workers: Number of worker processes (default is None, which uses one per core). Every worker
+      holds its own copy of the station data, so lowering it trades runtime for memory
     """
     with open(output_file, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
-            "Dataset", "Station", "Model", "Train_start", "Train_end", "Horizon",
-            "MAE", "MSE", "Train_duration_seconds", "Forecast_duration_seconds"
+            "Dataset", "Station", "Model", "Train_start", "Train_end", "Lead_hours",
+            "Forecast", "Observation", "Train_duration_seconds", "Forecast_duration_seconds"
         ])
 
         for dataset_name in (datasets or DATASETS):
             dataset_info = DATASETS[dataset_name]
             df = pd.read_csv(dataset_info["file"])
 
-            for station in dataset_info["stations"]:
+            for station_index, station in enumerate(dataset_info["stations"]):
                 series, df_complete, exog_cols = load_station_series(df, station)
                 exog_df = df_complete[exog_cols]
 
                 tasks = [
-                    (dataset_name, model_name, station, repeat_id, training_weeks * 7,
+                    (dataset_name, model_name, station, station_index, repeat_id, training_weeks * 7,
                      series, exog_df, df_complete)
                     for repeat_id in range(repeats)
                 ]
 
-                with ProcessPoolExecutor() as executor:
+                with ProcessPoolExecutor(max_workers=max_workers) as executor:
                     futures = [executor.submit(run_single_experiment, task) for task in tasks]
 
                     for future in as_completed(futures):
@@ -243,8 +252,8 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Compare ARIMAX, the neighbour regression and the two-stage "
                                                  "regression with SARIMA errors over short forecast horizons, "
-                                                 "across datasets, stations and training periods. The results are "
-                                                 "saved to one CSV file per model.")
+                                                 "across datasets, stations and training periods. The hourly "
+                                                 "forecasts are saved to one CSV file per model.")
     parser.add_argument("--models", nargs="+", choices=MODELS, default=MODELS,
                         help="Models to run (default: all three)")
     parser.add_argument("--training_weeks", type=int, default=8,
@@ -253,6 +262,9 @@ if __name__ == "__main__":
                         help=f"Number of training periods per station (default: {NUMBER_OF_REPEATS})")
     parser.add_argument("--datasets", nargs="+", choices=list(DATASETS), default=list(DATASETS),
                         help="Datasets to evaluate (default: all of them)")
+    parser.add_argument("--max_workers", type=int, default=None,
+                        help="Number of worker processes (default: one per core). Lower it when a "
+                             "memory hungry model such as ARIMAX exhausts the available memory")
     args = parser.parse_args()
 
     # Make sure the output directory exists
@@ -264,5 +276,6 @@ if __name__ == "__main__":
             training_weeks=args.training_weeks,
             repeats=args.repeats,
             output_file=f"output/short_horizon_comparison/{model}_{args.training_weeks}_weeks.csv",
-            datasets=args.datasets
+            datasets=args.datasets,
+            max_workers=args.max_workers
         )

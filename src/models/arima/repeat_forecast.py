@@ -48,13 +48,15 @@ def _run_single_forecast(
     seasonal_order: Tuple specifying the (P, D, Q, S) parameters for the SARIMA model
     confidence_score: Whether to calculate confidence scores for the forecasts
     use_LASSO_selection: Whether to use LASSO for feature selection of exogenous variables
-    use_all_historical_data_for_LASSO: Whether to use all historical data up to the training date for LASSO selection or only training data
+        use_all_historical_data_for_LASSO: Whether to use all historical data up to the training date
+            for LASSO selection or only training data
     max_iter: Maximum number of iterations for model fitting
     plot: Whether to plot the forecast results (default is False)
 
     Output
     ------
-    Returns a tuple of (MAE, MSE) for the forecast on the sub-series.
+    Returns a tuple whose first two elements are the MAE and MSE on the sub-series and whose last
+    element is the hourly forecast (None when a confidence score is requested).
     """
     # Determine the LASSO selection if requested, only on historical data to avoid data leakage
     duration_station_selection = None
@@ -108,10 +110,10 @@ def _run_single_forecast(
         end_time = pd.Timestamp.now()
         duration = end_time - start_time
 
-        return errors['MAE'], errors['MSE'], importance, duration, confidence_score_value, avg_conf_interval_size, None, None
+        return errors['MAE'], errors['MSE'], importance, duration, confidence_score_value, avg_conf_interval_size, None, None, None
 
     else:
-        errors, importance = sarima_forecast(
+        errors, importance, y_forecasted = sarima_forecast(
             sub_series,
             exog_df=sub_exog,
             model=model,
@@ -125,7 +127,10 @@ def _run_single_forecast(
         end_time = pd.Timestamp.now()
         duration = end_time - start_time
 
-        return errors['MAE'], errors['MSE'], importance, duration, None, None, duration_station_selection, number_selected_stations
+        return (
+            errors['MAE'], errors['MSE'], importance, duration, None, None,
+            duration_station_selection, number_selected_stations, y_forecasted
+        )
 
 
 def repeat_forecasts(
@@ -224,6 +229,7 @@ def repeat_forecasts(
                 avg_conf_interval_size,
                 duration_station_selection,
                 number_selected_stations,
+                _,
             ) = f.result()
             mae_scores.append(mae)
             mse_scores.append(mse)
