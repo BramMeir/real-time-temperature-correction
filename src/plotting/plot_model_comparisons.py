@@ -50,72 +50,93 @@ def _display_name(model):
     return LATEX_MODEL_NAMES.get(model, model)
 
 
-def _latex_cell(mean, std, decimals, is_best):
-    """Format 'mean ± std' as a math-mode LaTeX cell, bold if it is the best value."""
-    value = f"{mean:.{decimals}f} \\pm {std:.{decimals}f}"
-    return f"$\\mathbf{{{value}}}$" if is_best else f"${value}$"
+# Outage durations shown in the results table, as (hours, column label)
+REPORTED_HORIZONS = [(4, "4\\,h"), (24, "24\\,h"), (168, "7\\,d"), (720, "30\\,d")]
+
+# Models grouped by the information they are given, in table order
+MODEL_FAMILIES = [
+    ("Spatial only", ["LinearRegression", "IDW"]),
+    ("Spatial and temporal",
+     ["RegressionSARIMAErrors", "ARIMAX", "TCN", "LSTM", "MLP", "Transformer", "RF"]),
+    ("Temporal only", ["ARIMA", "Persistence", "Climatology"]),
+]
+
+
+def _latex_cell(value, decimals, is_best):
+    """Format a value as a math-mode LaTeX cell, bold if it is the best of its column."""
+    text = f"{value:.{decimals}f}"
+    return f"$\\mathbf{{{text}}}$" if is_best else f"${text}$"
+
+
+def _family_order(mae):
+    """Group the models of the results into the families of MODEL_FAMILIES, most accurate first."""
+    accuracy = mae[[hours for hours, _ in REPORTED_HORIZONS]].mean(axis=1).sort_values()
+    listed = {m for _, members in MODEL_FAMILIES for m in members}
+    families = MODEL_FAMILIES + [("Other", [m for m in accuracy.index if m not in listed])]
+    grouped = [(family, [m for m in accuracy.index if m in set(members)]) for family, members in families]
+    return [(family, members) for family, members in grouped if members]
 
 
 def generate_overall_results_table(df):
     """
-    1. Generate a summary table with MAE, MSE, training and prediction time (mean ± std)
-    and print it as a booktabs LaTeX table in the style of the paper (tab:overall).
+    1. Generate a summary table with the MAE per outage duration and the training and prediction
+    time, and print it as a booktabs LaTeX table in the style of the paper (tab:overall).
+
+    Averaging the MAE over all horizons weights the table by the horizon grid rather than by the
+    model, so the error is reported per outage duration instead.
 
     Input:
     ------
-    df: DataFrame containing all the results (columns: dataset,station,model,train_start,train_end,horizon,mae,mse)
+    df: DataFrame containing all the results, with the horizon in hours
+    (columns: Dataset,Station,Model,Train_start,Train_end,Horizon,MAE,MSE)
     """
-    summary = (
-        df.groupby("Model")
-        .agg(
-            mae_mean=("MAE", "mean"),
-            mae_std=("MAE", "std"),
-            mse_mean=("MSE", "mean"),
-            mse_std=("MSE", "std"),
-            train_time_mean=("Train_duration_seconds", "mean"),
-            train_time_std=("Train_duration_seconds", "std"),
-            forecast_time_mean=("Forecast_duration_seconds", "mean"),
-            forecast_time_std=("Forecast_duration_seconds", "std")
-        )
-        .sort_values(by="mae_mean")
-        .reset_index()
+    mae = df.pivot_table(index="Model", columns="Horizon", values="MAE", aggfunc="mean")
+    cost = df.groupby("Model")[["Train_duration_seconds", "Forecast_duration_seconds"]].mean()
+
+    missing = [label for hours, label in REPORTED_HORIZONS if hours not in mae.columns]
+    if missing:
+        raise ValueError(f"Horizons missing from the results: {missing}")
+
+    # (column of the source table, decimals, mark the best) per table column, in table order
+    columns = (
+        [(mae[hours], 3, True) for hours, _ in REPORTED_HORIZONS]
+        + [(cost["Train_duration_seconds"], 2, False), (cost["Forecast_duration_seconds"], 2, False)]
     )
 
-    # (mean column, std column, decimals) per metric column, in table order
-    metrics = [
-        ("mae_mean", "mae_std", 3),
-        ("mse_mean", "mse_std", 3),
-        ("train_time_mean", "train_time_std", 2),
-        ("forecast_time_mean", "forecast_time_std", 2),
-    ]
+    header = (
+        ["\\textbf{Model}"]
+        + [f"\\textbf{{{label}}}" for _, label in REPORTED_HORIZONS]
+        + ["\\textbf{Train}", "\\textbf{Predict}"]
+    )
 
-    header = [
-        "\\textbf{Model}",
-        "\\textbf{MAE (\\textcelsius)}",
-        "\\textbf{MSE (${}^{\\circ}$C$^2$)}",
-        "\\textbf{Train (s)}",
-        "\\textbf{Predict (s)}",
-    ]
-
-    rows = []
-    for _, r in summary.iterrows():
-        row = [LATEX_MODEL_NAMES.get(r["Model"], r["Model"])]
-        for mean_col, std_col, decimals in metrics:
-            is_best = r[mean_col] == summary[mean_col].min()
-            row.append(_latex_cell(r[mean_col], r[std_col], decimals, is_best))
-        rows.append(row)
+    # Either ("group", family name) or ("model", cells), in table order
+    body = []
+    for family, models in _family_order(mae):
+        body.append(("group", family))
+        for model in models:
+            cells = ["\\quad " + _display_name(model)]
+            for values, decimals, mark_best in columns:
+                is_best = mark_best and values[model] == values.min()
+                cells.append(_latex_cell(values[model], decimals, is_best))
+            body.append(("model", cells))
 
     # Pad every column so the ampersands line up in the .tex source
+    rows = [cells for kind, cells in body if kind == "model"]
     widths = [max(len(row[i]) for row in [header] + rows) for i in range(len(header))]
 
     def format_row(cells):
         padded = [cell.ljust(width) for cell, width in zip(cells, widths)]
         return "    " + " & ".join(padded).rstrip() + " \\\\"
 
+    def format_group(family):
+        return f"    \\multicolumn{{{len(header)}}}{{l}}{{\\emph{{{family}}}}} \\\\"
+
     caption = (
-        "Mean error metrics across all stations, datasets, and horizons "
-        "($\\pm$ one standard deviation over experiments). "
-        "Training and prediction times measured on the UGent HPC."
+        "Mean absolute error (\\textcelsius) per outage duration, averaged over stations and "
+        "failure onsets. Models are grouped by the information they are given --- spatial is the "
+        "concurrent observations at the neighbouring stations, temporal the past observations at the "
+        "target station --- and ordered by their mean error within each group. Training and "
+        "prediction times in seconds, measured on the UGent HPC."
     )
 
     lines = [
@@ -123,18 +144,28 @@ def generate_overall_results_table(df):
         "  \\centering",
         f"  \\caption{{{caption}}}",
         "  \\label{tab:overall}",
-        "  \\begin{tabular}{lrrrr}",
+        "  \\small",
+        "  \\setlength{\\tabcolsep}{3pt}",
+        f"  \\begin{{tabular*}}{{\\linewidth}}{{@{{\\extracolsep{{\\fill}}}}l{'r' * (len(header) - 1)}@{{}}}}",
         "    \\toprule",
         format_row(header),
         "    \\midrule",
-        *[format_row(row) for row in rows],
+    ]
+    for index, (kind, value) in enumerate(body):
+        if kind == "group":
+            if index:
+                lines.append("    \\addlinespace")
+            lines.append(format_group(value))
+        else:
+            lines.append(format_row(value))
+    lines += [
         "    \\bottomrule",
-        "  \\end{tabular}",
+        "  \\end{tabular*}",
         "\\end{table}",
     ]
 
     print("\n=== Overall Model Performance ===")
-    print(summary[["Model"] + [m[0] for m in metrics]].to_string(index=False))
+    print(mae[[hours for hours, _ in REPORTED_HORIZONS]].join(cost).to_string())
 
     print("\nLaTeX code for the overall results table:")
     print("\n".join(lines))
@@ -400,11 +431,14 @@ if __name__ == "__main__":
 
     df = pd.concat(dfs, ignore_index=True)
 
-    # Convert horizon to days for better readability
-    df["Horizon"] = df["Horizon"] / 24
-
     # Create plot directory if it does not exist
     os.makedirs("plots", exist_ok=True)
+
+    # The results table reports per outage duration, so it needs the horizon in hours
+    generate_overall_results_table(df)
+
+    # Convert horizon to days for better readability
+    df["Horizon"] = df["Horizon"] / 24
 
     plot_overall_model_performance(df)
     plot_performance_vs_horizon(df)
@@ -412,5 +446,3 @@ if __name__ == "__main__":
     plot_dataset_comparison(df)
     plot_station_variability(df)
     plot_urban_vs_rural_comparison(df)
-
-    generate_overall_results_table(df)
