@@ -64,6 +64,19 @@ NUMBER_OF_REPEATS = 100
 # Orders selected on the stage-one residuals, as used in short_horizon_comparison_experiment.py
 RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
 
+# Set by _init_worker to the station's df_complete, once per worker process rather than once per
+# task, since it is identical for every one of the NUMBER_OF_REPEATS tasks submitted for a station
+_worker_df_complete = None
+
+
+def _init_worker(df_complete):
+    """
+    ProcessPoolExecutor initializer: stash the station's df_complete once per worker process, so it
+    isn't repickled into every one of the NUMBER_OF_REPEATS tasks submitted for that station.
+    """
+    global _worker_df_complete
+    _worker_df_complete = df_complete
+
 
 def run_single_experiment(task):
     """
@@ -71,8 +84,7 @@ def run_single_experiment(task):
 
     Input
     -----
-    task: A tuple containing (dataset_name, repeat_id, station, station_index, training_weeks,
-          series, exog_df, df_complete)
+    task: A tuple containing (dataset_name, repeat_id, station, station_index, training_weeks)
 
     Output
     ------
@@ -80,9 +92,11 @@ def run_single_experiment(task):
         [dataset_name, station, training_weeks, train_start, train_end, age_gap, forecast_horizon,
          mae, mse, training_duration]
     """
-    dataset_name, repeat_id, station, station_index, training_weeks, series, exog_df, df_complete = task
+    dataset_name, repeat_id, station, station_index, training_weeks = task
 
-    all_stations = exog_df.columns.tolist()
+    df_complete = _worker_df_complete
+    series = df_complete[station]
+    all_stations = [c for c in df_complete.columns if c != station]
 
     # Generate random training period (start and end date) for the given dataset and station. Every
     # station gets its own seed so stations within a dataset don't all sample the same forecast starts
@@ -228,23 +242,16 @@ def run_all_experiments(training_weeks, dataset_name, max_workers=None):
         # two-stage model's regression stage
         df_complete = series.to_frame(name=station).join(exog_df)
 
-        # Build a list of taks to run in parallel
-        tasks = []
+        # Build a list of taks to run in parallel. df_complete is identical for every repeat of this
+        # station, so it is sent to each worker once via the pool initializer instead of per task
+        tasks = [
+            (dataset_name, repeat_id, station, station_index, training_weeks)
+            for repeat_id in range(NUMBER_OF_REPEATS)
+        ]
 
-        # Generate NUMBER_OF_REPEATS random training periods for the given dataset and station
-        for repeat_id in range(NUMBER_OF_REPEATS):
-            tasks.append((
-                dataset_name,
-                repeat_id,
-                station,
-                station_index,
-                training_weeks,
-                series,
-                exog_df,
-                df_complete
-            ))
-
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        with ProcessPoolExecutor(
+            max_workers=max_workers, initializer=_init_worker, initargs=(df_complete,)
+        ) as executor:
             futures = [executor.submit(run_single_experiment, t) for t in tasks]
 
             for f in as_completed(futures):
