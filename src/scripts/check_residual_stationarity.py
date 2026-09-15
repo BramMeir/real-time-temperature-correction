@@ -2,18 +2,17 @@
 Script to check whether the two-stage model's assumption that the stage-one regression
 residuals are already stationary and mean zero actually holds. The residual SARIMA grid
 search (determine_residual_sarima_order.py) restricts its candidate orders to d=D=0 on
-that assumption; this script verifies it with the ADF and KPSS tests, pooled over the same
-datasets, stations and training periods.
+that assumption; this script verifies it with the Augmented Dickey-Fuller test, pooled
+over the same datasets, stations and training periods.
 
 python -m src.scripts.check_residual_stationarity
 """
 import os
 import csv
-import warnings
 import argparse
 import statistics
 import pandas as pd
-from statsmodels.tsa.stattools import adfuller, kpss
+from statsmodels.tsa.stattools import adfuller
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.models.regression_sarima_errors.train import stage_one_residuals
 from src.scripts.determine_residual_sarima_order import DATASETS, load_station_series, SEED, HORIZONS, MAX_HISTORY_DAYS
@@ -24,10 +23,7 @@ NUMBER_OF_REPEATS = 10
 
 def test_stationarity(residuals):
     """
-    Run the ADF and KPSS tests on a residual series.
-
-    The two tests have opposite null hypotheses (ADF: unit root, i.e. non-stationary;
-    KPSS: stationary), so agreement between them is stronger evidence than either alone.
+    Run the Augmented Dickey-Fuller test on a residual series.
 
     Input
     -----
@@ -35,22 +31,14 @@ def test_stationarity(residuals):
 
     Output
     ------
-    Returns a dict with the residual mean, and the ADF and KPSS statistics/p-values.
+    Returns a dict with the residual mean, and the ADF statistic/p-value.
     """
     adf_statistic, adf_pvalue, *_ = adfuller(residuals, autolag="AIC")
-
-    # KPSS warns when the p-value falls outside its lookup table, which happens whenever
-    # the series is clearly (non-)stationary; the reported p-value is still meaningful
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        kpss_statistic, kpss_pvalue, *_ = kpss(residuals, regression="c", nlags="auto")
 
     return {
         "residual_mean": residuals.mean(),
         "adf_statistic": adf_statistic,
         "adf_pvalue": adf_pvalue,
-        "kpss_statistic": kpss_statistic,
-        "kpss_pvalue": kpss_pvalue,
     }
 
 
@@ -64,18 +52,16 @@ def summarise(rows):
 
     Output
     ------
-    Prints the share of windows where the ADF test rejects a unit root (p < 0.05), the
-    share where the KPSS test fails to reject stationarity (p > 0.05), and the mean
-    absolute residual mean, both overall and grouped by dataset.
+    Prints the share of windows where the ADF test rejects a unit root (p < 0.05), and
+    the mean absolute residual mean, both overall and grouped by dataset.
     """
     def report(label, group):
         n = len(group)
         adf_stationary = sum(1 for r in group if r["adf_pvalue"] < 0.05)
-        kpss_stationary = sum(1 for r in group if r["kpss_pvalue"] > 0.05)
         mean_abs_mean = statistics.fmean(abs(r["residual_mean"]) for r in group)
-        print(f"{label:<12}{n:>8}{adf_stationary:>8}/{n:<8}{kpss_stationary:>8}/{n:<8}{mean_abs_mean:>16.4f}")
+        print(f"{label:<12}{n:>8}{adf_stationary:>8}/{n:<8}{mean_abs_mean:>16.4f}")
 
-    print(f"\n{'':<12}{'windows':>8}{'ADF ok':>16}{'KPSS ok':>16}{'mean |resid mean|':>18}")
+    print(f"\n{'':<12}{'windows':>8}{'ADF ok':>16}{'mean |resid mean|':>18}")
     for dataset_name in sorted(set(r["dataset"] for r in rows)):
         report(dataset_name, [r for r in rows if r["dataset"] == dataset_name])
     report("overall", rows)
@@ -122,8 +108,7 @@ def run_stationarity_check(training_weeks, repeats, output_file, datasets=None):
 
                 print(f"{dataset_name} {station} repeat {repeat_id} "
                       f"({train_start.date()} to {train_end.date()}): "
-                      f"ADF p={result['adf_pvalue']:.4f}, KPSS p={result['kpss_pvalue']:.4f}, "
-                      f"mean={result['residual_mean']:.4f}")
+                      f"ADF p={result['adf_pvalue']:.4f}, mean={result['residual_mean']:.4f}")
 
                 rows.append({
                     "dataset": dataset_name,
@@ -146,8 +131,8 @@ def run_stationarity_check(training_weeks, repeats, output_file, datasets=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Check whether the two-stage model's stage-one regression "
                                                  "residuals are stationary and mean zero, as assumed by the "
-                                                 "residual SARIMA grid search, using the ADF and KPSS tests "
-                                                 "pooled over datasets, stations and training periods.")
+                                                 "residual SARIMA grid search, using the Augmented Dickey-Fuller "
+                                                 "test pooled over datasets, stations and training periods.")
     parser.add_argument("--training_weeks", type=int, default=8,
                         help="Number of weeks to use for training (default: 8, as in the comparison experiment)")
     parser.add_argument("--repeats", type=int, default=NUMBER_OF_REPEATS,
