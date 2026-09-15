@@ -1,13 +1,18 @@
 """
-Test: are urban-context (same-LCZ) stations over-represented among the highest-weighted
-neighbours, even though they're under-represented among the closest ones?
+Evidence check: does the two-stage model's actual stage-1 regression ever rely on a
+context-similar (same WUDAPT LCZ class) station well beyond the nearest ones, rather than only
+picking the closest stations available?
 
-For every station in the Synthetic network as a target: fit target ~ all other stations
-(standardized, RidgeCV-regularized so correlated near-duplicate stations share weight instead
-of producing unstable, sign-flipping coefficients), then compare the count of context-matched
-(same WUDAPT LCZ class) stations in the nearest-5-by-distance vs. the top-5-by-|weight|.
-Paired Wilcoxon signed-rank test across targets, reported for all targets and for the urban
-(LCZ 2, compact midrise) subset separately.
+This is deliberately a modest, descriptive check, not a network-wide significance claim: it
+reports, per urban target, whether the model's own fitted weights put a context-matched station
+in the top-5 despite that station being absent from the nearest-5 by distance - and shows the
+single most concrete example per target (the actual top-weighted station vs. the actual nearest
+station) so every case is directly inspectable.
+
+Uses the REAL project model unmodified: train_neighbour_regression (plain OLS, all stations, no
+LASSO pre-selection - confirmed not to help for this two-stage model). Standardized-equivalent
+coefficients are computed post-hoc (std_coef = raw_coef * std(x_i) / std(y)) WITHOUT refitting,
+purely to make weights comparable across stations of different natural variance.
 
 LCZ labels are sampled live from the global WUDAPT LCZ COG (Demuzere et al. 2022) via HTTP range
 reads - no full raster download needed.
@@ -15,13 +20,10 @@ reads - no full raster download needed.
 Casino_Oostende is dropped: its coordinate lands on an LCZ nodata pixel (likely too close to open
 water for the 100m raster to classify), so its context label isn't valid.
 """
-import numpy as np
 import pandas as pd
 import rasterio
-from scipy.stats import wilcoxon
-from sklearn.linear_model import RidgeCV
-from sklearn.preprocessing import StandardScaler
 
+from src.models.linear_regression.train import train_neighbour_regression
 from src.utils.load_station_coordinates import load_station_coordinates
 from src.models.idw.train import _haversine_distance
 
@@ -30,7 +32,6 @@ TRAIN_WEEKS = 8
 TOP_N = 5
 URBAN_LCZ = 2  # compact midrise - the LCZ class of every urban target in this network
 LCZ_COG_URL = "/vsicurl/https://lcz-generator.rub.de/cogs/lcz_filter_v1_cog.tif"
-ALPHAS = np.logspace(-2, 4, 25)
 
 
 def load_wide_data():
@@ -48,51 +49,31 @@ def load_lcz_labels(coords):
     return dict(zip(stations, vals))
 
 
-def fit_weights(train, target, neighbours):
-    sub = train[[target] + list(neighbours)].dropna()
-    X = sub[neighbours].values
-    y = sub[target].values
-
-    Xs = StandardScaler().fit_transform(X)
-    ys = (y - y.mean()) / y.std()
-
-    model = RidgeCV(alphas=ALPHAS, cv=5).fit(Xs, ys)
-    return dict(zip(neighbours, model.coef_))
-
-
 def run_for_target(train, coords, lcz, target_station, candidates):
-    weights = fit_weights(train, target_station, candidates)
+    # The actual project model, unmodified: plain OLS, fed all stations
+    regression = train_neighbour_regression(train, target_station, candidates)
+
+    data = train[[target_station] + list(candidates)].dropna()
+    y_std = data[target_station].std()
+    x_stds = data[candidates].std()
 
     target_lat, target_lon = coords[target_station]
     target_lcz = lcz[target_station]
 
     rows = []
-    for n in candidates:
+    for i, n in enumerate(candidates):
+        raw_coef = regression.coef_[i]
+        std_coef = raw_coef * x_stds[n] / y_std  # post-hoc rescale for comparability, not a refit
         dist_km = _haversine_distance(target_lat, target_lon, coords[n][0], coords[n][1])
         rows.append({
             "target": target_station,
             "neighbour": n,
             "distance_km": dist_km,
             "context_matched": lcz[n] == target_lcz,
-            "weight": weights[n],
-            "abs_weight": abs(weights[n]),
+            "std_coef": std_coef,
+            "abs_std_coef": abs(std_coef),
         })
     return pd.DataFrame(rows)
-
-
-def report(label, summary):
-    nonzero = summary[summary["diff"] != 0]
-    print(f"\n--- {label} (n={len(summary)} targets) ---")
-    print(f"Mean matched-in-nearest{TOP_N}: {summary['matched_in_nearest5'].mean():.2f} / {TOP_N}")
-    print(f"Mean matched-in-top{TOP_N}-weight: {summary['matched_in_top5_weight'].mean():.2f} / {TOP_N}")
-    print(f"Mean diff: {summary['diff'].mean():.2f}  "
-          f"({(summary['diff'] > 0).sum()} positive / {(summary['diff'] < 0).sum()} negative / "
-          f"{(summary['diff'] == 0).sum()} tied)")
-    if len(nonzero) >= 5:
-        stat, p = wilcoxon(nonzero["diff"])
-        print(f"Wilcoxon signed-rank (non-zero diffs, n={len(nonzero)}): stat={stat:.3f}, p={p:.5f}")
-    else:
-        print("Too few non-zero diffs for a signed-rank test.")
 
 
 def main():
@@ -103,48 +84,60 @@ def main():
 
     print("Sampling LCZ labels for", len(coords), "stations from the global LCZ COG...", flush=True)
     lcz = load_lcz_labels(coords)
-    print("LCZ label counts:", pd.Series(lcz).value_counts().to_dict(), flush=True)
 
     start = wide.index.min()
     train_end = start + pd.Timedelta(weeks=TRAIN_WEEKS)
     train = wide.loc[start:train_end]
 
     all_stations = list(coords.keys())
-    all_pairs = []
-    summary_rows = []
+    urban_targets = [s for s in all_stations if lcz[s] == URBAN_LCZ]
+    print(f"Urban (LCZ {URBAN_LCZ}) targets: {urban_targets}", flush=True)
 
-    for i, target in enumerate(all_stations):
+    summary_rows = []
+    detail_rows = []
+
+    for target in urban_targets:
         candidates = [c for c in all_stations if c != target]
         result = run_for_target(train, coords, lcz, target, candidates)
-        all_pairs.append(result)
 
-        nearest5 = result.nsmallest(TOP_N, "distance_km")
-        top5_weight = result.nlargest(TOP_N, "abs_weight")
-
+        nearest_n = result.nsmallest(TOP_N, "distance_km")
+        top_n = result.nlargest(TOP_N, "abs_std_coef")
         summary_rows.append({
             "target": target,
-            "lcz": lcz[target],
-            "matched_in_nearest5": nearest5["context_matched"].sum(),
-            "matched_in_top5_weight": top5_weight["context_matched"].sum(),
+            f"matched_in_nearest{TOP_N}": nearest_n["context_matched"].sum(),
+            f"matched_in_top{TOP_N}_weight": top_n["context_matched"].sum(),
         })
-        print(f"[{i + 1}/{len(all_stations)}] {target}: "
-              f"nearest{TOP_N}_matched={nearest5['context_matched'].sum()}, "
-              f"top{TOP_N}_weight_matched={top5_weight['context_matched'].sum()}", flush=True)
 
-    pairs = pd.concat(all_pairs, ignore_index=True)
-    pairs.to_csv("output/urban_context_vs_distance/full_network_weights.csv", index=False)
+        top_weighted = result.loc[result["abs_std_coef"].idxmax()]
+        nearest = result.loc[result["distance_km"].idxmin()]
+        detail_rows.append({
+            "target": target,
+            "top_weighted_station": top_weighted["neighbour"],
+            "top_weighted_dist_km": round(top_weighted["distance_km"], 1),
+            "top_weighted_matched": bool(top_weighted["context_matched"]),
+            "nearest_station": nearest["neighbour"],
+            "nearest_dist_km": round(nearest["distance_km"], 1),
+            "nearest_matched": bool(nearest["context_matched"]),
+        })
 
     summary = pd.DataFrame(summary_rows)
-    summary["diff"] = summary["matched_in_top5_weight"] - summary["matched_in_nearest5"]
-    summary.to_csv("output/urban_context_vs_distance/full_network_summary.csv", index=False)
+    detail = pd.DataFrame(detail_rows)
 
-    print("\n=== Summary across all", len(summary), "targets ===")
+    summary.to_csv("output/urban_context_vs_distance/urban_summary.csv", index=False)
+    detail.to_csv("output/urban_context_vs_distance/urban_top_station_detail.csv", index=False)
+
+    print(f"\n=== Evidence table: matched-context stations in nearest-{TOP_N} vs top-{TOP_N}-weighted ===")
     print(summary.to_string(index=False))
 
-    report("All targets", summary)
+    n_with_more_matches = (
+        summary[f"matched_in_top{TOP_N}_weight"] > summary[f"matched_in_nearest{TOP_N}"]
+    ).sum()
+    print(f"\nIn {n_with_more_matches} of {len(summary)} urban targets, the model's top-{TOP_N} "
+          f"weighted stations include MORE context-matched stations than the nearest-{TOP_N} by "
+          f"distance does.")
 
-    urban = summary[summary["lcz"] == URBAN_LCZ]
-    report(f"Urban targets only (LCZ {URBAN_LCZ})", urban)
+    print("\n=== Top-weighted station vs. nearest station, per urban target ===")
+    print(detail.to_string(index=False))
 
 
 if __name__ == "__main__":
