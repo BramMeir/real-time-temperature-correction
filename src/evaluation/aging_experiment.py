@@ -14,11 +14,9 @@ Functions:
 - run_aging_experiment: Run the aging experiment for every station of one dataset and save the
   results to a CSV file.
 """
-import csv
-import os
 import pandas as pd
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.utils.generate_forecast_start import generate_forecast_start
+from src.evaluation.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 
 
 # Metadata about the used datasets and stations to evaluate on, shared by every aging experiment so
@@ -63,19 +61,6 @@ NUMBER_OF_REPEATS = 100
 
 FORECAST_HORIZON_HOURS = 48
 
-# Set by _init_worker to the station's df_complete, once per worker process rather than once per
-# task, since it is identical for every one of the NUMBER_OF_REPEATS tasks submitted for a station
-_worker_df_complete = None
-
-
-def _init_worker(df_complete):
-    """
-    ProcessPoolExecutor initializer: stash the station's df_complete once per worker process, so it
-    isn't repickled into every one of the NUMBER_OF_REPEATS tasks submitted for that station.
-    """
-    global _worker_df_complete
-    _worker_df_complete = df_complete
-
 
 def _run_single_experiment(task, train_fn, age_fn, forecast_fn, training_weeks):
     """
@@ -101,7 +86,7 @@ def _run_single_experiment(task, train_fn, age_fn, forecast_fn, training_weeks):
     """
     dataset_name, repeat_id, station, station_index = task
 
-    df_complete = _worker_df_complete
+    df_complete = get_worker_df_complete()
     series = df_complete[station]
     exog_cols = [c for c in df_complete.columns if c != station]
 
@@ -219,40 +204,25 @@ def run_aging_experiment(dataset_name, training_weeks, train_fn, age_fn, forecas
 
         df_complete = _load_station_data(dataset_info, station)
 
-        # df_complete is identical for every repeat of this station, so it is sent to each worker
-        # once via the pool initializer instead of once per task
         tasks = [
             (dataset_name, repeat_id, station, station_index)
             for repeat_id in range(NUMBER_OF_REPEATS)
         ]
 
-        with ProcessPoolExecutor(
-            max_workers=max_workers, initializer=_init_worker, initargs=(df_complete,)
-        ) as executor:
-            futures = [
-                executor.submit(_run_single_experiment, t, train_fn, age_fn, forecast_fn, training_weeks)
-                for t in tasks
-            ]
+        results_all.extend(run_tasks_for_station(
+            df_complete, tasks, _run_single_experiment, (train_fn, age_fn, forecast_fn, training_weeks),
+            max_workers=max_workers
+        ))
 
-            for f in as_completed(futures):
-                results_all.extend(f.result())
-
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-    with open(output_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-
-        writer.writerow([
-            "dataset",
-            "station",
-            "training_weeks",
-            "train_start",
-            "train_end",
-            "age_gap",
-            "forecast_horizon",
-            "mae",
-            "mse",
-            "training_duration"
-        ])
-
-        writer.writerows(results_all)
+    write_results_csv(output_path, [
+        "dataset",
+        "station",
+        "training_weeks",
+        "train_start",
+        "train_end",
+        "age_gap",
+        "forecast_horizon",
+        "mae",
+        "mse",
+        "training_duration"
+    ], results_all)
