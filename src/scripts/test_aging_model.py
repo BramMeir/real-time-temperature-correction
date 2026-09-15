@@ -48,6 +48,8 @@ def age_arimax(model, df_gap, station, exog_cols):
 
 
 def forecast_arimax(repeat_id, df_complete, station, model, exog_cols, train_start, test_begin, test_end):
+    hours_to_forecast = int((test_end - test_begin).total_seconds() // 3600)
+
     result = run_arimax(
         repeat_id,
         series=df_complete[station],
@@ -55,7 +57,7 @@ def forecast_arimax(repeat_id, df_complete, station, model, exog_cols, train_sta
         model=model,
         start_date=train_start,
         end_date=test_end,
-        hours_to_forecast=48,
+        hours_to_forecast=hours_to_forecast,
         arima_order=ARIMA_ORDER,
         seasonal_order=SEASONAL_ORDER,
         confidence_score=False,

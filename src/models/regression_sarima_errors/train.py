@@ -57,6 +57,20 @@ def stage_one_residuals(df, target_station, exog_cols, regression=None):
     return regression, residuals
 
 
+def fit_residual_sarima(residuals, arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), max_iter=1000):
+    """
+    Fit the residual SARIMA (stage two) on a series of stage-one residuals. Independent of the number
+    of stations, since the residual series carries no exogenous variables.
+    """
+    return sm.tsa.statespace.SARIMAX(
+        endog=residuals,
+        order=arima_order,
+        seasonal_order=seasonal_order,
+        enforce_stationarity=False,
+        enforce_invertibility=False
+    ).fit(maxiter=max_iter, disp=False)
+
+
 def train_regression_sarima_errors(df, target_station, exog_cols, arima_order=(2, 0, 0),
                                    seasonal_order=(1, 0, 1, 24), max_iter=1000):
     """
@@ -81,15 +95,6 @@ def train_regression_sarima_errors(df, target_station, exog_cols, arima_order=(2
     # Stage 1: the spatial part, an OLS regression of the target on the neighbouring stations
     # Stage 2: the local part, what the neighbours cannot explain
     regression, residuals = stage_one_residuals(df, target_station, exog_cols)
-
-    # The residual series carries no exogenous variables, so this fit is independent of the number
-    # of stations: 5 parameters instead of 5 + len(exog_cols) as in one-stage ARIMAX
-    residual_model = sm.tsa.statespace.SARIMAX(
-        endog=residuals,
-        order=arima_order,
-        seasonal_order=seasonal_order,
-        enforce_stationarity=False,
-        enforce_invertibility=False
-    ).fit(maxiter=max_iter, disp=False)
+    residual_model = fit_residual_sarima(residuals, arima_order, seasonal_order, max_iter)
 
     return regression, residual_model
