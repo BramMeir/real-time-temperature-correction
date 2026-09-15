@@ -38,6 +38,11 @@ DATASETS = {
 # Seed that is used to define the training periods (for reproducibility)
 SEED = 42
 
+# Seed offset per station, so every station draws its own forecast starts instead of every station of
+# a network repeating the same weather. generate_forecast_start adds the repeat id to the seed, so the
+# stride has to exceed the number of repeats to keep the streams apart
+STATION_SEED_STRIDE = 10_000
+
 # Forecasting horizons in hours (4h, 12h, 1D, 2D, 4D, 7D, 14D, 21D, 30D)
 HORIZONS = [4, 12, 24, 48, 96, 168, 336, 504, 720]
 
@@ -50,23 +55,24 @@ def run_single_experiment(task):
 
     Input
     -----
-    task: A tuple containing (dataset_name, repeat_id, station, training_weeks, series, exog_df)
+    task: A tuple containing (dataset_name, repeat_id, station, station_index, training_weeks, series, exog_df)
 
     Output
     ------
     A list containing the results of the experiment:
         [dataset_name, station, training_weeks, train_start, train_end, horizon, mae, mse]
     """
-    dataset_name, repeat_id, station, training_weeks, series, exog_df = task
+    dataset_name, repeat_id, station, station_index, training_weeks, series, exog_df = task
 
     # Make sure there is exogenous data for the given station, otherwise throw an error
     if exog_df is None:
         raise ValueError(f"No exogenous data found for station {station} in dataset {dataset_name}")
 
-    # Generate random training period (start and end date) for the given dataset and station
+    # Generate random training period (start and end date) for the given dataset and station. Every
+    # station gets its own seed so stations within a dataset don't all sample the same forecast starts
     forecast_start = generate_forecast_start(
         series=series,
-        seed=SEED,
+        seed=SEED + station_index * STATION_SEED_STRIDE,
         repeat_id=repeat_id,
         max_history_days=104 * 7,  # Max of 2 years of history that is tested
         max_horizon=max(HORIZONS)
@@ -155,7 +161,7 @@ def run_all_experiments(training_weeks):
         # Read the preprocessed data
         df = pd.read_csv(dataset_info["file"])
 
-        for station in dataset_info["stations"]:
+        for station_index, station in enumerate(dataset_info["stations"]):
             # Create the pandas DataFrame for the dataset with hourly frequency and datetime index
             # Select target station
             station_data = df[df['station_name'] == station]
@@ -195,6 +201,7 @@ def run_all_experiments(training_weeks):
                     dataset_name,
                     repeat_id,
                     station,
+                    station_index,
                     training_weeks,
                     series,
                     exog_df
