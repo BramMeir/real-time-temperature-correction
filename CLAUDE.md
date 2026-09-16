@@ -46,3 +46,12 @@ rewrite on a pushed branch, `git clean`, deleting a branch, or changing branch p
 `data/`, `output/`, and `plots/` hold research artifacts and are gitignored. Keep it that
 way: never force-add files from them, and never delete or overwrite anything in them
 without asking first.
+
+## Code style
+
+This is research code for one paper, not a production system. Don't write defensive
+guards for inputs the experiments cannot produce: no empty-array checks, no NaN
+filtering, no `None` returns for degenerate cases, no fallbacks for missing columns.
+If an assumption breaks, let it raise — a traceback pointing at the real cause beats a
+silent NaN flowing into a result table. Only guard a case that actually occurs in a run,
+and say in a comment why it occurs.
