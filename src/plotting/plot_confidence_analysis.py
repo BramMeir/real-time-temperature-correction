@@ -12,6 +12,10 @@ os.makedirs(plots_dir, exist_ok=True)
 files = glob.glob("output/confidence_analysis/confidence_station_*.csv")
 df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
 
+# Casino_Oostende's realised error is not representative: its nearest neighbours are too far/dissimilar
+# for a meaningful spatial correction, which distorts the scale of the plot without adding information
+df = df[df["target_station"] != "Casino_Oostende"]
+
 # Compute correlations
 corr_conf = df["confidence_mean"].corr(df["mae_mean"])
 corr_interval = df["interval_size_mean"].corr(df["mae_mean"])
