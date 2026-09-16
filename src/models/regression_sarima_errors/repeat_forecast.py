@@ -19,7 +19,7 @@ from src.models.regression_sarima_errors.confidence_score import two_stage_forec
 
 def _run_single_forecast(
         i, df, target_station, exog_cols, start, end, hours_to_forecast, arima_order,
-        seasonal_order, calibration_days, ci_level, n_bootstrap, max_iter
+        seasonal_order, calibration_days, ci_level, max_iter
 ):
     """Helper function to run a single confidence-scored forecast on a sub-window, for parallel execution."""
     print(f"Run {i + 1}: using data from {start} to {end}")
@@ -30,7 +30,7 @@ def _run_single_forecast(
     result = two_stage_forecast_with_confidence_score(
         sub_df, target_station, exog_cols=exog_cols, hours_to_forecast=hours_to_forecast,
         arima_order=arima_order, seasonal_order=seasonal_order, max_iter=max_iter,
-        calibration_days=calibration_days, ci_level=ci_level, n_bootstrap=n_bootstrap
+        calibration_days=calibration_days, ci_level=ci_level
     )
     duration = (pd.Timestamp.now() - start_time).total_seconds()
 
@@ -39,13 +39,13 @@ def _run_single_forecast(
 
 def repeat_forecasts(
         df, target_station, exog_cols=None, weeks=8, hours_to_forecast=48, arima_order=(2, 0, 0),
-        seasonal_order=(1, 0, 1, 24), calibration_days=3, ci_level=0.95, n_bootstrap=1000,
+        seasonal_order=(1, 0, 1, 24), calibration_days=3, ci_level=0.95,
         n_repeats=15, random_seed=47, max_iter=1000, n_jobs=4
 ):
     """
     Run the two-stage model's confidence-scored forecast on n_repeats random segments of one
     station's data, and average the realised test-window error and the reliability indicators
-    (confidence score, bootstrapped interval width) computed on each segment's calibration window.
+    (confidence score, interval width) computed on each segment's calibration window.
 
     Input
     -----
@@ -57,8 +57,7 @@ def repeat_forecasts(
     hours_to_forecast: Number of hours in the test window (default is 48)
     arima_order, seasonal_order: SARIMA parameters for the residual model
     calibration_days: Length of the held-out calibration window (default is 3, as for ARIMAX)
-    ci_level: Confidence level of the bootstrapped interval (default is 0.95)
-    n_bootstrap: Number of bootstrap resamples (default is 1000)
+    ci_level: Confidence level of the interval (default is 0.95)
     n_repeats: Number of random segments to test (default is 15)
     random_seed: Seed for the random segment starts (default is 47)
     max_iter: Maximum number of iterations for fitting the residual SARIMA
@@ -90,7 +89,7 @@ def repeat_forecasts(
             executor.submit(
                 _run_single_forecast, i, df, target_station, exog_cols, start, end,
                 hours_to_forecast, arima_order, seasonal_order, calibration_days, ci_level,
-                n_bootstrap, max_iter
+                max_iter
             )
             for i, (start, end) in enumerate(date_ranges)
         ]

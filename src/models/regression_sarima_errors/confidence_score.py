@@ -6,59 +6,57 @@ src/models/arima/confidence_score.py for ARIMAX but derived empirically instead 
 statsmodels' conf_int(): the spatial stage is a plain sklearn LinearRegression, which exposes
 no prediction-interval machinery, and even for the SARIMA stage a parametric interval on the
 residual alone would ignore the spatial stage's error. Both stages' error is instead measured
-jointly on a held-out calibration window (same 3-day carve-out as ARIMAX), then bootstrapped
-into an empirical prediction interval.
+jointly on a held-out calibration window and turned into an empirical prediction interval.
+
+The width comes from the conformal rank of the absolute calibration errors, not from bootstrapped
+percentiles. Experiment P1.5 (src/scripts/interval_coverage_experiment.py) measured the bootstrap
+at 0.87 coverage against a nominal 0.95: resampling pins down the percentile of the calibration
+sample precisely, but that percentile is itself biased narrow as a bound on a new error. The rank
+instead leaves k of the n + 1 gaps between the sorted errors inside the band, which is the
+quantity that actually governs coverage.
 
 Functions:
-- bootstrap_interval_width: Bootstrap a symmetric empirical prediction interval from an error
-  sample.
+- conformal_interval_width: Symmetric empirical prediction interval from an error sample.
 - two_stage_forecast_with_confidence_score: Fit the two-stage model, holding out a calibration
-  window to derive a MAE-based confidence score and a bootstrapped interval width, then forecast
-  the actual test window.
+  window to derive a MAE-based confidence score and an interval width, then forecast the actual
+  test window.
 """
 import numpy as np
 import pandas as pd
+from src.evaluation.interval_coverage import conformal_rank
 from src.models.regression_sarima_errors.train import train_regression_sarima_errors
 from src.models.regression_sarima_errors.execute_forecast import run_single_forecast
 
 
-def bootstrap_interval_width(errors, ci_level=0.95, n_bootstrap=1000, random_seed=47):
+def conformal_interval_width(errors, ci_level=0.95):
     """
-    Bootstrap a symmetric empirical prediction interval from a sample of forecast errors.
+    Symmetric empirical prediction interval from a sample of forecast errors, at the conformal
+    rank of their absolute values.
 
     Input
     -----
     errors: Array-like of forecast errors (actual - predicted) from a held-out calibration window
     ci_level: Confidence level of the interval (default is 0.95)
-    n_bootstrap: Number of bootstrap resamples (default is 1000)
-    random_seed: Seed for the bootstrap resampling (default is 47)
 
     Output
     ------
-    width: Average width of the bootstrapped interval
-    lower: Average lower quantile across bootstrap resamples
-    upper: Average upper quantile across bootstrap resamples
+    width: Width of the interval
+    lower, upper: Interval bounds relative to the forecast
     """
-    errors = np.asarray(errors)
-    alpha = 1 - ci_level
-    rng = np.random.default_rng(random_seed)
+    absolute_errors = np.sort(np.abs(np.asarray(errors)))
+    half_width = absolute_errors[conformal_rank(absolute_errors.size, ci_level) - 1]
 
-    resamples = rng.choice(errors, size=(n_bootstrap, len(errors)), replace=True)
-    lower = np.percentile(resamples, 100 * alpha / 2, axis=1).mean()
-    upper = np.percentile(resamples, 100 * (1 - alpha / 2), axis=1).mean()
-
-    return upper - lower, lower, upper
+    return 2 * half_width, -half_width, half_width
 
 
 def two_stage_forecast_with_confidence_score(
         df, target_station, exog_cols=None, hours_to_forecast=48, arima_order=(2, 0, 0),
-        seasonal_order=(1, 0, 1, 24), max_iter=1000, calibration_days=3, ci_level=0.95,
-        n_bootstrap=1000, random_seed=47
+        seasonal_order=(1, 0, 1, 24), max_iter=1000, calibration_days=3, ci_level=0.95
 ):
     """
     Fit the two-stage regression with SARIMA errors model, deriving a confidence score and a
-    bootstrapped prediction-interval width from a held-out calibration window, then forecast the
-    actual test window.
+    prediction-interval width from a held-out calibration window, then forecast the actual test
+    window.
 
     Input
     -----
@@ -72,14 +70,12 @@ def two_stage_forecast_with_confidence_score(
     max_iter: Maximum number of iterations for fitting the residual SARIMA
     calibration_days: Length of the held-out calibration window, carved out of the training data
       immediately before the test window (default is 3, as for ARIMAX)
-    ci_level: Confidence level of the bootstrapped interval (default is 0.95)
-    n_bootstrap: Number of bootstrap resamples (default is 1000)
-    random_seed: Seed for the bootstrap resampling (default is 47)
+    ci_level: Confidence level of the interval (default is 0.95)
 
     Output
     ------
     result: Dictionary with the test-window MAE/MSE, the calibration-window confidence score and
-      bootstrapped interval width/quantiles, and the test-window predictions and calibration errors
+      interval width/bounds, and the test-window predictions and calibration errors
     """
     if exog_cols is None:
         exog_cols = [c for c in df.columns if c != target_station]
@@ -102,8 +98,8 @@ def two_stage_forecast_with_confidence_score(
     calibration_errors = calibration_actual - calibration_predictions
 
     confidence_score = 1 / (1 + calibration_errors.abs().mean())
-    interval_width, lower_quantile, upper_quantile = bootstrap_interval_width(
-        calibration_errors, ci_level, n_bootstrap, random_seed
+    interval_width, lower_quantile, upper_quantile = conformal_interval_width(
+        calibration_errors, ci_level
     )
 
     # Refit with the calibration period folded back into training, then forecast the actual test window
