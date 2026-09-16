@@ -80,8 +80,8 @@ m, b = np.polyfit(x, y, 1)
 ax.plot(x_sorted, m * x_sorted + b)
 
 # Labels
-ax.set_title("Bootstrapped interval width")
-ax.set_xlabel("95 % bootstrapped interval width (°C)")
+ax.set_title("Prediction-interval width")
+ax.set_xlabel("95 % interval width (°C)")
 
 # Correlation annotation
 ax.text(
