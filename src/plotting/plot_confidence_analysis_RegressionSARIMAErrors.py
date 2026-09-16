@@ -1,3 +1,11 @@
+"""
+Script: plot_confidence_analysis_RegressionSARIMAErrors.py
+
+Mirrors plot_confidence_analysis.py (ARIMAX) for the two-stage regression with SARIMA errors
+model, so the two figures are directly comparable: same layout, same axes, same correlation
+annotation, reading from output/confidence_analysis_regression_sarima_errors/ instead of
+output/confidence_analysis/.
+"""
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -5,11 +13,11 @@ import glob
 import os
 
 # Output directory
-plots_dir = "plots/confidence_analysis"
+plots_dir = "plots/confidence_analysis_regression_sarima_errors"
 os.makedirs(plots_dir, exist_ok=True)
 
 # Load data
-files = glob.glob("output/confidence_analysis/confidence_station_*.csv")
+files = glob.glob("output/confidence_analysis_regression_sarima_errors/confidence_station_*.csv")
 df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
 
 # Casino_Oostende's realised error is not representative: its nearest neighbours are too far/dissimilar
@@ -72,8 +80,8 @@ m, b = np.polyfit(x, y, 1)
 ax.plot(x_sorted, m * x_sorted + b)
 
 # Labels
-ax.set_title("Model-based uncertainty")
-ax.set_xlabel("95 % prediction-interval width (°C)")
+ax.set_title("Bootstrapped interval width")
+ax.set_xlabel("95 % bootstrapped interval width (°C)")
 
 # Correlation annotation
 ax.text(
