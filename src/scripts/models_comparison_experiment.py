@@ -5,6 +5,7 @@ and forecast horizons. The results are saved to a CSV file for later analysis.
 python -m src.scripts.models_comparison_experiment --model RF
 """
 import csv
+import zlib
 import pandas as pd
 import argparse
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -133,10 +134,14 @@ def run_single_experiment(task):
     """
     dataset_name, repeat_id, model_name, station, series, exog_df, df_complete = task
 
+    # Offset the seed per station so different stations in the same dataset don't all get the
+    # same forecast start for a given repeat_id
+    station_seed = SEED + zlib.crc32(station.encode())
+
     # Generate random training period (start and end date) for the given dataset and station
     forecast_start = generate_forecast_start(
         series=series,
-        seed=SEED,
+        seed=station_seed,
         repeat_id=repeat_id,
         max_history_days=max(MODEL_TRAINING_DAYS.values()),
         max_horizon=max(HORIZONS)
