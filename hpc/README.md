@@ -1,9 +1,12 @@
 # Running the model comparison on UGent HPC (VSC)
 
-Every model runs on the same GPU cluster (`joltik`) on its own exclusive node,
-including the models that don't use the GPU, so `Train_duration_seconds` /
-`Forecast_duration_seconds` in the output CSVs are measured on identical
-hardware across models and aren't affected by other jobs sharing the node.
+Every model runs on the same GPU cluster (`joltik`) with the same fixed
+allocation (16 cores + 1 GPU), including the models that don't use the GPU,
+so `Train_duration_seconds` / `Forecast_duration_seconds` in the output CSVs
+are measured on comparable hardware across models. Jobs don't request a whole
+exclusive node — SLURM still reserves those 16 cores for the job alone via
+cgroups even if another job runs elsewhere on the same node, and skipping
+`--exclusive` avoids a much longer queue wait for an entire idle node.
 
 ## Setup (once, on a login node)
 
@@ -25,7 +28,7 @@ bash hpc/submit_all.sh
 ```
 
 This submits one `sbatch` job per model (`hpc/submit_model.slurm`), each
-requesting `--exclusive` plus one GPU on `joltik`. Logs land in `hpc/logs/`.
+requesting 16 cores plus one GPU on `joltik`. Logs land in `hpc/logs/`.
 
 ## Submitting a single model by hand
 
