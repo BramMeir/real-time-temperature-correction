@@ -211,5 +211,8 @@ __marimo__/
 /output/
 /plots/
 
+# SLURM job logs
+/hpc/logs/
+
 # Claude Code local overrides
 .claude/settings.local.json
