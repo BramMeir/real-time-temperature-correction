@@ -6,6 +6,10 @@ set -euo pipefail
 
 mkdir -p hpc/logs
 
+# Cluster selection must happen in this shell, before sbatch is called - sbatch itself
+# talks to whichever cluster's scheduler is currently active via the module system.
+module swap cluster/joltik
+
 MODELS=(
     ARIMA
     ARIMAX
