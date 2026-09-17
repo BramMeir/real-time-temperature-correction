@@ -5,6 +5,7 @@ and forecast horizons. The results are saved to a CSV file for later analysis.
 python -m src.scripts.models_comparison_experiment --model RF
 """
 import csv
+import os
 import zlib
 import pandas as pd
 import argparse
@@ -437,7 +438,10 @@ def run_all_experiments(model_name, training_weeks):
                         for result in results:
                             writer.writerow(result)
                 else:
-                    with ProcessPoolExecutor() as executor:
+                    # Use the CPUs actually allocated to this process (respects SLURM cgroups),
+                    # not the whole machine's core count
+                    max_workers = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+                    with ProcessPoolExecutor(max_workers=max_workers) as executor:
                         futures = [executor.submit(run_single_experiment, task) for task in tasks]
 
                         for future in as_completed(futures):
