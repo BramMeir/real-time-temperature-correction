@@ -22,7 +22,9 @@ if [ -z "$MODEL" ]; then
     exit 1
 fi
 
-module swap cluster/joltik
+# NOTE: cluster selection (module swap cluster/joltik) must happen in the shell that
+# calls sbatch, not here - by the time this script runs, the job is already scheduled
+# on whichever cluster was active at submission time. See submit_all.sh.
 
 module purge
 module load Python/3.11.5-GCCcore-13.2.0

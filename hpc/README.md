@@ -27,6 +27,17 @@ bash hpc/submit_all.sh
 This submits one `sbatch` job per model (`hpc/submit_model.slurm`), each
 requesting `--exclusive` plus one GPU on `joltik`. Logs land in `hpc/logs/`.
 
+## Submitting a single model by hand
+
+`sbatch` talks to whichever cluster is active in your current shell, so
+`module swap cluster/joltik` must be run before `sbatch`, not inside the
+job script (by the time the script runs, the job is already scheduled):
+
+```bash
+module swap cluster/joltik
+sbatch --export=MODEL=XGBoost hpc/submit_model.slurm
+```
+
 ## Notes
 
 - All 13 models target `joltik` and reserve a GPU, even the ones that never
