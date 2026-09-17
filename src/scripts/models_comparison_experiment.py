@@ -15,6 +15,7 @@ from src.models.MLP.train import train_mlp_model
 from src.models.transformer.train import train_transformer_model
 from src.models.random_forest.train import train_random_forest
 from src.models.TCN.train import train_tcn_model
+from src.models.xgboost_model.train import train_xgboost
 from src.models.persistence.train import train_persistence
 from src.models.climatology.train import train_hourly_climatology
 from src.models.idw.train import train_idw
@@ -26,6 +27,7 @@ from src.models.LSTM.execute_forecast import run_single_forecast as run_lstm
 from src.models.MLP.execute_forecast import run_single_forecast as run_mlp
 from src.models.transformer.execute_forecast import run_single_forecast as run_transformer
 from src.models.TCN.execute_forecast import run_single_forecast as run_tcn
+from src.models.xgboost_model.execute_forecast import run_single_forecast as run_xgboost
 from src.models.persistence.execute_forecast import run_single_forecast as run_persistence
 from src.models.climatology.execute_forecast import run_single_forecast as run_climatology
 from src.models.idw.execute_forecast import run_single_forecast as run_idw
@@ -72,6 +74,7 @@ TRAIN_MODELS = {
     "ARIMAX": train_sarima_model,
     "LSTM": train_LSTM_model,
     "RF": train_random_forest,
+    "XGBoost": train_xgboost,
     "MLP": train_mlp_model,
     "Transformer": train_transformer_model,
     "TCN": train_tcn_model,
@@ -87,6 +90,7 @@ FORECAST_MODELS = {
     "ARIMAX": run_arimax,
     "LSTM": run_lstm,
     "RF": run_rf,
+    "XGBoost": run_xgboost,
     "MLP": run_mlp,
     "Transformer": run_transformer,
     "TCN": run_tcn,
@@ -102,6 +106,7 @@ MODEL_TRAINING_DAYS = {
     "ARIMAX": 8 * 7,        # 8 weeks of hourly data (1344 hours)
     "LSTM": 8 * 7,          # 8 weeks of hourly data (1344 hours)
     "RF": 8 * 7,            # 8 weeks of hourly data (1344 hours)
+    "XGBoost": 8 * 7,       # 8 weeks of hourly data (1344 hours)
     "MLP": 8 * 7,           # 8 weeks of hourly data (1344 hours)
     "Transformer": 8 * 7,   # 8 weeks of hourly data (1344 hours)
     "TCN": 8 * 7,               # 8 weeks of hourly data (1344 hours)
@@ -172,7 +177,7 @@ def run_single_experiment(task):
             previous_time_steps=8,
         )
         train_duration = pd.Timestamp.now() - train_start_time
-    elif model_name in ["RF", "MLP"]:
+    elif model_name in ["RF", "MLP", "XGBoost"]:
         train_start_time = pd.Timestamp.now()
 
         # Limit the dataframe so only the relevant range is used for creating the supervised dataset
@@ -190,7 +195,7 @@ def run_single_experiment(task):
         # Train the model
         train_result = train_model_fn(X_train, y_train)
         train_duration = pd.Timestamp.now() - train_start_time
-        model = train_result[0] if model_name == "RF" else train_result
+        model = train_result[0] if model_name in ["RF", "XGBoost"] else train_result
     elif model_name == "TCN":
         train_start_time = pd.Timestamp.now()
 
@@ -301,8 +306,8 @@ def run_single_experiment(task):
                 test_end=test_end,
                 mode="forecast"
             )
-        elif model_name in ["RF", "MLP", "TCN", "Persistence", "Climatology", "IDW", "LinearRegression",
-                            "RegressionSARIMAErrors"]:
+        elif model_name in ["RF", "XGBoost", "MLP", "TCN", "Persistence", "Climatology", "IDW",
+                            "LinearRegression", "RegressionSARIMAErrors"]:
             result = forecast_model_fn(
                 df=df_complete,
                 target_station=station,

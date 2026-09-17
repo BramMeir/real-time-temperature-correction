@@ -2386,6 +2386,17 @@ files = [
 ]
 
 [[package]]
+name = "nvidia-nccl-cu12"
+version = "2.31.2"
+description = "NVIDIA Collective Communication Library (NCCL) Runtime"
+optional = false
+python-versions = ">=3"
+files = [
+    {file = "nvidia_nccl_cu12-2.31.2-py3-none-manylinux_2_18_aarch64.whl", hash = "sha256:f208de397e431631eab0eca946444404a495d43a007535baa333d7de9e510ca2"},
+    {file = "nvidia_nccl_cu12-2.31.2-py3-none-manylinux_2_18_x86_64.whl", hash = "sha256:f9b1dc3c2a7e20176054144ebb3b32fea83b40402ee5d7ac7045cd11ecc956c0"},
+]
+
+[[package]]
 name = "opt-einsum"
 version = "3.4.0"
 description = "Path optimization of einsum functions."
@@ -4295,6 +4306,33 @@ types = ["pandas-stubs", "scipy-stubs", "types-PyYAML", "types-Pygments", "types
 viz = ["cartopy (>=0.23)", "matplotlib (>=3.8)", "nc-time-axis", "seaborn"]
 
 [[package]]
+name = "xgboost"
+version = "3.2.0"
+description = "XGBoost Python Package"
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "xgboost-3.2.0-py3-none-macosx_10_15_x86_64.whl", hash = "sha256:2f661966d3e322536d9c448090a870fcba1e32ee5760c10b7c46bac7a342079a"},
+    {file = "xgboost-3.2.0-py3-none-macosx_12_0_arm64.whl", hash = "sha256:eabbd40d474b8dbf6cb3536325f9150b9e6f0db32d18de9914fb3227d0bef5b7"},
+    {file = "xgboost-3.2.0-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:852eabc6d3b3702a59bf78dbfdcd1cb9c4d3a3b6e5ed1f8781d8b9512354fdd2"},
+    {file = "xgboost-3.2.0-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:99b4a6bbcb47212fec5cf5fbe12347215f073c08967431b0122cfbd1ee70312c"},
+    {file = "xgboost-3.2.0-py3-none-win_amd64.whl", hash = "sha256:0d169736fd836fc13646c7ab787167b3a8110351c2c6bc770c755ee1618f0442"},
+    {file = "xgboost-3.2.0.tar.gz", hash = "sha256:99b0e9a2a64896cdaf509c5e46372d336c692406646d20f2af505003c0c5d70d"},
+]
+
+[package.dependencies]
+numpy = "*"
+nvidia-nccl-cu12 = {version = "*", markers = "platform_system == \"Linux\""}
+scipy = "*"
+
+[package.extras]
+dask = ["dask", "distributed", "pandas"]
+pandas = ["pandas (>=1.2)"]
+plotting = ["graphviz", "matplotlib"]
+pyspark = ["cloudpickle", "pyspark (>=3.4)", "scikit-learn"]
+scikit-learn = ["scikit-learn"]
+
+[[package]]
 name = "xyzservices"
 version = "2026.3.0"
 description = "Source of XYZ tiles providers"
@@ -4308,4 +4346,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<4.0"
-content-hash = "5a5a4d8d862a2d7fe1031f4460ed9393decdd5a453afb5eb9e9d34d738e00a0e"
+content-hash = "5e26f21014415ffabeb1f7138f556e670a3f26df56e7154ac1909f0ea075cd86"
