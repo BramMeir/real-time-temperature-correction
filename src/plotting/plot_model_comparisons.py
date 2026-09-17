@@ -57,7 +57,7 @@ REPORTED_HORIZONS = [(4, "4\\,h"), (24, "24\\,h"), (168, "7\\,d"), (720, "30\\,d
 MODEL_FAMILIES = [
     ("Spatial only", ["LinearRegression", "IDW"]),
     ("Spatial and temporal",
-     ["RegressionSARIMAErrors", "ARIMAX", "TCN", "LSTM", "MLP", "Transformer", "RF"]),
+     ["RegressionSARIMAErrors", "ARIMAX", "TCN", "LSTM", "MLP", "Transformer", "RF", "XGBoost"]),
     ("Temporal only", ["ARIMA", "Persistence", "Climatology"]),
 ]
 
