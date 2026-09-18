@@ -11,19 +11,20 @@ cgroups even if another job runs elsewhere on the same node, and skipping
 ## Setup (once, on a login node)
 
 The repo is already cloned at `/data/gent/466/vsc46666/real-time-temperature-correction`,
-with `data/` already in place. Poetry is loaded as an environment module
-(`poetry/1.6.1-GCCcore-13.2.0`, matching the `Python/3.11.5-GCCcore-13.2.0`
-toolchain) rather than `pip install --user` — a user-site install isn't
-reliably picked up in a non-interactive batch job's `PATH`. Install the
-project's dependencies once:
+with `data/` already in place. There's no HPC `poetry` module compatible with
+`Python/3.11.5-GCCcore-13.2.0` (available `poetry` modules only pair with
+newer GCCcore toolchains, and mixing toolchains isn't allowed), so poetry is
+installed via `pip install --user` under that same Python module instead —
+it's pure Python with no compiled dependencies, so the toolchain mismatch
+doesn't matter for it specifically:
 
 ```bash
 cd /data/gent/466/vsc46666/real-time-temperature-correction
 module swap cluster/joltik
 module purge
 module load Python/3.11.5-GCCcore-13.2.0
-module load poetry/1.6.1-GCCcore-13.2.0
-poetry install --no-interaction --no-root
+python -m pip install --user 'poetry==1.8.2'
+~/.local/bin/poetry install --no-interaction --no-root
 ```
 
 ## Submit all models

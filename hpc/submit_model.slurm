@@ -30,7 +30,13 @@ fi
 
 module purge
 module load Python/3.11.5-GCCcore-13.2.0
-module load poetry/1.6.1-GCCcore-13.2.0
+
+# poetry isn't loaded as an HPC module: the available poetry modules only pair with
+# newer GCCcore toolchains than this Python version, and mixing toolchains isn't
+# allowed. It's pure Python with no compiled deps, so pip install --user under this
+# same Python module works fine - called by full path since ~/.local/bin isn't on
+# PATH in a non-interactive batch job.
+POETRY="$HOME/.local/bin/poetry"
 
 # These 16 cores are reserved for this job only (SLURM enforces this via cgroups,
 # even though other jobs may run elsewhere on the same node), so nested BLAS/OpenMP
@@ -40,5 +46,5 @@ export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
 cd "$SLURM_SUBMIT_DIR"
-poetry install --no-interaction --no-root
-poetry run python -m src.scripts.models_comparison_experiment --model "$MODEL"
+"$POETRY" install --no-interaction --no-root
+"$POETRY" run python -m src.scripts.models_comparison_experiment --model "$MODEL"
