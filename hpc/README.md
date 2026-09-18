@@ -52,10 +52,9 @@ sbatch --export=MODEL=XGBoost hpc/submit_model.slurm
 - `OMP_NUM_THREADS=1` etc. are set so nested BLAS/OpenMP threading inside
   numpy/xgboost/tensorflow doesn't oversubscribe the cores that
   `ProcessPoolExecutor` is already parallelizing across.
-- Each job `rsync`s the repo (minus `.git`/`output`/`plots`) to node-local
-  scratch (`$TMPDIR`) and runs there, copying just the resulting
-  `<model>_<weeks>_weeks.csv` back to `output/models_comparison/` on the
-  shared filesystem when done — avoids running training/inference against
-  the shared filesystem directly.
+- Jobs run and write output directly against the shared filesystem
+  (`$SLURM_SUBMIT_DIR`), not node-local scratch — untested at this scale, but
+  worth trying before adding a copy-in/copy-out step; switch to scratch if
+  this turns out to bottleneck.
 - `CUDA/12.6.0` + `cuDNN/9.5.0.50-CUDA-12.6.0` are loaded for every model
   (even CPU-only ones) so all jobs share the same loaded module set.

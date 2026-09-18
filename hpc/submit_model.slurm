@@ -45,14 +45,6 @@ export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
-# Run from node-local scratch rather than the shared filesystem directly.
-# Excludes .git history and any existing output/plots - only code, data and
-# project files are needed to run.
-rsync -a --exclude='.git' --exclude='output' --exclude='plots' "$SLURM_SUBMIT_DIR/" "$TMPDIR/repo/"
-cd "$TMPDIR/repo"
-
+cd "$SLURM_SUBMIT_DIR"
 poetry install --no-interaction --no-root
 poetry run python -m src.scripts.models_comparison_experiment --model "$MODEL" --training_weeks "$WEEKS"
-
-mkdir -p "$SLURM_SUBMIT_DIR/output/models_comparison"
-cp "output/models_comparison/${MODEL}_${WEEKS}_weeks.csv" "$SLURM_SUBMIT_DIR/output/models_comparison/"
