@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 #
 # Every model (not just the NN ones) runs on the same GPU cluster/node type,
 # with the same fixed core/GPU allocation, so Train_duration_seconds /
@@ -55,6 +56,13 @@ cd "$SLURM_SUBMIT_DIR"
 # Code, data and output CSVs still read/write directly against shared storage.
 export POETRY_VIRTUALENVS_IN_PROJECT=false
 export POETRY_VIRTUALENVS_PATH="${TMPDIR:-/tmp}/poetry-venv-$SLURM_JOB_ID"
+
+# This is a headless compute node with no DBus session - poetry's keyring
+# dependency tries to reach one anyway and intermittently aborts installing
+# whatever package it's on when it fails, silently leaving that package
+# missing (confirmed on HPC: different package each time, e.g. pandas,
+# wcwidth). Disabling the keyring backend avoids it reaching for DBus at all.
+export PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring
 
 poetry install --no-interaction --no-root
 mkdir -p output/models_comparison
