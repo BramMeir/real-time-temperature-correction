@@ -16,6 +16,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
+#SBATCH --mem=64gb
 #SBATCH --gpus=1
 #SBATCH --time=24:00:00
 
@@ -24,13 +25,18 @@ if [ -z "$MODEL" ]; then
     exit 1
 fi
 
+WEEKS=8
+
 # NOTE: cluster selection (module swap cluster/joltik) must happen in the shell that
 # calls sbatch, not here - by the time this script runs, the job is already scheduled
 # on whichever cluster was active at submission time. See submit_all.sh.
 
 module purge
-module load Python/3.11.5-GCCcore-13.2.0
-module load poetry/1.6.1-GCCcore-13.2.0
+# poetry/1.8.3 pulls in a compatible Python (3.12.3-GCCcore-13.3.0) as a module
+# dependency - no separate Python module load needed.
+module load poetry/1.8.3-GCCcore-13.3.0
+module load CUDA/12.6.0
+module load cuDNN/9.5.0.50-CUDA-12.6.0
 
 # These 16 cores are reserved for this job only (SLURM enforces this via cgroups,
 # even though other jobs may run elsewhere on the same node), so nested BLAS/OpenMP
@@ -41,4 +47,4 @@ export MKL_NUM_THREADS=1
 
 cd "$SLURM_SUBMIT_DIR"
 poetry install --no-interaction --no-root
-poetry run python -m src.scripts.models_comparison_experiment --model "$MODEL"
+poetry run python -m src.scripts.models_comparison_experiment --model "$MODEL" --training_weeks "$WEEKS"
