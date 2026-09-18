@@ -18,7 +18,7 @@ set -euo pipefail
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64gb
-#SBATCH --gres=gpu:1
+#SBATCH --gpus=1
 #SBATCH --time=24:00:00
 
 if [ -z "$MODEL" ]; then
