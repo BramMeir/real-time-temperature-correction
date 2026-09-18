@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 #
 # Every model (not just the NN ones) runs on the same GPU cluster/node type,
 # with the same fixed core/GPU allocation, so Train_duration_seconds /
