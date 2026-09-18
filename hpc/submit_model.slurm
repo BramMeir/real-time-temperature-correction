@@ -30,6 +30,7 @@ fi
 
 module purge
 module load Python/3.11.5-GCCcore-13.2.0
+module load poetry/1.6.1-GCCcore-13.2.0
 
 # These 16 cores are reserved for this job only (SLURM enforces this via cgroups,
 # even though other jobs may run elsewhere on the same node), so nested BLAS/OpenMP
