@@ -11,18 +11,15 @@ cgroups even if another job runs elsewhere on the same node, and skipping
 ## Setup (once, on a login node)
 
 The repo is already cloned at `/data/gent/466/vsc46666/real-time-temperature-correction`,
-with `data/` already in place. Poetry is loaded as an environment module
-(`poetry/1.6.1-GCCcore-13.2.0`, matching the `Python/3.11.5-GCCcore-13.2.0`
-toolchain) rather than `pip install --user` — a user-site install isn't
-reliably picked up in a non-interactive batch job's `PATH`. Install the
-project's dependencies once:
+with `data/` already in place. `poetry/1.8.3-GCCcore-13.3.0` pulls in a
+matching Python (3.12.3) as a module dependency, so there's no separate
+Python module to load:
 
 ```bash
 cd /data/gent/466/vsc46666/real-time-temperature-correction
 module swap cluster/joltik
 module purge
-module load Python/3.11.5-GCCcore-13.2.0
-module load poetry/1.6.1-GCCcore-13.2.0
+module load poetry/1.8.3-GCCcore-13.3.0
 poetry install --no-interaction --no-root
 ```
 
@@ -55,5 +52,10 @@ sbatch --export=MODEL=XGBoost hpc/submit_model.slurm
 - `OMP_NUM_THREADS=1` etc. are set so nested BLAS/OpenMP threading inside
   numpy/xgboost/tensorflow doesn't oversubscribe the cores that
   `ProcessPoolExecutor` is already parallelizing across.
-- Results still land in `output/models_comparison/` as before, on the same
-  filesystem the repo is cloned on — no copy-back step needed.
+- Each job `rsync`s the repo (minus `.git`/`output`/`plots`) to node-local
+  scratch (`$TMPDIR`) and runs there, copying just the resulting
+  `<model>_<weeks>_weeks.csv` back to `output/models_comparison/` on the
+  shared filesystem when done — avoids running training/inference against
+  the shared filesystem directly.
+- `CUDA/12.6.0` + `cuDNN/9.5.0.50-CUDA-12.6.0` are loaded for every model
+  (even CPU-only ones) so all jobs share the same loaded module set.
