@@ -57,12 +57,12 @@ cd "$SLURM_SUBMIT_DIR"
 export POETRY_VIRTUALENVS_IN_PROJECT=false
 export POETRY_VIRTUALENVS_PATH="${TMPDIR:-/tmp}/poetry-venv-$SLURM_JOB_ID"
 
-# This is a headless compute node with no DBus session - poetry's keyring
-# dependency tries to reach one anyway and intermittently aborts installing
-# whatever package it's on when it fails, silently leaving that package
-# missing (confirmed on HPC: different package each time, e.g. pandas,
-# wcwidth). Disabling the keyring backend avoids it reaching for DBus at all.
-export PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring
+# This is a headless compute node with no DBus session - poetry's optional
+# keyring credential cache (irrelevant here, no private package sources)
+# tries to reach one anyway and intermittently aborts installing whatever
+# package it's on when it fails, silently leaving that package missing
+# (confirmed on HPC: different package each time, e.g. pandas, wcwidth).
+export POETRY_KEYRING_ENABLED=false
 
 poetry install --no-interaction --no-root
 mkdir -p output/models_comparison
