@@ -31,6 +31,9 @@ bash hpc/submit_all.sh
 
 This submits one `sbatch` job per model (`hpc/submit_model.slurm`), each
 requesting 16 cores plus one GPU on `joltik`. Logs land in `hpc/logs/`.
+Each model gets a `--time` budget sized to its expected cost (see the
+`FAST_MODELS`/`MEDIUM_MODELS`/`SLOW_MODELS`/`NN_MODELS` groups in
+`hpc/submit_all.sh`) — untested estimates, adjust if a model times out.
 
 ## Submitting a single model by hand
 
@@ -56,11 +59,14 @@ sbatch --export=MODEL=XGBoost hpc/submit_model.slurm
   (`$SLURM_SUBMIT_DIR`), not node-local scratch — switch to a copy-in/copy-out
   step if this turns out to bottleneck.
 - The Poetry **venv** is the one thing kept out of shared storage
-  (`POETRY_VIRTUALENVS_PATH="$TMPDIR/poetry-venv"`): all 13 models point at
-  the same repo path, and Poetry defaults to one shared `.venv` inside it —
-  confirmed on HPC that concurrent jobs installing into that same venv at
-  once corrupts it (missing modules / crashing interpreter in different
-  jobs). Code, data and the output CSVs are unaffected and still go straight
-  to shared storage.
+  (`POETRY_VIRTUALENVS_PATH="${TMPDIR:-/tmp}/poetry-venv-$SLURM_JOB_ID"`):
+  all 13 models point at the same repo path, and Poetry defaults to one
+  shared `.venv` inside it — confirmed on HPC that concurrent jobs
+  installing into that same venv at once corrupts it (missing modules /
+  crashing interpreter in different jobs). The `$SLURM_JOB_ID` suffix is
+  needed because `$TMPDIR` here is plain `/tmp`, not job-private, so two of
+  our own jobs landing on the same non-exclusive node would otherwise still
+  collide. Code, data and the output CSVs are unaffected and still go
+  straight to shared storage.
 - `CUDA/12.6.0` + `cuDNN/9.5.0.50-CUDA-12.6.0` are loaded for every model
   (even CPU-only ones) so all jobs share the same loaded module set.
