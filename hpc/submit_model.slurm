@@ -46,5 +46,13 @@ export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
 cd "$SLURM_SUBMIT_DIR"
+
+# Isolate the venv per job in this job's own scratch: all 13 models run against
+# the same shared repo path, and Poetry defaults to one shared .venv inside it -
+# concurrent jobs installing into that same venv at once corrupts it. Code, data
+# and output CSVs still read/write directly against shared storage.
+export POETRY_VIRTUALENVS_IN_PROJECT=false
+export POETRY_VIRTUALENVS_PATH="$TMPDIR/poetry-venv"
+
 poetry install --no-interaction --no-root
 poetry run python -m src.scripts.models_comparison_experiment --model "$MODEL" --training_weeks "$WEEKS"

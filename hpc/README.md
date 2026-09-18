@@ -53,8 +53,14 @@ sbatch --export=MODEL=XGBoost hpc/submit_model.slurm
   numpy/xgboost/tensorflow doesn't oversubscribe the cores that
   `ProcessPoolExecutor` is already parallelizing across.
 - Jobs run and write output directly against the shared filesystem
-  (`$SLURM_SUBMIT_DIR`), not node-local scratch — untested at this scale, but
-  worth trying before adding a copy-in/copy-out step; switch to scratch if
-  this turns out to bottleneck.
+  (`$SLURM_SUBMIT_DIR`), not node-local scratch — switch to a copy-in/copy-out
+  step if this turns out to bottleneck.
+- The Poetry **venv** is the one thing kept out of shared storage
+  (`POETRY_VIRTUALENVS_PATH="$TMPDIR/poetry-venv"`): all 13 models point at
+  the same repo path, and Poetry defaults to one shared `.venv` inside it —
+  confirmed on HPC that concurrent jobs installing into that same venv at
+  once corrupts it (missing modules / crashing interpreter in different
+  jobs). Code, data and the output CSVs are unaffected and still go straight
+  to shared storage.
 - `CUDA/12.6.0` + `cuDNN/9.5.0.50-CUDA-12.6.0` are loaded for every model
   (even CPU-only ones) so all jobs share the same loaded module set.
