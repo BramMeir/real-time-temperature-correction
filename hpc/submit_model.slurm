@@ -21,6 +21,13 @@ set -euo pipefail
 #SBATCH --gpus=1
 #SBATCH --time=24:00:00
 
+# Must come after the #SBATCH block above - sbatch stops scanning for
+# directives at the first non-comment line in the script, so anything before
+# this point silently loses ALL #SBATCH options (confirmed on HPC: caused
+# "Invalid GPU config specified" because none of nodes/cpus/mem/gpus/time
+# were actually being read).
+set -euo pipefail
+
 if [ -z "$MODEL" ]; then
     echo "MODEL is not set - submit with --export=MODEL=<name>" >&2
     exit 1
