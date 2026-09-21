@@ -4,7 +4,6 @@ Script: train.py
 SARIMA model implementation for time series forecasting.
 Source: https://www.digitalocean.com/community/tutorials/a-guide-to-time-series-forecasting-with-arima-in-python-3
 """
-import pandas as pd
 import statsmodels.api as sm
 
 
@@ -33,8 +32,10 @@ def train_sarima_model(series, exog_df=None, arima_order=(2, 0, 0), seasonal_ord
         enforce_stationarity=False,
         enforce_invertibility=False,
 
-        # Only include constant for 10-min data
-        trend='c' if series.index.freq == pd.Timedelta("10min") else None
+        # Always include a constant, so this stays comparable to the two-stage
+        # regression-with-SARIMA-errors model, whose regression stage already
+        # captures the series' level.
+        trend='c'
     )
 
     # Fit the model to the data
