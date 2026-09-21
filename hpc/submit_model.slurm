@@ -52,6 +52,11 @@ export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
+# TF/XLA's JIT compiler needs to be told where libdevice.10.bc lives (under
+# $EBROOTCUDA/nvvm/libdevice/) - without this, LSTM/Transformer/TCN fail with
+# "libdevice not found at ./libdevice.10.bc" as soon as they hit the GPU.
+export XLA_FLAGS="--xla_gpu_cuda_data_dir=$EBROOTCUDA"
+
 cd "$SLURM_SUBMIT_DIR"
 
 # Isolate the venv per job: all 13 models run against the same shared repo path,
