@@ -37,6 +37,7 @@ from src.models.linear_regression.execute_forecast import run_single_forecast as
 from src.models.regression_sarima_errors.execute_forecast import run_single_forecast as run_regression_sarima_errors
 from src.data.create_supervised import create_supervised_dataset
 from src.data.create_3d_dataset import create_3d_dataset
+from src.data.align_concurrent_exog import align_concurrent_exog
 from src.utils.load_station_coordinates import load_station_coordinates
 
 # Metadata about the used datasets and stations to evaluate on
@@ -70,6 +71,9 @@ SEED = 42
 HORIZONS = [4, 12, 24, 48, 96, 168, 336, 504, 720]
 
 NUMBER_OF_REPEATS = 10
+
+# Models whose input is a sliding window rather than a row of features
+SEQUENCE_MODELS = ["LSTM", "Transformer", "TCN"]
 
 TRAIN_MODELS = {
     "ARIMA": train_sarima_model,
@@ -412,6 +416,13 @@ def run_all_experiments(model_name, training_weeks):
 
                 # Create also a complete version of the DataFrame for some of the models that require it (e.g., LSTM, Transformer)
                 df_complete = series.to_frame(name=station).join(exog_df)
+
+                # LSTM, Transformer and TCN read a window ending at t-1, so without this they
+                # are the only models that never see the neighbours' reading at t. Shifting
+                # df_complete once covers both training and forecasting: all three take this
+                # same frame for both.
+                if model_name in SEQUENCE_MODELS:
+                    df_complete = align_concurrent_exog(df_complete, station)
 
                 # Build a list of taks to run in parallel
                 tasks = []
