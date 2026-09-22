@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 # used for the results table in src/plotting/plot_model_comparisons.py
 MODEL_NAMES = {
     "LinearRegression": "Neighbour regression",
-    "RegressionSARIMAErrors": "Regression + SARIMA errors",
+    "RegressionSARIMAErrors": "RegSARIMA",
     "ARIMAX": "ARIMAX",
 }
 
