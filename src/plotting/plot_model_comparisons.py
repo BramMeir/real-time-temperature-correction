@@ -38,7 +38,7 @@ def plot_overall_model_performance(df):
 
 # Model keys as written in the result csv files -> the names used in the paper
 LATEX_MODEL_NAMES = {
-    "RegressionSARIMAErrors": "Regression + SARIMA errors",
+    "RegressionSARIMAErrors": "RegSARIMA",
     "LinearRegression": "Neighbour regression",
     "IDW": "IDW (concurrent)",
     "Climatology": "Hourly climatology",
