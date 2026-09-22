@@ -4,35 +4,55 @@ Each function generates a specific plot to visualize different aspects of model 
 overall performance, performance across forecast horizons, ...
 The plots are saved in the "plots" directory for further analysis and presentation.
 
-python -m src.plotting.plot_model_comparisons
+python -m src.plotting.plot_model_comparisons [--metric MAE|RMSE]
 """
+import argparse
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# Error metric to report, set from --metric. RMSE is derived per row as sqrt(MSE), so the
+# reported value is the mean of the per-forecast RMSEs, matching how the MAE is averaged.
+METRIC = "MAE"
+
+METRIC_CAPTIONS = {"MAE": "Mean absolute error", "RMSE": "Root mean squared error"}
+
+# Zoom window in degrees for the zoomed horizon plot, per metric
+ZOOM_RANGES = {"MAE": (0.2, 1.3), "RMSE": (0.3, 1.8)}
+
+
+def _metric_label():
+    return f"Mean {METRIC} (°C)"
+
+
+def _plot_path(name):
+    """Keep the MAE filenames unchanged, suffix any other metric so it doesn't overwrite them."""
+    suffix = "" if METRIC == "MAE" else f"_{METRIC.lower()}"
+    return f"plots/{name}{suffix}.png"
+
 
 def plot_overall_model_performance(df):
     """
-    1. Plot overall MAE per model with error bars representing standard deviation across stations/datasets/horizons.
+    1. Plot the overall error (METRIC) per model with error bars representing standard deviation across stations/datasets/horizons.
 
     Input:
     ------
     df: DataFrame containing all the results (columns: dataset,station,model,train_start,train_end,horizon,mae,mse)
     """
-    summary_mae = df.groupby("Model")["MAE"].agg(["mean", "std"]).reset_index()
+    summary_errors = df.groupby("Model")[METRIC].agg(["mean", "std"]).reset_index()
 
     plt.figure(figsize=(9, 5))
     plt.bar(
-        summary_mae["Model"].map(_display_name),
-        summary_mae["mean"],
-        yerr=summary_mae["std"],
+        summary_errors["Model"].map(_display_name),
+        summary_errors["mean"],
+        yerr=summary_errors["std"],
         capsize=5,
     )
     plt.xlabel("Model")
-    plt.ylabel("Mean MAE (°C)")
+    plt.ylabel(_metric_label())
     plt.xticks(rotation=30, ha="right")
     plt.tight_layout()
-    plt.savefig("plots/overall_model_performance.png")
+    plt.savefig(_plot_path("overall_model_performance"))
     plt.close()
 
 
@@ -68,9 +88,9 @@ def _latex_cell(value, decimals, is_best):
     return f"$\\mathbf{{{text}}}$" if is_best else f"${text}$"
 
 
-def _family_order(mae):
+def _family_order(errors):
     """Group the models of the results into the families of MODEL_FAMILIES, most accurate first."""
-    accuracy = mae[[hours for hours, _ in REPORTED_HORIZONS]].mean(axis=1).sort_values()
+    accuracy = errors[[hours for hours, _ in REPORTED_HORIZONS]].mean(axis=1).sort_values()
     listed = {m for _, members in MODEL_FAMILIES for m in members}
     families = MODEL_FAMILIES + [("Other", [m for m in accuracy.index if m not in listed])]
     grouped = [(family, [m for m in accuracy.index if m in set(members)]) for family, members in families]
@@ -79,10 +99,10 @@ def _family_order(mae):
 
 def generate_overall_results_table(df):
     """
-    1. Generate a summary table with the MAE per outage duration and the training and prediction
+    1. Generate a summary table with the error (METRIC) per outage duration and the training and prediction
     time, and print it as a booktabs LaTeX table in the style of the paper (tab:overall).
 
-    Averaging the MAE over all horizons weights the table by the horizon grid rather than by the
+    Averaging the error over all horizons weights the table by the horizon grid rather than by the
     model, so the error is reported per outage duration instead.
 
     Input:
@@ -90,16 +110,16 @@ def generate_overall_results_table(df):
     df: DataFrame containing all the results, with the horizon in hours
     (columns: Dataset,Station,Model,Train_start,Train_end,Horizon,MAE,MSE)
     """
-    mae = df.pivot_table(index="Model", columns="Horizon", values="MAE", aggfunc="mean")
+    errors = df.pivot_table(index="Model", columns="Horizon", values=METRIC, aggfunc="mean")
     cost = df.groupby("Model")[["Train_duration_seconds", "Forecast_duration_seconds"]].mean()
 
-    missing = [label for hours, label in REPORTED_HORIZONS if hours not in mae.columns]
+    missing = [label for hours, label in REPORTED_HORIZONS if hours not in errors.columns]
     if missing:
         raise ValueError(f"Horizons missing from the results: {missing}")
 
     # (column of the source table, decimals, mark the best) per table column, in table order
     columns = (
-        [(mae[hours], 3, True) for hours, _ in REPORTED_HORIZONS]
+        [(errors[hours], 3, True) for hours, _ in REPORTED_HORIZONS]
         + [(cost["Train_duration_seconds"], 2, False), (cost["Forecast_duration_seconds"], 2, False)]
     )
 
@@ -111,7 +131,7 @@ def generate_overall_results_table(df):
 
     # Either ("group", family name) or ("model", cells), in table order
     body = []
-    for family, models in _family_order(mae):
+    for family, models in _family_order(errors):
         body.append(("group", family))
         for model in models:
             cells = ["\\quad " + _display_name(model)]
@@ -132,7 +152,7 @@ def generate_overall_results_table(df):
         return f"    \\multicolumn{{{len(header)}}}{{l}}{{\\emph{{{family}}}}} \\\\"
 
     caption = (
-        "Mean absolute error (\\textcelsius) per outage duration, averaged over stations and "
+        f"{METRIC_CAPTIONS[METRIC]} (\\textcelsius) per outage duration, averaged over stations and "
         "failure onsets. Models are grouped by the information they are given --- temporal is the "
         "past observations at the target station, spatial the concurrent observations at the "
         "neighbouring stations --- and ordered by their mean error within each group. Training and "
@@ -164,8 +184,8 @@ def generate_overall_results_table(df):
         "\\end{table}",
     ]
 
-    print("\n=== Overall Model Performance ===")
-    print(mae[[hours for hours, _ in REPORTED_HORIZONS]].join(cost).to_string())
+    print(f"\n=== Overall Model Performance ({METRIC}) ===")
+    print(errors[[hours for hours, _ in REPORTED_HORIZONS]].join(cost).to_string())
 
     print("\nLaTeX code for the overall results table:")
     print("\n".join(lines))
@@ -173,7 +193,7 @@ def generate_overall_results_table(df):
 
 def plot_performance_vs_horizon(df):
     """
-    2. Plot MAE vs forecast horizon for each model.
+    2. Plot the error (METRIC) vs forecast horizon for each model.
 
     Input:
     ------
@@ -181,7 +201,7 @@ def plot_performance_vs_horizon(df):
     """
     # Compute statistics
     summary = (
-        df.groupby(["Model", "Horizon"])["MAE"]
+        df.groupby(["Model", "Horizon"])[METRIC]
         .agg(["mean", "std", "count"])
         .reset_index()
     )
@@ -204,27 +224,27 @@ def plot_performance_vs_horizon(df):
         )
 
     plt.xlabel("Outage duration (days)")
-    plt.ylabel("Mean MAE (°C)")
+    plt.ylabel(_metric_label())
 
     # Set both axis limits to start at 0 for better visualization
     plt.xlim(left=0)
     plt.ylim(bottom=0)
 
     plt.legend()
-    plt.savefig("plots/performance_vs_horizon.png")
+    plt.savefig(_plot_path("performance_vs_horizon"))
     plt.close()
 
 
 def plot_performance_vs_horizon_with_zoom(df):
     """
-    2. Zoomed version of MAE vs horizon without ARIMA to highlight difference between the other models.
+    2. Zoomed version of the error vs horizon without ARIMA to highlight difference between the other models.
 
     Input:
     ------
     df: DataFrame containing all the results (columns: Dataset,Station,Model,Train_start,Train_end,Horizon,MAE,MSE)
     """
     summary = (
-        df.groupby(["Model", "Horizon"])["MAE"]
+        df.groupby(["Model", "Horizon"])[METRIC]
         .agg(["mean", "std", "count"])
         .reset_index()
     )
@@ -237,8 +257,7 @@ def plot_performance_vs_horizon_with_zoom(df):
     )
 
     # Define zoom range
-    zoom_min = 0.2
-    zoom_max = 1.3
+    zoom_min, zoom_max = ZOOM_RANGES[METRIC]
 
     for model in summary["Model"].unique():
         model_data = summary[summary["Model"] == model]
@@ -261,7 +280,7 @@ def plot_performance_vs_horizon_with_zoom(df):
         )
 
     # Top plot
-    ax_top.set_ylabel("Mean MAE (°C)")
+    ax_top.set_ylabel(_metric_label())
     ax_top.set_xlim(left=0)
 
     # Show zoom region
@@ -270,35 +289,35 @@ def plot_performance_vs_horizon_with_zoom(df):
 
     # Zoom plot
     ax_zoom.set_ylim(zoom_min, zoom_max)
-    ax_zoom.set_ylabel("Mean MAE (°C)")
+    ax_zoom.set_ylabel(_metric_label())
     ax_zoom.set_xlabel("Outage duration (days)")
 
     # Two columns keep the (now larger) legend from covering the baseline curves
     ax_top.legend(loc="upper left", ncol=2, fontsize=9)
 
     plt.tight_layout()
-    plt.savefig("plots/performance_vs_horizon_zoomed.png")
+    plt.savefig(_plot_path("performance_vs_horizon_zoomed"))
     plt.close()
 
 
 def plot_dataset_comparison(df):
     """
-    3. Plot MAE per dataset for each model.
+    3. Plot the error (METRIC) per dataset for each model.
 
     Input:
     ------
     df: DataFrame containing all the results (columns: Dataset,Station,Model,Train_start,Train_end,Horizon,MAE,MSE)
     """
-    summary = df.groupby(["Dataset", "Model"])["MAE"].mean().reset_index()
+    summary = df.groupby(["Dataset", "Model"])[METRIC].mean().reset_index()
 
-    pivot = summary.pivot(index="Dataset", columns="Model", values="MAE")
+    pivot = summary.pivot(index="Dataset", columns="Model", values=METRIC)
     pivot = pivot.rename(columns=_display_name)
 
     _, ax = plt.subplots(figsize=(8, 5))
 
     pivot.plot(kind="bar", ax=ax, width=0.9)
 
-    ax.set_ylabel("Mean MAE (°C)")
+    ax.set_ylabel(_metric_label())
     # ax.set_title("Model performance per dataset")
 
     # Add value labels on top of bars
@@ -315,13 +334,13 @@ def plot_dataset_comparison(df):
 
     plt.xticks(rotation=0)
     plt.tight_layout()
-    plt.savefig("plots/dataset_comparison.png")
+    plt.savefig(_plot_path("dataset_comparison"))
     plt.close()
 
 
 def plot_station_variability(df):
     """
-    4. Plot MAE per station for each model.
+    4. Plot the error (METRIC) per station for each model.
 
     Input:
     ------
@@ -329,20 +348,20 @@ def plot_station_variability(df):
     """
     df["station_short"] = df["Station"].apply(lambda x: x[:12] + "…" if len(x) > 12 else x)
 
-    summary = df.groupby(["station_short", "Model"])["MAE"].mean().reset_index()
-    pivot = summary.pivot(index="station_short", columns="Model", values="MAE")
+    summary = df.groupby(["station_short", "Model"])[METRIC].mean().reset_index()
+    pivot = summary.pivot(index="station_short", columns="Model", values=METRIC)
     pivot = pivot.rename(columns=_display_name)
 
     _, ax = plt.subplots(figsize=(8, 5))
 
     pivot.plot(kind="bar", ax=ax)
 
-    ax.set_ylabel("Mean MAE (°C)")
+    ax.set_ylabel(_metric_label())
     # ax.set_title("Model performance per station")
 
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.savefig("plots/station_variability.png")
+    plt.savefig(_plot_path("station_variability"))
     plt.close()
 
 
@@ -366,7 +385,7 @@ def plot_urban_vs_rural_comparison(df):
 
     # Aggregate
     summary = (
-        df.groupby(["Model", "DatasetType"])["MAE"]
+        df.groupby(["Model", "DatasetType"])[METRIC]
         .agg(["mean", "std", "count"])
         .reset_index()
     )
@@ -407,16 +426,20 @@ def plot_urban_vs_rural_comparison(df):
         rotation=30,
         ha="right",
     )
-    plt.ylabel("Mean MAE (°C)")
+    plt.ylabel(_metric_label())
 
     plt.legend()
 
     plt.tight_layout()
-    plt.savefig("plots/rural_vs_mixed_performance.png")
+    plt.savefig(_plot_path("rural_vs_mixed_performance"))
     plt.close()
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--metric", choices=["MAE", "RMSE"], default="MAE")
+    METRIC = parser.parse_args().metric
+
     output_dir = "output/models_comparison"
 
     # Load all the csv files generated by the model comparison experiments
@@ -430,6 +453,9 @@ if __name__ == "__main__":
     dfs = [pd.read_csv(f) for f in csv_files]
 
     df = pd.concat(dfs, ignore_index=True)
+
+    # Per-forecast RMSE, averaged the same way the MAE is
+    df["RMSE"] = df["MSE"] ** 0.5
 
     # Create plot directory if it does not exist
     os.makedirs("plots", exist_ok=True)
