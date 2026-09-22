@@ -55,10 +55,10 @@ REPORTED_HORIZONS = [(4, "4\\,h"), (24, "24\\,h"), (168, "7\\,d"), (720, "30\\,d
 
 # Models grouped by the information they are given, in table order
 MODEL_FAMILIES = [
+    ("Temporal only", ["ARIMA", "Persistence", "Climatology"]),
     ("Spatial only", ["LinearRegression", "IDW"]),
     ("Spatial and temporal",
      ["RegressionSARIMAErrors", "ARIMAX", "TCN", "LSTM", "MLP", "Transformer", "RF", "XGBoost"]),
-    ("Temporal only", ["ARIMA", "Persistence", "Climatology"]),
 ]
 
 
@@ -133,9 +133,9 @@ def generate_overall_results_table(df):
 
     caption = (
         "Mean absolute error (\\textcelsius) per outage duration, averaged over stations and "
-        "failure onsets. Models are grouped by the information they are given --- spatial is the "
-        "concurrent observations at the neighbouring stations, temporal the past observations at the "
-        "target station --- and ordered by their mean error within each group. Training and "
+        "failure onsets. Models are grouped by the information they are given --- temporal is the "
+        "past observations at the target station, spatial the concurrent observations at the "
+        "neighbouring stations --- and ordered by their mean error within each group. Training and "
         "prediction times in seconds, measured on the UGent HPC."
     )
 
