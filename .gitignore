@@ -211,8 +211,10 @@ __marimo__/
 /output/
 /plots/
 
-# SLURM job logs
-/hpc/logs/
+# SLURM job logs. The directory itself is kept: sbatch needs --output's directory to
+# already exist, and it cannot be created from inside the job script.
+/hpc/logs/*
+!/hpc/logs/.gitkeep
 
 # Claude Code local overrides
 .claude/settings.local.json
