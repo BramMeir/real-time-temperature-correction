@@ -29,9 +29,15 @@ def full_retrain_two_stage(model, df_window, station, exog_cols):
 
 
 def retrain_lr_only(model, df_window, station, exog_cols):
-    """Refit the regression on the training window; the residual SARIMA is left untouched."""
+    """Refit the regression on the training window; the residual SARIMA keeps its parameters."""
     _, residual_model = model
     regression = train_neighbour_regression(df_window, station, exog_cols)
+
+    # The engine only advances the state when no retraining happens, so bring it up to date here on
+    # the new regression's residuals, without refitting (as for the aging arm)
+    _, window_residuals = stage_one_residuals(df_window, station, exog_cols, regression=regression)
+    residual_model = residual_model.apply(endog=window_residuals, refit=False)
+
     return (regression, residual_model), exog_cols
 
 
