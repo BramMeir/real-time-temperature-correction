@@ -4,12 +4,17 @@ neighbouring stations and the same model trained on the LASSO-selected subset, b
 of determine_LASSO_performance_RegressionSARIMAErrors.py. Mirrors plot_LASSO_selection_improvement.py.
 The plots are saved in the "plots" directory for further analysis and presentation.
 
-python -m src.plotting.plot_LASSO_performance_RegressionSARIMAErrors
+python -m src.plotting.plot_LASSO_performance_RegressionSARIMAErrors [--metric MAE|RMSE]
 """
+import argparse
 import os
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
+
+# Error metric to report, set from --metric. RMSE is derived per row as sqrt(MSE), so the
+# reported value is the mean of the per-forecast RMSEs, as in plot_model_comparisons.py.
+METRIC = "MAE"
 
 
 def load_results(results_dir="output/LASSO_performance_regression_sarima_errors"):
@@ -30,13 +35,14 @@ def load_results(results_dir="output/LASSO_performance_regression_sarima_errors"
         raise RuntimeError(f"No result files found in {results_dir}.")
 
     df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+    df["rmse"] = df["mse"] ** 0.5
 
     return df
 
 
-def plot_mae_per_station(df, output_dir):
+def plot_improvement_per_station(df, output_dir):
     """
-    Bar plot of the MAE difference (all stations minus LASSO) per target station, averaged over
+    Bar plot of the error (METRIC) difference (all stations minus LASSO) per target station, averaged over
     repeats and horizons. A positive bar means LASSO improved on using all stations.
 
     Input
@@ -45,33 +51,33 @@ def plot_mae_per_station(df, output_dir):
     output_dir: directory where the plot will be saved
     """
     per_station = (
-        df.pivot_table(index=["dataset", "station"], columns="arm", values="mae", aggfunc="mean")
+        df.pivot_table(index=["dataset", "station"], columns="arm", values=METRIC.lower(), aggfunc="mean")
         .reset_index()
     )
 
-    per_station["mae_difference"] = per_station["all"] - per_station["lasso"]
-    per_station = per_station.sort_values("mae_difference", ascending=False)
+    per_station["difference"] = per_station["all"] - per_station["lasso"]
+    per_station = per_station.sort_values("difference", ascending=False)
 
-    colors = per_station["mae_difference"].apply(lambda x: "tab:green" if x > 0 else "tab:red")
+    colors = per_station["difference"].apply(lambda x: "tab:green" if x > 0 else "tab:red")
 
     plt.figure(figsize=(10, 6))
 
     plt.bar(
         per_station["station"],
-        per_station["mae_difference"],
+        per_station["difference"],
         color=colors,
         alpha=0.85
     )
 
-    baseline_mae = per_station["all"].mean()
-    lasso_mae = per_station["lasso"].mean()
-    mean_improvement = per_station["mae_difference"].mean()
+    baseline_error = per_station["all"].mean()
+    lasso_error = per_station["lasso"].mean()
+    mean_improvement = per_station["difference"].mean()
 
     plt.text(
         0.99, 0.98,
         (
-            f"Mean MAE (all stations): {baseline_mae:.3f} °C\n"
-            f"Mean MAE (LASSO selection): {lasso_mae:.3f} °C\n"
+            f"Mean {METRIC} (all stations): {baseline_error:.3f} °C\n"
+            f"Mean {METRIC} (LASSO selection): {lasso_error:.3f} °C\n"
             f"Mean improvement: {mean_improvement:.3f} °C"
         ),
         transform=plt.gca().transAxes,
@@ -83,18 +89,18 @@ def plot_mae_per_station(df, output_dir):
 
     plt.axhline(0, linestyle="--")
 
-    plt.ylabel("MAE improvement over using all stations (°C)")
+    plt.ylabel(f"{METRIC} improvement over using all stations (°C)")
     plt.xlabel("Target stations (ranked by improvement)")
     plt.xticks([])
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "mae_improvement_per_station.png"))
+    plt.savefig(os.path.join(output_dir, f"{METRIC.lower()}_improvement_per_station.png"))
     plt.close()
 
 
-def plot_mae_vs_horizon(df, output_dir):
+def plot_error_vs_horizon(df, output_dir):
     """
-    Mean MAE per horizon, one line per arm, to see whether LASSO's effect (if any) depends on lead time.
+    Mean error (METRIC) per horizon, one line per arm, to see whether LASSO's effect (if any) depends on lead time.
 
     Input
     -----
@@ -104,16 +110,16 @@ def plot_mae_vs_horizon(df, output_dir):
     plt.figure(figsize=(9, 5))
 
     for arm, group in df.groupby("arm"):
-        agg = group.groupby("horizon")["mae"].mean().reset_index()
-        plt.plot(agg["horizon"], agg["mae"], marker="o", label=arm)
+        agg = group.groupby("horizon")[METRIC.lower()].mean().reset_index()
+        plt.plot(agg["horizon"], agg[METRIC.lower()], marker="o", label=arm)
 
     plt.xlabel("Forecast horizon (hours)")
-    plt.ylabel("Mean MAE (°C)")
+    plt.ylabel(f"Mean {METRIC} (°C)")
     plt.legend(title="Stations used")
     plt.grid(True, linestyle="--", alpha=0.6)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "mae_vs_horizon_per_arm.png"))
+    plt.savefig(os.path.join(output_dir, f"{METRIC.lower()}_vs_horizon_per_arm.png"))
     plt.close()
 
 
@@ -225,12 +231,20 @@ def generate_lasso_properties_table(df, duration_vs_stations_correlation):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--metric", choices=["MAE", "RMSE"], default="MAE")
+    METRIC = parser.parse_args().metric
+
     output_dir = "plots/LASSO_regression_sarima_errors"
     os.makedirs(output_dir, exist_ok=True)
 
     df = load_results()
 
-    plot_mae_per_station(df, output_dir)
-    plot_mae_vs_horizon(df, output_dir)
-    duration_vs_stations_correlation = plot_training_duration_vs_nr_stations(df, output_dir)
-    generate_lasso_properties_table(df, duration_vs_stations_correlation)
+    plot_improvement_per_station(df, output_dir)
+    plot_error_vs_horizon(df, output_dir)
+
+    # Training duration and selection properties do not depend on the metric, so only the MAE run
+    # draws and prints them
+    if METRIC == "MAE":
+        duration_vs_stations_correlation = plot_training_duration_vs_nr_stations(df, output_dir)
+        generate_lasso_properties_table(df, duration_vs_stations_correlation)

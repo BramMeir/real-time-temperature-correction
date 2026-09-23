@@ -3,8 +3,9 @@ Script: plot_model_aging_RegressionSARIMAErrors.py
 Description: Plots to analyze the effect of model aging on the two-stage regression with SARIMA
 errors model's performance. Mirrors plot_model_aging.py, which ran this analysis for ARIMAX.
 
-Usage: python -m src.plotting.plot_model_aging_RegressionSARIMAErrors
+Usage: python -m src.plotting.plot_model_aging_RegressionSARIMAErrors [--metric MAE|RMSE]
 """
+import argparse
 import numpy as np
 import os
 import pandas as pd
@@ -20,10 +21,20 @@ DATASET_LABELS = {
 }
 OUTPUT_DIR = "plots/aging_model_regression_sarima_errors/"
 
+# Error metric to report, set from --metric. RMSE is derived per row as sqrt(MSE), so the
+# reported value is the mean of the per-forecast RMSEs, as in plot_model_comparisons.py.
+METRIC = "MAE"
+
+
+def _plot_path(name):
+    """Keep the MAE filenames unchanged, suffix any other metric so it doesn't overwrite them."""
+    suffix = "" if METRIC == "MAE" else f"_{METRIC.lower()}"
+    return os.path.join(OUTPUT_DIR, f"{name}{suffix}.png")
+
 
 def load_data():
     """
-    Load the MAE results from the CSV files for each dataset and combine them into a single DataFrame.
+    Load the results from the CSV files for each dataset and combine them into a single DataFrame.
 
     Output:
     -------
@@ -43,6 +54,7 @@ def load_data():
         # Ensure correct data types
         df["age_gap"] = df["age_gap"].astype(int)
         df["mae"] = df["mae"].astype(float)
+        df["rmse"] = np.sqrt(df["mse"].astype(float))
 
         dfs.append(df)
 
@@ -73,20 +85,21 @@ def add_confidence_interval(grouped_df, std_col, count_col):
 
 def plot_datasets(df):
     """
-    Plot the MAE degradation over time for each dataset, showing the mean and confidence intervals.
+    Plot the error (METRIC) degradation over time for each dataset, showing the mean and confidence intervals.
 
     Input:
     ------
-    df: A DataFrame containing the MAE values per dataset, station, and age gap.
+    df: A DataFrame containing the error values per dataset, station, and age gap.
     """
+    column = METRIC.lower()
     grouped = df.groupby(["dataset", "age_gap"]).agg(
-        mae_mean=("mae", "mean"),
-        mae_std=("mae", "std"),
-        count=("mae", "count")
+        error_mean=(column, "mean"),
+        error_std=(column, "std"),
+        count=(column, "count")
     ).reset_index()
 
     # Add confidence intervals to the grouped DataFrame
-    grouped = add_confidence_interval(grouped, "mae_std", "count")
+    grouped = add_confidence_interval(grouped, "error_std", "count")
 
     plt.figure(figsize=(9, 5))
 
@@ -95,7 +108,7 @@ def plot_datasets(df):
 
         plt.errorbar(
             sub["age_gap"],
-            sub["mae_mean"],
+            sub["error_mean"],
             yerr=sub["ci95"],
             capsize=4,
             marker="o",
@@ -103,39 +116,41 @@ def plot_datasets(df):
         )
 
     plt.xlabel("Days since last training")
-    plt.ylabel("Mean MAE (°C)")
+    plt.ylabel(f"Mean {METRIC} (°C)")
     plt.legend(title="Datasets", frameon=True, loc="best")
     plt.grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(f"{OUTPUT_DIR}/aging_datasets.png", dpi=300)
+    plt.savefig(_plot_path("aging_datasets"), dpi=300)
     plt.close()
 
 
 def plot_relative(df):
     """
-    Plot the relative degradation of MAE over time for each dataset, showing how the performance degrades relative
+    Plot the relative degradation of the error (METRIC) over time for each dataset, showing how the performance degrades relative
     to the starting point.
 
     Input:
     ------
-    df: A DataFrame containing the MAE values per dataset, station, and age gap, with columns 'dataset', 'station', 'age_gap', and 'mae'.
+    df: A DataFrame containing the error values per dataset, station, and age gap, with columns 'dataset', 'station', 'age_gap', and 'mae'/'rmse'.
     """
+    column = METRIC.lower()
+
     # Compute baseline per dataset + station
     baseline = df[df["age_gap"] == 0].groupby(
         ["dataset", "station"]
-    )["mae"].mean().reset_index()
+    )[column].mean().reset_index()
 
-    baseline = baseline.rename(columns={"mae": "mae_baseline"})
+    baseline = baseline.rename(columns={column: "error_baseline"})
 
     df = df.merge(baseline, on=["dataset", "station"])
-    df["rel_mae"] = df["mae"] / df["mae_baseline"]
+    df["rel_error"] = df[column] / df["error_baseline"]
 
     # Aggregate
     grouped = df.groupby(["dataset", "age_gap"]).agg(
-        rel_mean=("rel_mae", "mean"),
-        rel_std=("rel_mae", "std"),
-        count=("rel_mae", "count")
+        rel_mean=("rel_error", "mean"),
+        rel_std=("rel_error", "std"),
+        count=("rel_error", "count")
     ).reset_index()
 
     # Add confidence intervals (same as elsewhere)
@@ -166,52 +181,57 @@ def plot_relative(df):
     )
 
     plt.xlabel("Days since last training")
-    plt.ylabel("Relative MAE (vs. day 0)")
+    plt.ylabel(f"Relative {METRIC} (vs. day 0)")
     plt.legend(title="Datasets", frameon=True, loc="best")
     plt.grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(f"{OUTPUT_DIR}/aging_relative.png", dpi=300)
+    plt.savefig(_plot_path("aging_relative"), dpi=300)
     plt.close()
 
 
 def plot_overall(df):
     """
-    Plot the overall MAE degradation over time, averaging across all datasets and stations.
+    Plot the overall error (METRIC) degradation over time, averaging across all datasets and stations.
 
     Input:
     ------
-    df: A DataFrame containing the MAE values per dataset, station, and age gap.
+    df: A DataFrame containing the error values per dataset, station, and age gap.
     """
+    column = METRIC.lower()
     grouped = df.groupby("age_gap").agg(
-        mae_mean=("mae", "mean"),
-        mae_std=("mae", "std"),
-        count=("mae", "count")
+        error_mean=(column, "mean"),
+        error_std=(column, "std"),
+        count=(column, "count")
     ).reset_index()
 
     # Add confidence intervals to the grouped DataFrame
-    grouped = add_confidence_interval(grouped, "mae_std", "count")
+    grouped = add_confidence_interval(grouped, "error_std", "count")
 
     plt.figure(figsize=(9, 5))
 
     plt.errorbar(
         grouped["age_gap"],
-        grouped["mae_mean"],
+        grouped["error_mean"],
         yerr=grouped["ci95"],
         capsize=4,
         marker="o",
     )
 
     plt.xlabel("Days since last training")
-    plt.ylabel("Mean MAE (°C)")
+    plt.ylabel(f"Mean {METRIC} (°C)")
     plt.grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(f"{OUTPUT_DIR}/aging_overall.png", dpi=300)
+    plt.savefig(_plot_path("aging_overall"), dpi=300)
     plt.close()
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--metric", choices=["MAE", "RMSE"], default="MAE")
+    METRIC = parser.parse_args().metric
+
     # Ensure output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
