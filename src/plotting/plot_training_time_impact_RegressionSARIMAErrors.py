@@ -4,12 +4,23 @@ errors model, based on the results of determine_optimal_training_weeks_Regressio
 Mirrors plot_training_time_impact_ARIMAX.py so the two models can be compared on the same kind of plots.
 The plots are saved in the "plots" directory for further analysis and presentation.
 
-python -m src.plotting.plot_training_time_impact_RegressionSARIMAErrors
+python -m src.plotting.plot_training_time_impact_RegressionSARIMAErrors [--metric MAE|RMSE]
 """
+import argparse
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import glob
+
+# Error metric to report, set from --metric. RMSE is derived per row as sqrt(MSE), so the
+# reported value is the mean of the per-forecast RMSEs, as in plot_model_comparisons.py.
+METRIC = "MAE"
+
+
+def _file_name(name):
+    """Keep the MAE filenames unchanged, suffix any other metric so it doesn't overwrite them."""
+    suffix = "" if METRIC == "MAE" else f"_{METRIC.lower()}"
+    return f"{name}{suffix}.png"
 
 
 def load_training_weeks_results(results_dir="output/optimal_nr_training_weeks_regression_sarima_errors"):
@@ -56,13 +67,14 @@ def load_training_weeks_results(results_dir="output/optimal_nr_training_weeks_re
     # Ensure correct dtypes
     combined_df["training_weeks"] = combined_df["training_weeks"].astype(int)
     combined_df["horizon"] = combined_df["horizon"].astype(int)
+    combined_df["rmse"] = combined_df["mse"] ** 0.5
 
     return combined_df
 
 
-def plot_mae_vs_training_weeks(df, output_dir):
+def plot_error_vs_training_weeks(df, output_dir):
     """
-    Average MAE in function of the number of training weeks, with error bands for standard deviation.
+    Average error (METRIC) in function of the number of training weeks, with error bands for standard deviation.
 
     Input:
     ------
@@ -71,7 +83,7 @@ def plot_mae_vs_training_weeks(df, output_dir):
     """
 
     summary = (
-        df.groupby("training_weeks")["mae"]
+        df.groupby("training_weeks")[METRIC.lower()]
         .agg(["mean", "std", "count"])
         .reset_index()
     )
@@ -99,13 +111,13 @@ def plot_mae_vs_training_weeks(df, output_dir):
     plt.xlim(left=0)
 
     plt.xlabel("Number of training weeks")
-    plt.ylabel("Mean MAE (°C)")
+    plt.ylabel(f"Mean {METRIC} (°C)")
 
     # Subtle grid
     plt.grid(True, linestyle="--", alpha=0.6)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "performance_vs_training_weeks.png"))
+    plt.savefig(os.path.join(output_dir, _file_name("performance_vs_training_weeks")))
     plt.close()
 
 
@@ -153,7 +165,7 @@ def plot_training_time_vs_weeks(df, output_dir):
 
 def plot_performance_vs_training_time(df, output_dir):
     """
-    Scatter plot of average MAE vs average training time, per number of training weeks.
+    Scatter plot of average error (METRIC) vs average training time, per number of training weeks.
     This helps to visualize the trade-off between training time and performance.
 
     Input:
@@ -165,7 +177,7 @@ def plot_performance_vs_training_time(df, output_dir):
     agg = (
         df.groupby("training_weeks")
         .agg(
-            mae_mean=("mae", "mean"),
+            error_mean=(METRIC.lower(), "mean"),
             duration_mean=("training_duration", "mean"),
         )
         .reset_index()
@@ -175,7 +187,7 @@ def plot_performance_vs_training_time(df, output_dir):
 
     plt.scatter(
         agg["duration_mean"],
-        agg["mae_mean"],
+        agg["error_mean"],
         s=60,
         color="C0",
         zorder=3
@@ -186,7 +198,7 @@ def plot_performance_vs_training_time(df, output_dir):
 
     plt.plot(
         agg_sorted["duration_mean"],
-        agg_sorted["mae_mean"],
+        agg_sorted["error_mean"],
         linestyle="--",
         linewidth=1.5,
         alpha=0.7,
@@ -198,7 +210,7 @@ def plot_performance_vs_training_time(df, output_dir):
     for _, row in agg.iterrows():
         plt.annotate(
             f'{int(row["training_weeks"])} {"weeks" if row["training_weeks"] != 1 else "week"}',  # short label
-            (row["duration_mean"], row["mae_mean"]),
+            (row["duration_mean"], row["error_mean"]),
             xytext=(3, 5),
             textcoords="offset points",
             fontsize=9,
@@ -207,7 +219,7 @@ def plot_performance_vs_training_time(df, output_dir):
         )
 
     plt.xlabel("Mean training time (seconds)")
-    plt.ylabel("Mean MAE (°C)")
+    plt.ylabel(f"Mean {METRIC} (°C)")
 
     # Subtle grid (zorder keeps the points and labels above the grid)
     plt.grid(True, linestyle="-", alpha=0.4, zorder=0)
@@ -220,13 +232,13 @@ def plot_performance_vs_training_time(df, output_dir):
 
     plt.tight_layout(pad=1.0)
 
-    plt.savefig(os.path.join(output_dir, "performance_vs_training_time.png"))
+    plt.savefig(os.path.join(output_dir, _file_name("performance_vs_training_time")))
     plt.close()
 
 
-def plot_mae_vs_weeks_per_horizon(df, output_dir):
+def plot_error_vs_weeks_per_horizon(df, output_dir):
     """
-    MAE in function of the number of training weeks, per forecast horizon. This helps to understand
+    Error (METRIC) in function of the number of training weeks, per forecast horizon. This helps to understand
     the impact of training time on performance for different forecast horizons.
 
     Input:
@@ -243,7 +255,7 @@ def plot_mae_vs_weeks_per_horizon(df, output_dir):
         group = df[df["horizon"] == horizon]
 
         agg = (
-            group.groupby("training_weeks")["mae"]
+            group.groupby("training_weeks")[METRIC.lower()]
             .agg(["mean", "std", "count"])
             .reset_index()
         )
@@ -257,7 +269,7 @@ def plot_mae_vs_weeks_per_horizon(df, output_dir):
         )
 
     plt.xlabel("Number of training weeks")
-    plt.ylabel("Mean MAE (°C)")
+    plt.ylabel(f"Mean {METRIC} (°C)")
 
     plt.grid(True, linestyle="-", alpha=0.3)
 
@@ -267,11 +279,15 @@ def plot_mae_vs_weeks_per_horizon(df, output_dir):
     )
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "performance_vs_training_weeks_per_horizon.png"))
+    plt.savefig(os.path.join(output_dir, _file_name("performance_vs_training_weeks_per_horizon")))
     plt.close()
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--metric", choices=["MAE", "RMSE"], default="MAE")
+    METRIC = parser.parse_args().metric
+
     output_dir = "plots/training_time_impact_regression_sarima_errors"
     os.makedirs(output_dir, exist_ok=True)
 
@@ -279,7 +295,9 @@ if __name__ == "__main__":
     df = load_training_weeks_results(results_dir)
 
     # Make the plots
-    plot_mae_vs_training_weeks(df, output_dir)
-    plot_training_time_vs_weeks(df, output_dir)
+    plot_error_vs_training_weeks(df, output_dir)
+    # The training time does not depend on the metric, so only the default run draws it
+    if METRIC == "MAE":
+        plot_training_time_vs_weeks(df, output_dir)
     plot_performance_vs_training_time(df, output_dir)
-    plot_mae_vs_weeks_per_horizon(df, output_dir)
+    plot_error_vs_weeks_per_horizon(df, output_dir)
