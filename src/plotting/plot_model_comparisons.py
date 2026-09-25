@@ -18,7 +18,7 @@ METRIC = "MAE"
 METRIC_CAPTIONS = {"MAE": "Mean absolute error", "RMSE": "Root mean squared error"}
 
 # Zoom window in degrees for the zoomed horizon plot, per metric
-ZOOM_RANGES = {"MAE": (0.2, 1.3), "RMSE": (0.3, 1.8)}
+ZOOM_RANGES = {"MAE": (0.2, 1.3), "RMSE": (0.3, 1.6)}
 
 
 def _metric_label():
@@ -59,9 +59,31 @@ def plot_overall_model_performance(df):
 # Model keys as written in the result csv files -> the names used in the paper
 LATEX_MODEL_NAMES = {
     "RegressionSARIMAErrors": "RegSARIMA",
+    "ARIMAX": "SARIMAX",
+    "ARIMA": "SARIMA",
     "LinearRegression": "Neighbour regression",
     "IDW": "IDW (concurrent)",
     "Climatology": "Hourly climatology",
+}
+
+# Models that were run but are not part of the paper's comparison
+EXCLUDED_MODELS = ["XGBoost"]
+
+# One fixed colour per model: matplotlib's default cycle has only ten colours, so with more
+# models two curves would share a colour
+MODEL_COLOURS = {
+    "RegressionSARIMAErrors": "black",
+    "ARIMAX": "tab:blue",
+    "LinearRegression": "tab:cyan",
+    "IDW": "tab:olive",
+    "TCN": "tab:red",
+    "LSTM": "tab:purple",
+    "Transformer": "tab:pink",
+    "MLP": "tab:brown",
+    "RF": "tab:orange",
+    "ARIMA": "tab:green",
+    "Persistence": "tab:gray",
+    "Climatology": "goldenrod",
 }
 
 
@@ -78,7 +100,7 @@ MODEL_FAMILIES = [
     ("Temporal only", ["ARIMA", "Persistence", "Climatology"]),
     ("Spatial only", ["LinearRegression", "IDW"]),
     ("Spatial and temporal",
-     ["RegressionSARIMAErrors", "ARIMAX", "TCN", "LSTM", "MLP", "Transformer", "RF", "XGBoost"]),
+     ["RegressionSARIMAErrors", "ARIMAX", "TCN", "LSTM", "MLP", "Transformer", "RF"]),
 ]
 
 
@@ -220,6 +242,7 @@ def plot_performance_vs_horizon(df):
             yerr=model_data["ci95"],
             marker="o",
             capsize=4,
+            color=MODEL_COLOURS[model],
             label=_display_name(model)
         )
 
@@ -253,7 +276,7 @@ def plot_performance_vs_horizon_with_zoom(df):
 
     _, (ax_top, ax_zoom) = plt.subplots(
         2, 1, sharex=True, figsize=(10, 8),
-        gridspec_kw={"height_ratios": [2, 1]}
+        gridspec_kw={"height_ratios": [1, 1]}
     )
 
     # Define zoom range
@@ -268,6 +291,7 @@ def plot_performance_vs_horizon_with_zoom(df):
             yerr=model_data["ci95"],
             marker="o",
             capsize=4,
+            color=MODEL_COLOURS[model],
             label=_display_name(model)
         )
 
@@ -276,7 +300,8 @@ def plot_performance_vs_horizon_with_zoom(df):
             model_data["mean"],
             yerr=model_data["ci95"],
             marker="o",
-            capsize=4
+            capsize=4,
+            color=MODEL_COLOURS[model]
         )
 
     # Top plot
@@ -453,6 +478,7 @@ if __name__ == "__main__":
     dfs = [pd.read_csv(f) for f in csv_files]
 
     df = pd.concat(dfs, ignore_index=True)
+    df = df[~df["Model"].isin(EXCLUDED_MODELS)]
 
     # Per-forecast RMSE, averaged the same way the MAE is
     df["RMSE"] = df["MSE"] ** 0.5
