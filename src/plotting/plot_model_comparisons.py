@@ -377,7 +377,7 @@ def plot_performance_vs_horizon_with_zoom(df):
 
     _, (ax_top, ax_zoom) = plt.subplots(
         2, 1, sharex=True, figsize=(10, 8),
-        gridspec_kw={"height_ratios": [1, 1]}
+        gridspec_kw={"height_ratios": [3, 2]}
     )
 
     # Define zoom range
