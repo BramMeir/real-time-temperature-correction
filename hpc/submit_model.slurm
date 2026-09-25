@@ -8,6 +8,7 @@
 # extra timing consistency.
 #
 # Usage: sbatch --export=MODEL=XGBoost hpc/submit_model.slurm
+#        sbatch --export=MODEL=ARIMAX,OUTPUT_DIR=output/models_comparison_linear hpc/submit_model.slurm
 # (submit_all.sh loops this over every model)
 
 #SBATCH --job-name=models_comparison_%x
@@ -76,5 +77,10 @@ export POETRY_VIRTUALENVS_PATH="${TMPDIR:-/tmp}/poetry-venv-$SLURM_JOB_ID"
 export POETRY_KEYRING_ENABLED=false
 
 poetry install --no-interaction --no-root
-mkdir -p output/models_comparison
-poetry run python -m src.scripts.models_comparison_experiment --model "$MODEL" --training_weeks "$WEEKS"
+
+# A rerun of some models can go to its own directory (--export=MODEL=...,OUTPUT_DIR=...), so it does
+# not overwrite the full run
+OUTPUT_DIR="${OUTPUT_DIR:-output/models_comparison}"
+mkdir -p "$OUTPUT_DIR"
+poetry run python -m src.scripts.models_comparison_experiment --model "$MODEL" --training_weeks "$WEEKS" \
+    --output_dir "$OUTPUT_DIR"

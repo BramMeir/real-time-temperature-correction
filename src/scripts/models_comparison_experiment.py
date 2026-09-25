@@ -3,6 +3,7 @@ Main script to run the full experiment comparing all models across all datasets,
 and forecast horizons. The results are saved to a CSV file for later analysis.
 
 python -m src.scripts.models_comparison_experiment --model RF
+python -m src.scripts.models_comparison_experiment --model ARIMAX --output_dir output/models_comparison_linear
 """
 import csv
 import os
@@ -67,8 +68,13 @@ DATASETS = {
 # Seed that is used to define the training periods (for reproducibility)
 SEED = 42
 
-# Forecasting horizons in hours (4h, 12h, 1D, 2D, 4D, 7D, 14D, 21D, 30D)
-HORIZONS = [4, 12, 24, 48, 96, 168, 336, 504, 720]
+# Forecasting horizons in hours (1h, 4h, 12h, 1D, 2D, 4D, 7D, 14D, 21D, 30D). The single hour is where
+# the temporal stage of the two-stage model helps most. The longest horizon also sets the forecast starts,
+# so adding a shorter one leaves the windows unchanged
+HORIZONS = [1, 4, 12, 24, 48, 96, 168, 336, 504, 720]
+
+# Directory the results are written to
+OUTPUT_DIR = "output/models_comparison"
 
 NUMBER_OF_REPEATS = 10
 
@@ -348,7 +354,7 @@ def run_single_experiment(task):
     ] for horizon, mae, mse, forecast_duration in results]
 
 
-def run_all_experiments(model_name, training_weeks):
+def run_all_experiments(model_name, training_weeks, output_dir=OUTPUT_DIR):
     """
     Main function to run all experiments across datasets, stations, training periods, and forecast horizons. The results are
     saved to a CSV file for later analysis.
@@ -357,8 +363,11 @@ def run_all_experiments(model_name, training_weeks):
     -----
     model_name: Name of the model to run (must be a key in the MODELS dictionary)
     training_weeks: Number of weeks to use for training
+    output_dir: Directory to write the results to (default is OUTPUT_DIR)
     """
-    with open(f"output/models_comparison/{model_name}_{training_weeks}_weeks.csv", "w", newline="") as f:
+    os.makedirs(output_dir, exist_ok=True)
+
+    with open(f"{output_dir}/{model_name}_{training_weeks}_weeks.csv", "w", newline="") as f:
         # Create CSV writer and write header
         writer = csv.writer(f)
 
@@ -472,7 +481,10 @@ if __name__ == "__main__":
                         help="Name of the model to run (must be a key in the MODELS dictionary)")
     parser.add_argument("--training_weeks", type=int, default=8,
                         help="Number of weeks to use for training (default: 8)")
+    parser.add_argument("--output_dir", default=OUTPUT_DIR,
+                        help=f"Directory to write the results to, so a rerun of some models does not overwrite "
+                             f"the full run (default: {OUTPUT_DIR})")
     args = parser.parse_args()
 
     # Run all experiments and save results to CSV
-    run_all_experiments(args.model, args.training_weeks)
+    run_all_experiments(args.model, args.training_weeks, args.output_dir)
