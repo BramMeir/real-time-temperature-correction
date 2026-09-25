@@ -213,6 +213,107 @@ def generate_overall_results_table(df):
     print("\n".join(lines))
 
 
+# Dataset keys as written in the result csv files -> the names used in the paper, in table order
+LATEX_DATASET_NAMES = {"KMI": "RMI", "TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
+
+# Outage durations shown per dataset in the appendix table, as (hours, column label)
+DATASET_HORIZONS = [(4, "4\\,h"), (720, "30\\,d")]
+
+
+def generate_dataset_results_table(df):
+    """
+    Generate a table with the error (METRIC) per dataset over a short and a long outage, and print it as
+    a booktabs LaTeX table in the style of the paper (tab:perdataset).
+
+    The best model is marked per column, so it can be read whether the ranking holds on every network.
+    Values are compared as printed, so models that tie at the reported precision are all marked.
+    The models keep the order of the overall table.
+
+    Input:
+    ------
+    df: DataFrame containing all the results, with the horizon in hours
+    (columns: Dataset,Station,Model,Train_start,Train_end,Horizon,MAE,MSE)
+    """
+    decimals = 3
+    datasets = [d for d in LATEX_DATASET_NAMES if d in set(df["Dataset"])]
+    errors = df.pivot_table(index="Model", columns=["Dataset", "Horizon"], values=METRIC, aggfunc="mean")
+    columns = [(dataset, hours) for dataset in datasets for hours, _ in DATASET_HORIZONS]
+
+    # Same grouping and order as the overall table
+    overall = df.pivot_table(index="Model", columns="Horizon", values=METRIC, aggfunc="mean")
+    families = _family_order(overall)
+
+    rounded = errors[columns].round(decimals)
+    best = rounded == rounded.min()
+
+    header = ["\\textbf{Model}"] + [f"\\textbf{{{label}}}" for _ in datasets for _, label in DATASET_HORIZONS]
+    body = []
+    for _, models in families:
+        body.append(None)
+        for model in models:
+            cells = [_display_name(model)] + [
+                _latex_cell(errors.loc[model, column], decimals, best.loc[model, column]) for column in columns
+            ]
+            body.append(cells)
+
+    # Pad every column so the ampersands line up in the .tex source
+    rows = [cells for cells in body if cells]
+    widths = [max(len(row[i]) for row in [header] + rows) for i in range(len(header))]
+
+    def format_row(cells):
+        padded = [cell.ljust(width) for cell, width in zip(cells, widths)]
+        return "    " + " & ".join(padded).rstrip() + " \\\\"
+
+    span = len(DATASET_HORIZONS)
+    groups = " & ".join(
+        f"\\multicolumn{{{span}}}{{c}}{{\\textbf{{{LATEX_DATASET_NAMES[d]}}}}}" for d in datasets
+    )
+    rules = "".join(
+        f"\\cmidrule({'l' if i == len(datasets) - 1 else 'lr'}){{{2 + i * span}-{1 + (i + 1) * span}}}"
+        for i in range(len(datasets))
+    )
+
+    stations = df.groupby("Dataset")["Station"].nunique()
+    windows = df.groupby(["Dataset", "Station"])["Train_start"].nunique()
+    counts = ", ".join(f"{LATEX_DATASET_NAMES[d]}: {stations[d]}" for d in datasets)
+    caption = (
+        f"{METRIC} (\\textcelsius) per dataset over 4-hour and 30-day outages ({counts} stations; "
+        f"{windows.max()} windows per station). Bold marks the lowest error per column."
+    )
+
+    lines = [
+        "\\begin{table}[!htbp]",
+        "  \\centering",
+        f"  \\caption{{{caption}}}",
+        "  \\label{tab:perdataset}",
+        "  \\small",
+        "  \\setlength{\\tabcolsep}{4pt}",
+        f"  \\begin{{tabular*}}{{\\linewidth}}{{@{{\\extracolsep{{\\fill}}}}l{'r' * len(columns)}@{{}}}}",
+        "    \\toprule",
+        f"    & {groups} \\\\",
+        f"    {rules}",
+        format_row(header),
+        "    \\midrule",
+    ]
+    for index, cells in enumerate(body):
+        if cells is None:
+            if index:
+                lines.append("    \\addlinespace")
+        else:
+            lines.append(format_row(cells))
+    lines += [
+        "    \\bottomrule",
+        "  \\end{tabular*}",
+        "\\end{table}",
+    ]
+
+    print(f"\n=== Model Performance per Dataset ({METRIC}) ===")
+    print(errors[columns].to_string())
+
+    print("\nLaTeX code for the per dataset results table:")
+    print("\n".join(lines))
+
+
 def plot_performance_vs_horizon(df):
     """
     2. Plot the error (METRIC) vs forecast horizon for each model.
@@ -488,6 +589,7 @@ if __name__ == "__main__":
 
     # The results table reports per outage duration, so it needs the horizon in hours
     generate_overall_results_table(df)
+    generate_dataset_results_table(df)
 
     # Convert horizon to days for better readability
     df["Horizon"] = df["Horizon"] / 24
