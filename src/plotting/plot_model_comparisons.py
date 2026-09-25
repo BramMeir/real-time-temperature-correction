@@ -62,8 +62,8 @@ LATEX_MODEL_NAMES = {
     "ARIMAX": "SARIMAX",
     "ARIMA": "SARIMA",
     "LinearRegression": "Neighbour regression",
-    "IDW": "IDW (concurrent)",
     "Climatology": "Hourly climatology",
+    "RF": "Random forest",
 }
 
 # Models that were run but are not part of the paper's comparison
