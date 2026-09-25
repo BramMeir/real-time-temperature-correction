@@ -275,9 +275,12 @@ def generate_dataset_results_table(df):
 
     stations = df.groupby("Dataset")["Station"].nunique()
     windows = df.groupby(["Dataset", "Station"])["Train_start"].nunique()
-    counts = ", ".join(f"{LATEX_DATASET_NAMES[d]}: {stations[d]}" for d in datasets)
+    # Acronyms keep their capitals, other names are lower case mid-sentence, as in the paper
+    names = [name if name.isupper() else name.lower() for name in map(LATEX_DATASET_NAMES.get, datasets)]
+    counts = [f"{name}: {stations[d]}" for name, d in zip(names, datasets)]
+    counts[0] += " stations"
     caption = (
-        f"{METRIC} (\\textcelsius) per dataset over 4-hour and 30-day outages ({counts} stations; "
+        f"{METRIC} (\\textcelsius) per network over 4-hour and 30-day outages ({', '.join(counts)}; "
         f"{windows.max()} windows per station). Bold marks the lowest error per column."
     )
 
@@ -310,7 +313,7 @@ def generate_dataset_results_table(df):
     print(f"\n=== Model Performance per Dataset ({METRIC}) ===")
     print(errors[columns].to_string())
 
-    print("\nLaTeX code for the per dataset results table:")
+    print("\nLaTeX code for the per network results table:")
     print("\n".join(lines))
 
 
