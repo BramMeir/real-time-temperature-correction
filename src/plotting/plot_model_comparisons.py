@@ -227,7 +227,7 @@ def generate_dataset_results_table(df):
 
     The best model is marked per column, so it can be read whether the ranking holds on every network.
     Values are compared as printed, so models that tie at the reported precision are all marked.
-    The models keep the order of the overall table.
+    The models keep the grouping and order of the overall table.
 
     Input:
     ------
@@ -247,22 +247,26 @@ def generate_dataset_results_table(df):
     best = rounded == rounded.min()
 
     header = ["\\textbf{Model}"] + [f"\\textbf{{{label}}}" for _ in datasets for _, label in DATASET_HORIZONS]
+    # Either ("group", family name) or ("model", cells), in table order
     body = []
-    for _, models in families:
-        body.append(None)
+    for family, models in families:
+        body.append(("group", family))
         for model in models:
-            cells = [_display_name(model)] + [
+            cells = ["\\quad " + _display_name(model)] + [
                 _latex_cell(errors.loc[model, column], decimals, best.loc[model, column]) for column in columns
             ]
-            body.append(cells)
+            body.append(("model", cells))
 
     # Pad every column so the ampersands line up in the .tex source
-    rows = [cells for cells in body if cells]
+    rows = [cells for kind, cells in body if kind == "model"]
     widths = [max(len(row[i]) for row in [header] + rows) for i in range(len(header))]
 
     def format_row(cells):
         padded = [cell.ljust(width) for cell, width in zip(cells, widths)]
         return "    " + " & ".join(padded).rstrip() + " \\\\"
+
+    def format_group(family):
+        return f"    \\multicolumn{{{len(header)}}}{{l}}{{\\emph{{{family}}}}} \\\\"
 
     span = len(DATASET_HORIZONS)
     groups = " & ".join(
@@ -281,7 +285,8 @@ def generate_dataset_results_table(df):
     counts[0] += " stations"
     caption = (
         f"{METRIC} (\\textcelsius) per network over 4-hour and 30-day outages ({', '.join(counts)}; "
-        f"{windows.max()} windows per station). Bold marks the lowest error per column."
+        f"{windows.max()} windows per station). Models are grouped and ordered as in "
+        "Table~\\ref{tab:overall}. Bold marks the lowest error per column."
     )
 
     lines = [
@@ -298,12 +303,13 @@ def generate_dataset_results_table(df):
         format_row(header),
         "    \\midrule",
     ]
-    for index, cells in enumerate(body):
-        if cells is None:
+    for index, (kind, value) in enumerate(body):
+        if kind == "group":
             if index:
                 lines.append("    \\addlinespace")
+            lines.append(format_group(value))
         else:
-            lines.append(format_row(cells))
+            lines.append(format_row(value))
     lines += [
         "    \\bottomrule",
         "  \\end{tabular*}",
