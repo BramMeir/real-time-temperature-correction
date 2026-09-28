@@ -13,7 +13,8 @@ from sklearn.preprocessing import StandardScaler
 def select_LASSO_stations(
     series,
     exog_df,
-    random_state=47
+    random_state=47,
+    n_jobs=-1
 ):
     """
     Select the most useful exogenous variables using LASSO regression. Only the variables with non-zero coefficients
@@ -24,6 +25,8 @@ def select_LASSO_stations(
     series: Pandas Series with the target time series data
     exog_df: DataFrame with the exogenous variables (must have the same index as the series)
     random_state: Random seed for reproducibility (default is 42)
+    n_jobs: Number of cores the cross-validation runs on (default is -1, all cores). Pass 1 when the
+      selection itself runs inside a pool of workers, so the workers do not compete for the same cores
 
     Output
     ------
@@ -44,7 +47,7 @@ def select_LASSO_stations(
     lasso = LassoCV(
         cv=5,
         random_state=random_state,
-        n_jobs=-1,
+        n_jobs=n_jobs,
         max_iter=10000
     )
     lasso.fit(X_scaled, y.values)
