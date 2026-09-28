@@ -1,8 +1,8 @@
 """
 Maps of the stations the first stage of the two-stage model weights most, for a few representative targets of the
-synthetic network (the station selection maps of the paper). Every map shows the whole network on the same
-extent, so a highly weighted station far from the target stands out. The weights come from
-src/scripts/determine_stage_one_weights.py, which has to run first.
+synthetic network (the station selection maps of the paper). Every map is framed on the target and its marked
+neighbours, and shows the other stations in that area, so it can be seen which nearby stations the model passes
+over. The weights come from src/scripts/determine_stage_one_weights.py, which has to run first.
 
 python -m src.plotting.plot_stage_one_weight_maps
 """
@@ -30,8 +30,19 @@ MAP_TARGETS = {
 # Number of highest-weighted neighbours that are marked on every map
 TOP_N = 4
 
-# Margin around the network, as a fraction of its extent
-MARGIN = 0.06
+# Margin around the target and its marked neighbours, as a fraction of the span they cover
+MARGIN = 0.25
+
+# Smallest span of a map in Web Mercator metres (about 60 km in Belgium), so a target whose marked neighbours
+# all lie close by still shows its surroundings
+MIN_SPAN = 100_000
+
+# Width to height ratio of every map
+ASPECT = 6 / 5
+
+# Key-free basemap with place names at this scale. OpenStreetMap blocks automated requests and Carto watermarks
+# its tiles without an API key (see plot_spatial_mae_and_confidence.py)
+BASEMAP = ctx.providers.Esri.WorldTopoMap
 
 
 def load_station_points():
@@ -53,9 +64,33 @@ def load_station_points():
     ).to_crs(epsg=3857)
 
 
-def plot_weight_map(points, weights, target, filename):
+def map_extent(points):
     """
-    Plot the network with the target and its TOP_N highest-weighted neighbours marked, numbered by rank.
+    Frame a set of points with MARGIN around them, at least MIN_SPAN wide or high, in the ASPECT ratio.
+
+    Input
+    -----
+    points: GeoDataFrame with the points that have to be on the map
+
+    Output
+    ------
+    Returns (xmin, xmax, ymin, ymax) of the map.
+    """
+    xmin, ymin, xmax, ymax = points.total_bounds
+    width = max((xmax - xmin) * (1 + 2 * MARGIN), MIN_SPAN)
+    height = max((ymax - ymin) * (1 + 2 * MARGIN), MIN_SPAN / ASPECT)
+
+    # Widen the narrower side to the aspect ratio, around the centre of the points
+    width, height = max(width, height * ASPECT), max(height, width / ASPECT)
+    x, y = (xmin + xmax) / 2, (ymin + ymax) / 2
+
+    return x - width / 2, x + width / 2, y - height / 2, y + height / 2
+
+
+def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
+    """
+    Plot the target and its TOP_N highest-weighted neighbours, numbered by rank, among the other stations
+    around them.
 
     Input
     -----
@@ -63,34 +98,36 @@ def plot_weight_map(points, weights, target, filename):
     weights: DataFrame with the averaged weights, as written by determine_stage_one_weights.py
     target: Name of the target station
     filename: Path of the PNG file to write
+    basemap: Tile provider of the background map (default is BASEMAP)
     """
     top = weights[(weights["target"] == target) & (weights["weight_rank"] <= TOP_N)].sort_values("weight_rank")
+    selected = points.loc[top["neighbour"]]
+    target_point = points.loc[target].geometry
 
-    fig, ax = plt.subplots(figsize=(6, 5))
+    fig, ax = plt.subplots(figsize=(6, 6 / ASPECT))
+
+    # The extent is set before the basemap so the tiles cover it
+    xmin, xmax, ymin, ymax = map_extent(points.loc[[target] + top["neighbour"].tolist()])
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
 
     others = points.drop(index=[target] + top["neighbour"].tolist())
-    ax.scatter(others.geometry.x, others.geometry.y, s=28, color="0.45", edgecolor="white", linewidth=0.6,
+    ax.scatter(others.geometry.x, others.geometry.y, s=36, color="0.4", edgecolor="white", linewidth=0.8,
                zorder=3)
 
-    selected = points.loc[top["neighbour"]]
-    ax.scatter(selected.geometry.x, selected.geometry.y, s=150, color="tab:green", edgecolor="white",
+    # The target below the marked neighbours, so a neighbour next to it stays readable
+    ax.scatter(target_point.x, target_point.y, s=70, marker="s", color="gold", edgecolor="black",
                linewidth=1.0, zorder=4)
+
+    ax.scatter(selected.geometry.x, selected.geometry.y, s=170, color="tab:green", edgecolor="white",
+               linewidth=1.0, zorder=5)
     for rank, point in zip(top["weight_rank"], selected.geometry):
         ax.annotate(str(rank), (point.x, point.y), ha="center", va="center", fontsize=8, fontweight="bold",
-                    color="white", zorder=5)
+                    color="white", zorder=6)
 
-    target_point = points.loc[target].geometry
-    ax.scatter(target_point.x, target_point.y, s=150, marker="s", color="gold", edgecolor="black",
-               linewidth=1.2, zorder=5)
-
-    # Same extent on every map, set before the basemap so the tiles cover it
-    xmin, ymin, xmax, ymax = points.total_bounds
-    dx, dy = (xmax - xmin) * MARGIN, (ymax - ymin) * MARGIN
-    ax.set_xlim(xmin - dx, xmax + dx)
-    ax.set_ylim(ymin - dy, ymax + dy)
-
-    # Esri's grey canvas: key-free and unobtrusive under the markers (see plot_spatial_mae_and_confidence.py)
-    ctx.add_basemap(ax, source=ctx.providers.Esri.WorldGrayCanvas, alpha=0.75, attribution_size=5)
+    ctx.add_basemap(ax, source=basemap, attribution_size=4)
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
     ax.set_axis_off()
 
     plt.savefig(filename, dpi=300, bbox_inches="tight", pad_inches=0.02)
