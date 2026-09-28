@@ -52,6 +52,11 @@ TILE_HEADERS = {
 # Opacity of the basemap, slightly faded so the station markers stand out
 BASEMAP_ALPHA = 0.7
 
+# Marker of the highest-weighted neighbours: fill, size, and the halo drawn beneath it
+NEIGHBOUR_COLOR = "tab:green"
+NEIGHBOUR_SIZE = 210
+HALO_COLOR = "white"
+
 
 def load_station_points():
     """
@@ -127,9 +132,11 @@ def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
     ax.scatter(target_point.x, target_point.y, s=100, marker="s", color="gold", edgecolor="black",
                linewidth=1.2, zorder=4)
 
-    # A dark green with a black outline, so the markers stand out against the green of forests and fields
-    ax.scatter(selected.geometry.x, selected.geometry.y, s=230, color="#00843d", edgecolor="black",
-               linewidth=1.4, zorder=5)
+    # A white halo under every marker keeps it visible on the green of forests and fields
+    ax.scatter(selected.geometry.x, selected.geometry.y, s=NEIGHBOUR_SIZE + 110, color=HALO_COLOR, linewidth=0,
+               zorder=5)
+    ax.scatter(selected.geometry.x, selected.geometry.y, s=NEIGHBOUR_SIZE, color=NEIGHBOUR_COLOR, edgecolor="white",
+               linewidth=1.6, zorder=5)
     for rank, point in zip(top["weight_rank"], selected.geometry):
         ax.annotate(str(rank), (point.x, point.y), ha="center", va="center", fontsize=9, fontweight="bold",
                     color="white", zorder=6)
