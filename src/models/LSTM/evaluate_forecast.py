@@ -10,7 +10,7 @@ def evaluate_LSTM_forecast(model, number, df_train, df_test, previous_time_steps
 
     Input
     -----
-    model: Trained TensorFlow/Keras LSTM model.
+    model: Trained LSTM model (ScaledLSTM, or the Keras model from the Bayesian search).
     number: An identifier number for the forecast run.
     df_train: The DataFrame used for training the model.
     df_test: The DataFrame with the test data (true future values).
