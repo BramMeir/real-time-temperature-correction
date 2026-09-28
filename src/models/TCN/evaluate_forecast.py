@@ -9,7 +9,7 @@ def evaluate_forecast(model, y_train, X_test, y_test, dates_train, dates_test, p
 
     Input
     -----
-    model: Trained TCN model (KerasRegressor object)
+    model: Trained TCN model (ScaledTCN, or the KerasRegressor from the Bayesian search)
     X_test: Full test features, (Samples, Timesteps, Features)
     y_test: Test target variable for evaluation (1D NumPy array)
     dates_test: Datetime index corresponding to y_test
