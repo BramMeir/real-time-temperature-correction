@@ -52,6 +52,9 @@ TILE_HEADERS = {
 # Opacity of the basemap, slightly faded so the station markers stand out
 BASEMAP_ALPHA = 0.7
 
+# The maps are saved as JPEG: the basemap texture hardly compresses as PNG (about 2.5 MB per map against 0.6 MB)
+JPEG_QUALITY = 95
+
 # Marker of the highest-weighted neighbours: fill, size, and the halo drawn beneath it
 NEIGHBOUR_COLOR = "tab:green"
 NEIGHBOUR_SIZE = 210
@@ -110,7 +113,7 @@ def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
     points: GeoDataFrame with the station locations, indexed by station name
     weights: DataFrame with the averaged weights, as written by determine_stage_one_weights.py
     target: Name of the target station
-    filename: Path of the PNG file to write
+    filename: Path of the JPEG file to write
     basemap: Tile provider of the background map (default is BASEMAP)
     """
     top = weights[(weights["target"] == target) & (weights["weight_rank"] <= TOP_N)].sort_values("weight_rank")
@@ -146,7 +149,7 @@ def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
     ax.set_ylim(ymin, ymax)
     ax.set_axis_off()
 
-    plt.savefig(filename, dpi=300, bbox_inches="tight", pad_inches=0.02)
+    plt.savefig(filename, dpi=300, bbox_inches="tight", pad_inches=0.02, pil_kwargs={"quality": JPEG_QUALITY})
     plt.close(fig)
 
 
@@ -161,6 +164,6 @@ if __name__ == "__main__":
         ranks = ", ".join(f"{row.neighbour} (distance rank {row.distance_rank})" for row in top.itertuples())
         print(f"{name}: {ranks}")
 
-        plot_weight_map(points, weights, target, os.path.join(PLOTS_DIR, f"{name}.png"))
+        plot_weight_map(points, weights, target, os.path.join(PLOTS_DIR, f"{name}.jpg"))
 
     print(f"\nMaps written to {PLOTS_DIR}")
