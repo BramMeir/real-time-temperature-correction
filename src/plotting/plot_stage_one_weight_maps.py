@@ -124,13 +124,14 @@ def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
                zorder=3)
 
     # The target below the marked neighbours, so a neighbour next to it stays readable
-    ax.scatter(target_point.x, target_point.y, s=70, marker="s", color="gold", edgecolor="black",
-               linewidth=1.0, zorder=4)
+    ax.scatter(target_point.x, target_point.y, s=100, marker="s", color="gold", edgecolor="black",
+               linewidth=1.2, zorder=4)
 
-    ax.scatter(selected.geometry.x, selected.geometry.y, s=170, color="tab:green", edgecolor="white",
-               linewidth=1.0, zorder=5)
+    # A dark green with a black outline, so the markers stand out against the green of forests and fields
+    ax.scatter(selected.geometry.x, selected.geometry.y, s=230, color="#00843d", edgecolor="black",
+               linewidth=1.4, zorder=5)
     for rank, point in zip(top["weight_rank"], selected.geometry):
-        ax.annotate(str(rank), (point.x, point.y), ha="center", va="center", fontsize=8, fontweight="bold",
+        ax.annotate(str(rank), (point.x, point.y), ha="center", va="center", fontsize=9, fontweight="bold",
                     color="white", zorder=6)
 
     ctx.add_basemap(ax, source=basemap, headers=TILE_HEADERS, alpha=BASEMAP_ALPHA, attribution_size=4)
