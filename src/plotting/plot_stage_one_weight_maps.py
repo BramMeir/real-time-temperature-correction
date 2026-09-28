@@ -37,8 +37,8 @@ MARGIN = 0.25
 # all lie close by still shows its surroundings
 MIN_SPAN = 100_000
 
-# Width to height ratio of every map
-ASPECT = 6 / 5
+# Width to height ratio of every map, wider than tall so six maps fit on one page at almost the full text width
+ASPECT = 4 / 3
 
 # OpenStreetMap's standard style, which names places in their local language (Antwerpen, Gent, Namur). Its tile
 # policy blocks requests that do not identify the application, so they are sent with TILE_HEADERS. Carto watermarks
