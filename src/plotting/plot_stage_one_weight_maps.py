@@ -40,9 +40,17 @@ MIN_SPAN = 100_000
 # Width to height ratio of every map
 ASPECT = 6 / 5
 
-# Key-free basemap with place names at this scale. OpenStreetMap blocks automated requests and Carto watermarks
-# its tiles without an API key (see plot_spatial_mae_and_confidence.py)
-BASEMAP = ctx.providers.Esri.WorldTopoMap
+# OpenStreetMap's standard style, which names places in their local language (Antwerpen, Gent, Namur). Its tile
+# policy blocks requests that do not identify the application, so they are sent with TILE_HEADERS. Carto watermarks
+# its tiles without an API key, and the French OpenStreetMap style translates the names (Anvers, Gand)
+BASEMAP = ctx.providers.OpenStreetMap.Mapnik
+
+TILE_HEADERS = {
+    "User-Agent": "real-time-temperature-correction (+https://github.com/BramMeir/real-time-temperature-correction)"
+}
+
+# Opacity of the basemap, slightly faded so the station markers stand out
+BASEMAP_ALPHA = 0.7
 
 
 def load_station_points():
@@ -112,7 +120,7 @@ def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
     ax.set_ylim(ymin, ymax)
 
     others = points.drop(index=[target] + top["neighbour"].tolist())
-    ax.scatter(others.geometry.x, others.geometry.y, s=36, color="0.4", edgecolor="white", linewidth=0.8,
+    ax.scatter(others.geometry.x, others.geometry.y, s=60, color="0.2", edgecolor="white", linewidth=1.2,
                zorder=3)
 
     # The target below the marked neighbours, so a neighbour next to it stays readable
@@ -125,7 +133,7 @@ def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
         ax.annotate(str(rank), (point.x, point.y), ha="center", va="center", fontsize=8, fontweight="bold",
                     color="white", zorder=6)
 
-    ctx.add_basemap(ax, source=basemap, attribution_size=4)
+    ctx.add_basemap(ax, source=basemap, headers=TILE_HEADERS, alpha=BASEMAP_ALPHA, attribution_size=4)
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
     ax.set_axis_off()
