@@ -9,7 +9,8 @@
 #
 # Usage: sbatch --export=MODEL=XGBoost hpc/submit_model.slurm
 #        sbatch --export=MODEL=ARIMAX,OUTPUT_DIR=output/models_comparison_linear hpc/submit_model.slurm
-# (submit_all.sh loops this over every model)
+#        sbatch --export=MODEL=RF,WEEKS=4,ONSET_HISTORY_WEEKS=26,DATASETS="TURKU SYNTHETIC" hpc/submit_model.slurm
+# (submit_all.sh loops this over every model, submit_training_weeks.sh over every model and training window)
 
 #SBATCH --job-name=models_comparison_%x
 #SBATCH --output=hpc/logs/%x_%j.out
@@ -33,7 +34,7 @@ if [ -z "$MODEL" ]; then
     exit 1
 fi
 
-WEEKS=8
+WEEKS="${WEEKS:-8}"
 
 # NOTE: cluster selection (module swap cluster/joltik) must happen in the shell that
 # calls sbatch, not here - by the time this script runs, the job is already scheduled
@@ -82,5 +83,17 @@ poetry install --no-interaction --no-root
 # not overwrite the full run
 OUTPUT_DIR="${OUTPUT_DIR:-output/models_comparison}"
 mkdir -p "$OUTPUT_DIR"
+
+# A comparison of training windows fixes the forecast starts (ONSET_HISTORY_WEEKS) and can leave out a dataset
+# (DATASETS, space separated), see submit_training_weeks.sh
+EXTRA_ARGS=()
+if [ -n "${ONSET_HISTORY_WEEKS:-}" ]; then
+    EXTRA_ARGS+=(--onset_history_weeks "$ONSET_HISTORY_WEEKS")
+fi
+if [ -n "${DATASETS:-}" ]; then
+    read -ra DATASET_NAMES <<< "$DATASETS"
+    EXTRA_ARGS+=(--datasets "${DATASET_NAMES[@]}")
+fi
+
 poetry run python -m src.scripts.models_comparison_experiment --model "$MODEL" --training_weeks "$WEEKS" \
-    --output_dir "$OUTPUT_DIR"
+    --output_dir "$OUTPUT_DIR" "${EXTRA_ARGS[@]}"

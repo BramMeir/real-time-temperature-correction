@@ -4,6 +4,11 @@ and forecast horizons. The results are saved to a CSV file for later analysis.
 
 python -m src.scripts.models_comparison_experiment --model RF
 python -m src.scripts.models_comparison_experiment --model ARIMAX --output_dir output/models_comparison_linear
+
+To compare training windows on the same forecast starts, fix the history the starts leave room for at the longest
+window, for example
+python -m src.scripts.models_comparison_experiment --model RF --training_weeks 4 --onset_history_weeks 26 \
+    --datasets TURKU SYNTHETIC --output_dir output/training_weeks_comparison
 """
 import csv
 import os
@@ -113,37 +118,23 @@ FORECAST_MODELS = {
     "RegressionSARIMAErrors": run_regression_sarima_errors
 }
 
-MODEL_TRAINING_DAYS = {
-    "ARIMA": 8 * 7,         # 8 weeks of hourly data (1344 hours)
-    "ARIMAX": 8 * 7,        # 8 weeks of hourly data (1344 hours)
-    "LSTM": 8 * 7,          # 8 weeks of hourly data (1344 hours)
-    "RF": 8 * 7,            # 8 weeks of hourly data (1344 hours)
-    "XGBoost": 8 * 7,       # 8 weeks of hourly data (1344 hours)
-    "MLP": 8 * 7,           # 8 weeks of hourly data (1344 hours)
-    "Transformer": 8 * 7,   # 8 weeks of hourly data (1344 hours)
-    "TCN": 8 * 7,               # 8 weeks of hourly data (1344 hours)
-    "Persistence": 8 * 7,       # Only the last observation is used, the window just keeps the forecast start aligned
-    "Climatology": 8 * 7,       # 8 weeks of hourly data (1344 hours)
-    "IDW": 8 * 7,               # Nothing is learned from the past, the window just keeps the forecast start aligned
-    "LinearRegression": 8 * 7,          # 8 weeks of hourly data (1344 hours)
-    "RegressionSARIMAErrors": 8 * 7     # 8 weeks of hourly data (1344 hours)
-}
-
-
 def run_single_experiment(task):
     """
     Run a single experiment with the given parameters.
 
     Input
     -----
-    task: A tuple containing (dataset_name, repeat_id, model_name, station, series, exog_df, df_complete)
+    task: A tuple containing (dataset_name, repeat_id, model_name, station, series, exog_df, df_complete,
+      training_days, onset_history_days), where onset_history_days is the history every forecast start leaves room
+      for, so the starts only depend on it and not on the training window of the model
 
     Output
     ------
     A list containing the results of the experiment:
         [dataset_name, station, model_name, train_start, train_end, horizon, mae, mse]
     """
-    dataset_name, repeat_id, model_name, station, series, exog_df, df_complete = task
+    (dataset_name, repeat_id, model_name, station, series, exog_df, df_complete,
+     training_days, onset_history_days) = task
 
     # Offset the seed per station so different stations in the same dataset don't all get the
     # same forecast start for a given repeat_id
@@ -154,12 +145,9 @@ def run_single_experiment(task):
         series=series,
         seed=station_seed,
         repeat_id=repeat_id,
-        max_history_days=max(MODEL_TRAINING_DAYS.values()),
+        max_history_days=onset_history_days,
         max_horizon=max(HORIZONS)
     )
-
-    # Determine the required training period for the model
-    training_days = MODEL_TRAINING_DAYS[model_name]
 
     train_start = forecast_start - pd.Timedelta(days=training_days)
     train_end = forecast_start
@@ -354,7 +342,8 @@ def run_single_experiment(task):
     ] for horizon, mae, mse, forecast_duration in results]
 
 
-def run_all_experiments(model_name, training_weeks, output_dir=OUTPUT_DIR):
+def run_all_experiments(model_name, training_weeks, output_dir=OUTPUT_DIR, onset_history_weeks=None,
+                        datasets=tuple(DATASETS)):
     """
     Main function to run all experiments across datasets, stations, training periods, and forecast horizons. The results are
     saved to a CSV file for later analysis.
@@ -364,7 +353,16 @@ def run_all_experiments(model_name, training_weeks, output_dir=OUTPUT_DIR):
     model_name: Name of the model to run (must be a key in the MODELS dictionary)
     training_weeks: Number of weeks to use for training
     output_dir: Directory to write the results to (default is OUTPUT_DIR)
+    onset_history_weeks: History in weeks that every forecast start leaves room for (default is None, which uses
+      training_weeks). Runs with different training windows share their forecast starts only if they share this value
+    datasets: Names of the datasets to run on (default is all keys of DATASETS)
     """
+    if onset_history_weeks is None:
+        onset_history_weeks = training_weeks
+
+    training_days = training_weeks * 7
+    onset_history_days = onset_history_weeks * 7
+
     os.makedirs(output_dir, exist_ok=True)
 
     with open(f"{output_dir}/{model_name}_{training_weeks}_weeks.csv", "w", newline="") as f:
@@ -385,7 +383,9 @@ def run_all_experiments(model_name, training_weeks, output_dir=OUTPUT_DIR):
         ])
 
         # Loop through all combinations of dataset, station, training period, forecast horizon, and model
-        for dataset_name, dataset_info in DATASETS.items():
+        for dataset_name in datasets:
+            dataset_info = DATASETS[dataset_name]
+
             # Retrieve the file path for the dataset
             dataset_file = dataset_info["file"]
 
@@ -445,7 +445,9 @@ def run_all_experiments(model_name, training_weeks, output_dir=OUTPUT_DIR):
                         station,
                         series,
                         exog_df,
-                        df_complete
+                        df_complete,
+                        training_days,
+                        onset_history_days
                     ))
 
                 # If on GPU (for LSTM + Transformer + TCN), do not use too much parallelism to avoid out-of-memory errors,
@@ -484,7 +486,13 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", default=OUTPUT_DIR,
                         help=f"Directory to write the results to, so a rerun of some models does not overwrite "
                              f"the full run (default: {OUTPUT_DIR})")
+    parser.add_argument("--onset_history_weeks", type=int, default=None,
+                        help="History in weeks that every forecast start leaves room for, set to the longest window "
+                             "when comparing training windows so they share their forecast starts (default: the "
+                             "training weeks)")
+    parser.add_argument("--datasets", nargs="+", choices=DATASETS.keys(), default=list(DATASETS),
+                        help="Datasets to run on (default: all)")
     args = parser.parse_args()
 
     # Run all experiments and save results to CSV
-    run_all_experiments(args.model, args.training_weeks, args.output_dir)
+    run_all_experiments(args.model, args.training_weeks, args.output_dir, args.onset_history_weeks, args.datasets)
