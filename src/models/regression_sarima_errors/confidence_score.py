@@ -51,7 +51,7 @@ def conformal_interval_width(errors, ci_level=0.95):
 
 def two_stage_forecast_with_confidence_score(
         df, target_station, exog_cols=None, hours_to_forecast=48, arima_order=(2, 0, 0),
-        seasonal_order=(1, 0, 1, 24), max_iter=1000, calibration_days=3, ci_level=0.95
+        seasonal_order=(1, 0, 1, 24), max_iter=1000, calibration_days=14, ci_level=0.95
 ):
     """
     Fit the two-stage regression with SARIMA errors model, deriving a confidence score and a
@@ -69,7 +69,8 @@ def two_stage_forecast_with_confidence_score(
     seasonal_order: Tuple specifying the (P, D, Q, s) parameters for the residual SARIMA
     max_iter: Maximum number of iterations for fitting the residual SARIMA
     calibration_days: Length of the held-out calibration window, carved out of the training data
-      immediately before the test window (default is 3, as for ARIMAX)
+      immediately before the test window (default is 14, the length with the coverage closest to
+      nominal in src/scripts/interval_coverage_experiment.py)
     ci_level: Confidence level of the interval (default is 0.95)
 
     Output

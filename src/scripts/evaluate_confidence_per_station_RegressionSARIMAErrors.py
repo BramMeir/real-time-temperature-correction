@@ -23,7 +23,7 @@ from src.models.regression_sarima_errors.repeat_forecast import repeat_forecasts
 RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
 
 
-def run_station_experiment(df, target_station, weeks, resample, hours_to_forecast):
+def run_station_experiment(df, target_station, weeks, resample, hours_to_forecast, calibration_days):
     """
     Run confidence evaluation for a single station.
 
@@ -31,9 +31,10 @@ def run_station_experiment(df, target_station, weeks, resample, hours_to_forecas
     -----
     df: pandas DataFrame containing the preprocessed data
     target_station: Name of the target weather station
-    weeks: Number of weeks of training data to include per repeat
+    weeks: Number of weeks of training data to include per repeat, the calibration window included
     resample: Resampling interval
     hours_to_forecast: Number of hours to forecast into the future
+    calibration_days: Length of the held-out calibration window in days
 
     Output:
     ------
@@ -68,6 +69,7 @@ def run_station_experiment(df, target_station, weeks, resample, hours_to_forecas
         exog_cols=exog_cols,
         weeks=weeks,
         hours_to_forecast=hours_to_forecast,
+        calibration_days=calibration_days,
         arima_order=RESIDUAL_ORDER,
         seasonal_order=RESIDUAL_SEASONAL_ORDER,
         n_repeats=20,
@@ -94,11 +96,13 @@ if __name__ == "__main__":
                      " with SARIMA errors model."
     )
     parser.add_argument("--weeks", type=int, default=8,
-                        help="Number of weeks of training data per repeat (default: 8).")
+                        help="Number of weeks of training data per repeat, the calibration window included (default: 8).")
     parser.add_argument("--resample", type=str, default="1h",
                         help="Resampling interval, e.g. '10min', '30min', '1h' (default: '1h').")
     parser.add_argument("--hours_to_forecast", type=int, default=168,
                         help="Number of hours to forecast into the future (default: 168).")
+    parser.add_argument("--calibration_days", type=int, default=14,
+                        help="Length of the held-out calibration window in days (default: 14).")
     parser.add_argument("--station_index", type=int, default=0,
                         help="Index of the target station to analyze (default: 0).")
     parser.add_argument("--input_file", type=str, default="data/Synthetic/temperature_data.csv",
@@ -118,7 +122,8 @@ if __name__ == "__main__":
         target_station,
         weeks=args.weeks,
         resample=args.resample,
-        hours_to_forecast=args.hours_to_forecast
+        hours_to_forecast=args.hours_to_forecast,
+        calibration_days=args.calibration_days
     )
 
     # Make sure the output directory exists

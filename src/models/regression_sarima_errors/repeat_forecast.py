@@ -39,7 +39,7 @@ def _run_single_forecast(
 
 def repeat_forecasts(
         df, target_station, exog_cols=None, weeks=8, hours_to_forecast=48, arima_order=(2, 0, 0),
-        seasonal_order=(1, 0, 1, 24), calibration_days=3, ci_level=0.95,
+        seasonal_order=(1, 0, 1, 24), calibration_days=14, ci_level=0.95,
         n_repeats=15, random_seed=47, max_iter=1000, n_jobs=4
 ):
     """
@@ -53,10 +53,10 @@ def repeat_forecasts(
     target_station: Name of the target station column to predict
     exog_cols: List of neighbouring station column names used as regressors (default is None,
       which uses every other column)
-    weeks: Number of weeks of training data per segment, before the calibration window (default is 8)
+    weeks: Number of weeks of training data per segment, the calibration window included (default is 8)
     hours_to_forecast: Number of hours in the test window (default is 48)
     arima_order, seasonal_order: SARIMA parameters for the residual model
-    calibration_days: Length of the held-out calibration window (default is 3, as for ARIMAX)
+    calibration_days: Length of the held-out calibration window (default is 14)
     ci_level: Confidence level of the interval (default is 0.95)
     n_repeats: Number of random segments to test (default is 15)
     random_seed: Seed for the random segment starts (default is 47)
@@ -70,8 +70,9 @@ def repeat_forecasts(
     if exog_cols is None:
         exog_cols = [c for c in df.columns if c != target_station]
 
-    segment_length = pd.Timedelta(weeks=weeks) + pd.Timedelta(days=calibration_days) \
-        + pd.Timedelta(hours=hours_to_forecast)
+    # The calibration window is carved out of the training weeks, so a longer holdout leaves the
+    # calibration fit less data rather than lengthening the history, as in interval_coverage_experiment.py
+    segment_length = pd.Timedelta(weeks=weeks) + pd.Timedelta(hours=hours_to_forecast)
     max_start = df.index.max() - segment_length
 
     possible_starts = df.index[(df.index >= df.index.min()) & (df.index <= max_start)]

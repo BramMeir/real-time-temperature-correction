@@ -58,7 +58,7 @@ NUMBER_OF_REPEATS = 10
 # Residual SARIMA orders as used elsewhere for this model
 RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
 
-# Held-out calibration windows. 3 days is what regression_sarima_errors/confidence_score.py uses;
+# Held-out calibration windows. 3 days is what regression_sarima_errors/confidence_score.py used at first;
 # the longer ones test how much of the under-coverage is simply too small a calibration sample.
 # The total history stays at training_weeks, so a longer holdout leaves the calibration fit less
 # data - that is the real operational trade-off.
