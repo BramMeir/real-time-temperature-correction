@@ -37,6 +37,10 @@ HORIZON_LABELS = {
     168: "7d", 336: "14d", 504: "21d", 720: "30d"
 }
 
+# Hours into the outage at which the summary table splits its coverage, so a shortfall late in long
+# outages shows up separately from the first two weeks
+SPLIT_HOURS = 336
+
 
 def load_results(level, method=None, calibration_days=None):
     """
@@ -174,7 +178,8 @@ def plot_coverage_vs_horizon(df, level, band_quantiles=(0.1, 0.9), show_band=Tru
 def print_comparison(level):
     """
     Pooled coverage for every band method and calibration length, at the shortest and longest
-    outage - the table that says how much each fix is worth.
+    outage - the table that says how much each fix is worth. The coverage of the longest outage is
+    also split into its hours up to SPLIT_HOURS and those after, as in the paper's coverage table.
 
     Input
     -----
@@ -184,8 +189,10 @@ def print_comparison(level):
     shortest, longest = df["Horizon"].min(), df["Horizon"].max()
 
     print(f"\nPooled coverage of the {level:.0%} interval, all datasets:\n")
+    early_label = f"1-{SPLIT_HOURS // 24}d"
+    late_label = f"{SPLIT_HOURS // 24 + 1}-{longest // 24}d"
     print(f"  {'method':<11}{'holdout':>9}{HORIZON_LABELS.get(shortest, shortest):>9}"
-          f"{HORIZON_LABELS.get(longest, longest):>9}{'width':>9}")
+          f"{HORIZON_LABELS.get(longest, longest):>9}{early_label:>9}{late_label:>9}{'width':>9}")
 
     summary = pooled_coverage(df, ["Method", "Calibration_days", "Horizon"])
     widths = df.groupby(["Method", "Calibration_days"])["Mean_width"].mean()
@@ -195,11 +202,18 @@ def print_comparison(level):
             rows = summary[(summary["Method"] == method) & (summary["Calibration_days"] == days)]
             short = rows[rows["Horizon"] == shortest]["Coverage"]
             long = rows[rows["Horizon"] == longest]["Coverage"]
-            if short.empty or long.empty:
+            split = rows[rows["Horizon"] == SPLIT_HOURS]
+            if short.empty or long.empty or split.empty:
                 continue
 
+            # The counts of a horizon cover every hour of the outage up to it, so the later hours are
+            # the difference between the longest horizon and the split
+            end = rows[rows["Horizon"] == longest]
+            late = ((end["N_inside"].iloc[0] - split["N_inside"].iloc[0])
+                    / (end["N_total"].iloc[0] - split["N_total"].iloc[0]))
+
             print(f"  {method:<11}{str(days) + 'd':>9}{short.iloc[0]:>9.3f}{long.iloc[0]:>9.3f}"
-                  f"{widths.loc[(method, days)]:>8.2f}°")
+                  f"{split['Coverage'].iloc[0]:>9.3f}{late:>9.3f}{widths.loc[(method, days)]:>8.2f}°")
 
 
 if __name__ == "__main__":
