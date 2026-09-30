@@ -65,7 +65,9 @@ def repeat_forecasts(
 
     Output
     ------
-    Dictionary with the average MAE/MSE, confidence score and interval width across the segments
+    Dictionary with the average MAE/MSE, confidence score and interval width across the segments, and
+    under "episodes" the same values for every segment, so a single segment's reliability indicators can
+    be checked against its own realised error
     """
     if exog_cols is None:
         exog_cols = [c for c in df.columns if c != target_station]
@@ -84,16 +86,18 @@ def repeat_forecasts(
     date_ranges = [(start, start + segment_length) for start in start_dates]
 
     mae_scores, mse_scores, confidence_scores, interval_widths, durations = [], [], [], [], []
+    episodes = []
 
     with ProcessPoolExecutor(max_workers=n_jobs) as executor:
-        futures = [
+        # Each future keeps its segment start, since as_completed returns them out of order
+        futures = {
             executor.submit(
                 _run_single_forecast, i, df, target_station, exog_cols, start, end,
                 hours_to_forecast, arima_order, seasonal_order, calibration_days, ci_level,
                 max_iter
-            )
+            ): start
             for i, (start, end) in enumerate(date_ranges)
-        ]
+        }
 
         for f in as_completed(futures):
             mae, mse, confidence_score, interval_width, duration = f.result()
@@ -102,6 +106,10 @@ def repeat_forecasts(
             confidence_scores.append(confidence_score)
             interval_widths.append(interval_width)
             durations.append(duration)
+            episodes.append({
+                "segment_start": pd.Timestamp(futures[f]), "mae": mae, "mse": mse,
+                "confidence_score": confidence_score, "interval_width": interval_width
+            })
 
     return {
         "mae_mean": np.mean(mae_scores),
@@ -109,4 +117,5 @@ def repeat_forecasts(
         "confidence_score_mean": np.mean(confidence_scores),
         "interval_width_mean": np.mean(interval_widths),
         "duration_mean_seconds": np.mean(durations),
+        "episodes": sorted(episodes, key=lambda episode: episode["segment_start"]),
     }

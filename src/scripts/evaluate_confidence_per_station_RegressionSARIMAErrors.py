@@ -12,6 +12,7 @@ For the selected station:
 - Computes average MAE/MSE
 - Computes average confidence score
 - Computes average bootstrapped interval width
+- Keeps the same values per repeat, so single episodes can be checked as well as station averages
 """
 import argparse
 import os
@@ -39,6 +40,7 @@ def run_station_experiment(df, target_station, weeks, resample, hours_to_forecas
     Output:
     ------
     result: Dictionary containing the evaluation results for the target station
+    episodes: DataFrame with the realised error and the reliability indicators of every repeat
     """
     # Pivot the long-format data into a wide, hourly DataFrame: target station plus every neighbour
     other_stations = [s for s in df['station_name'].unique() if s != target_station]
@@ -87,7 +89,10 @@ def run_station_experiment(df, target_station, weeks, resample, hours_to_forecas
         "duration_seconds": results["duration_mean_seconds"]
     }
 
-    return result
+    episodes = pd.DataFrame(results["episodes"])
+    episodes.insert(0, "target_station", target_station)
+
+    return result, episodes
 
 
 if __name__ == "__main__":
@@ -117,7 +122,7 @@ if __name__ == "__main__":
     target_station = stations[args.station_index]
 
     # Run experiment
-    result = run_station_experiment(
+    result, episodes = run_station_experiment(
         df,
         target_station,
         weeks=args.weeks,
@@ -132,5 +137,9 @@ if __name__ == "__main__":
     # Save the result to a CSV file
     pd.DataFrame([result]).to_csv(
         f"output/confidence_analysis_regression_sarima_errors/confidence_station_{args.station_index}.csv",
+        index=False
+    )
+    episodes.to_csv(
+        f"output/confidence_analysis_regression_sarima_errors/confidence_episodes_station_{args.station_index}.csv",
         index=False
     )
