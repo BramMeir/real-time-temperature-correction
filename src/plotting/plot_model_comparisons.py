@@ -125,7 +125,8 @@ def generate_overall_results_table(df):
     time, and print it as a booktabs LaTeX table in the style of the paper (tab:overall).
 
     Averaging the error over all horizons weights the table by the horizon grid rather than by the
-    model, so the error is reported per outage duration instead.
+    model, so the error is reported per outage duration instead. The best model is marked per column,
+    comparing values as printed, so models that tie at the reported precision are all marked.
 
     Input:
     ------
@@ -158,7 +159,10 @@ def generate_overall_results_table(df):
         for model in models:
             cells = ["\\quad " + _display_name(model)]
             for values, decimals, mark_best in columns:
-                is_best = mark_best and values[model] == values.min()
+                # Compared as printed, so models that tie at the reported precision are all marked, as in
+                # the per-dataset table
+                rounded = values.round(decimals)
+                is_best = mark_best and rounded[model] == rounded.min()
                 cells.append(_latex_cell(values[model], decimals, is_best))
             body.append(("model", cells))
 
