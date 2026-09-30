@@ -30,8 +30,8 @@ NUMBER_OF_REPEATS = 10
 LJUNG_BOX_LAGS = [1, 24, 48]
 
 # Order of the residual SARIMA, the one the two-stage model forecasts with
-ARIMA_ORDER = (2, 0, 0)
-SEASONAL_ORDER = (1, 0, 1, 24)
+ARIMA_ORDER = (3, 0, 0)
+SEASONAL_ORDER = (1, 0, 0, 24)
 
 # Free ARMA parameters of that SARIMA, which Ljung-Box has to discount on the stage-two residuals
 MODEL_DF = ARIMA_ORDER[0] + ARIMA_ORDER[2] + SEASONAL_ORDER[0] + SEASONAL_ORDER[2]
