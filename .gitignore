@@ -218,3 +218,6 @@ __marimo__/
 
 # Claude Code local overrides
 .claude/settings.local.json
+
+# Editor settings
+.vscode/
