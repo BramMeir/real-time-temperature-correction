@@ -40,6 +40,16 @@ MIN_SPAN = 100_000
 # Width to height ratio of every map, wider than tall so six maps fit on one page at almost the full text width
 ASPECT = 4 / 3
 
+# Every map is drawn at the width it is printed at in the paper, half the text width of 390 pt, so the markers and
+# their rank numbers keep their size
+MAP_WIDTH = 0.5 * 390 / 72.27
+
+# Font size of the rank numbers, in points
+RANK_FONT_SIZE = 8
+
+# Resolution of the maps; Elsevier asks 500 dpi for artwork that combines an image with text
+MAP_DPI = 500
+
 # OpenStreetMap's standard style, which names places in their local language (Antwerpen, Gent, Namur). Its tile
 # policy blocks requests that do not identify the application, so they are sent with TILE_HEADERS. Carto watermarks
 # its tiles without an API key, and the French OpenStreetMap style translates the names (Anvers, Gand)
@@ -55,9 +65,9 @@ BASEMAP_ALPHA = 0.7
 # The maps are saved as JPEG: the basemap texture hardly compresses as PNG (about 2.5 MB per map against 0.6 MB)
 JPEG_QUALITY = 95
 
-# Marker of the highest-weighted neighbours: fill, size, and the halo drawn beneath it
+# Marker of the highest-weighted neighbours: fill, size (large enough to hold its rank), and the halo drawn beneath it
 NEIGHBOUR_COLOR = "tab:green"
-NEIGHBOUR_SIZE = 210
+NEIGHBOUR_SIZE = 90
 HALO_COLOR = "white"
 
 
@@ -120,7 +130,7 @@ def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
     selected = points.loc[top["neighbour"]]
     target_point = points.loc[target].geometry
 
-    fig, ax = plt.subplots(figsize=(6, 6 / ASPECT))
+    fig, ax = plt.subplots(figsize=(MAP_WIDTH, MAP_WIDTH / ASPECT))
 
     # The extent is set before the basemap so the tiles cover it
     xmin, xmax, ymin, ymax = map_extent(points.loc[[target] + top["neighbour"].tolist()])
@@ -128,28 +138,31 @@ def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
     ax.set_ylim(ymin, ymax)
 
     others = points.drop(index=[target] + top["neighbour"].tolist())
-    ax.scatter(others.geometry.x, others.geometry.y, s=60, color="0.2", edgecolor="white", linewidth=1.2,
+    ax.scatter(others.geometry.x, others.geometry.y, s=14, color="0.2", edgecolor="white", linewidth=0.6,
                zorder=3)
 
     # The target below the marked neighbours, so a neighbour next to it stays readable
-    ax.scatter(target_point.x, target_point.y, s=100, marker="s", color="gold", edgecolor="black",
-               linewidth=1.2, zorder=4)
+    ax.scatter(target_point.x, target_point.y, s=36, marker="s", color="gold", edgecolor="black",
+               linewidth=0.6, zorder=4)
 
     # A white halo under every marker keeps it visible on the green of forests and fields
-    ax.scatter(selected.geometry.x, selected.geometry.y, s=NEIGHBOUR_SIZE + 110, color=HALO_COLOR, linewidth=0,
+    ax.scatter(selected.geometry.x, selected.geometry.y, s=NEIGHBOUR_SIZE + 50, color=HALO_COLOR, linewidth=0,
                zorder=5)
     ax.scatter(selected.geometry.x, selected.geometry.y, s=NEIGHBOUR_SIZE, color=NEIGHBOUR_COLOR, edgecolor="white",
-               linewidth=1.6, zorder=5)
+               linewidth=0.8, zorder=5)
     for rank, point in zip(top["weight_rank"], selected.geometry):
-        ax.annotate(str(rank), (point.x, point.y), ha="center", va="center", fontsize=9, fontweight="bold",
-                    color="white", zorder=6)
+        ax.annotate(str(rank), (point.x, point.y), ha="center", va="center", fontsize=RANK_FONT_SIZE,
+                    fontweight="bold", color="white", zorder=6)
 
-    ctx.add_basemap(ax, source=basemap, headers=TILE_HEADERS, alpha=BASEMAP_ALPHA, attribution_size=4)
+    # The attribution is drawn on one line: contextily wraps it over three at the printed map width
+    ctx.add_basemap(ax, source=basemap, headers=TILE_HEADERS, alpha=BASEMAP_ALPHA, attribution=False)
+    ax.text(0.005, 0.005, "© OpenStreetMap contributors", transform=ax.transAxes, ha="left", va="bottom",
+            fontsize=4, zorder=7, bbox={"facecolor": "white", "alpha": 0.7, "linewidth": 0, "pad": 1})
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
     ax.set_axis_off()
 
-    plt.savefig(filename, dpi=300, bbox_inches="tight", pad_inches=0.02, pil_kwargs={"quality": JPEG_QUALITY})
+    plt.savefig(filename, dpi=MAP_DPI, bbox_inches="tight", pad_inches=0.02, pil_kwargs={"quality": JPEG_QUALITY})
     plt.close(fig)
 
 
