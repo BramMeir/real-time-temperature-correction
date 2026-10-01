@@ -17,6 +17,9 @@ METRIC = "MAE"
 
 METRIC_CAPTIONS = {"MAE": "Mean absolute error", "RMSE": "Root mean squared error"}
 
+# Gap between the legend of the zoomed horizon plot and the highest curve below it, as a fraction of the panel height
+LEGEND_GAP = 0.04
+
 # Zoom window in degrees for the zoomed horizon plot, per metric
 ZOOM_RANGES = {"MAE": (0.2, 1.3), "RMSE": (0.3, 1.6)}
 
@@ -431,9 +434,16 @@ def plot_performance_vs_horizon_with_zoom(df):
     ax_zoom.set_ylabel(_metric_label())
     ax_zoom.set_xlabel("Outage duration (days)")
 
-    # Two columns keep the (now larger) legend from covering the baseline curves
-    ax_top.legend(loc="upper left", ncol=2, fontsize=9)
+    legend = ax_top.legend(loc="upper left", ncol=4, fontsize=11)
+    plt.tight_layout()
 
+    # Just enough headroom above the highest error bar for the legend in the upper left, so it covers none of the
+    # curves without leaving an empty band between them. The legend keeps its height in the axes whatever the limits
+    renderer = ax_top.figure.canvas.get_renderer()
+    legend_fraction = legend.get_window_extent(renderer).height / ax_top.get_window_extent(renderer).height
+    curves_top = (summary["mean"] + summary["ci95"]).max()
+    bottom = ax_top.get_ylim()[0]
+    ax_top.set_ylim(top=bottom + (curves_top - bottom) / (1 - legend_fraction - LEGEND_GAP))
     plt.tight_layout()
     plt.savefig(_plot_path("performance_vs_horizon_zoomed"))
     plt.close()
@@ -599,6 +609,9 @@ if __name__ == "__main__":
 
     # Create plot directory if it does not exist
     os.makedirs("plots", exist_ok=True)
+    # Larger axis labels and tick labels than matplotlib's 10 pt, so they stay readable once LaTeX scales the 10-inch
+    # figure to the text width
+    plt.rcParams.update({"axes.labelsize": 14, "xtick.labelsize": 13, "ytick.labelsize": 13})
 
     # The results table reports per outage duration, so it needs the horizon in hours
     generate_overall_results_table(df)

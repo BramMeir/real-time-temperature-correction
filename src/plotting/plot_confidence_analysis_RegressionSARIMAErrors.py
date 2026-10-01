@@ -11,10 +11,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import glob
 import os
+from matplotlib.ticker import MaxNLocator
 
 # Output directory
 plots_dir = "plots/confidence_analysis_regression_sarima_errors"
 os.makedirs(plots_dir, exist_ok=True)
+# Larger axis labels, tick labels and panel titles than matplotlib's defaults, so they stay readable once LaTeX
+# scales the 12-inch figure to the text width
+plt.rcParams.update({"axes.labelsize": 16, "axes.titlesize": 15, "xtick.labelsize": 14, "ytick.labelsize": 14})
 
 # Load data
 files = glob.glob("output/confidence_analysis_regression_sarima_errors/confidence_station_*.csv")
@@ -59,9 +63,12 @@ ax.text(
     f"r = {corr_conf:.2f}",
     transform=ax.transAxes,
     verticalalignment='top',
-    fontsize=12,
+    fontsize=14,
 )
 
+# A few ticks per axis are enough to read the trend
+ax.xaxis.set_major_locator(MaxNLocator(5))
+ax.yaxis.set_major_locator(MaxNLocator(5))
 ax.grid(alpha=0.2)
 
 
@@ -89,9 +96,12 @@ ax.text(
     f"r = {corr_interval:.2f}",
     transform=ax.transAxes,
     verticalalignment='top',
-    fontsize=12,
+    fontsize=14,
 )
 
+# A few ticks per axis are enough to read the trend
+ax.xaxis.set_major_locator(MaxNLocator(5))
+ax.yaxis.set_major_locator(MaxNLocator(5))
 ax.grid(alpha=0.2)
 
 # Layout

@@ -234,6 +234,10 @@ if __name__ == "__main__":
 
     # Ensure output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
+    # Larger axis labels, tick labels and legend than matplotlib's 10 pt, so they stay readable once LaTeX scales the
+    # 9-inch figure to the text width
+    plt.rcParams.update({"axes.labelsize": 13, "xtick.labelsize": 12, "ytick.labelsize": 12,
+                         "legend.fontsize": 11, "legend.title_fontsize": 11})
 
     df = load_data()
     plot_datasets(df)
