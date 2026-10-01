@@ -213,7 +213,7 @@ def plot_performance_vs_training_time(df, output_dir):
             (row["duration_mean"], row["error_mean"]),
             xytext=(3, 5),
             textcoords="offset points",
-            fontsize=9,
+            fontsize=11,
             ha="left",
             va="bottom",
         )
@@ -290,6 +290,9 @@ if __name__ == "__main__":
 
     output_dir = "plots/training_time_impact_regression_sarima_errors"
     os.makedirs(output_dir, exist_ok=True)
+    # Larger axis labels and tick labels than matplotlib's 10 pt, so they stay readable once LaTeX scales the 9-inch
+    # figure to the text width
+    plt.rcParams.update({"axes.labelsize": 13, "xtick.labelsize": 12, "ytick.labelsize": 12})
 
     results_dir = "output/optimal_nr_training_weeks_regression_sarima_errors"
     df = load_training_weeks_results(results_dir)

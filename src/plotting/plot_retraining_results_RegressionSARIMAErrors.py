@@ -20,6 +20,17 @@ MODEL_LABELS = {
     "both": "Both retrained"
 }
 
+# Line style per strategy. The colours are from the Okabe-Ito palette and stay distinguishable with colour-vision
+# deficiencies; the strategies that nearly coincide (regression only and both, residual SARIMA only and none) get
+# strongly contrasting colours. Each partial strategy is dashed and drawn on top of the full strategy it follows, so
+# both stay visible where they overlap
+STRATEGY_STYLES = {
+    "lr_only": {"color": "#E69F00", "linestyle": "--", "linewidth": 2, "zorder": 3},
+    "sarima_only": {"color": "#009E73", "linestyle": "--", "linewidth": 2, "zorder": 3},
+    "both": {"color": "#0072B2", "linestyle": "-", "linewidth": 2, "zorder": 2},
+    "no_retrain": {"color": "black", "linestyle": "-", "linewidth": 2, "zorder": 2},
+}
+
 # Error metric to report, set from --metric. RMSE is derived per row as sqrt(MSE), so the
 # reported value is the mean of the per-forecast RMSEs, as in plot_model_comparisons.py.
 METRIC = "MAE"
@@ -63,52 +74,37 @@ def plot_per_dataset(df_avg):
 
         subset_avg = df_avg[df_avg["dataset"] == dataset]
 
-        # Loop through each model type (except "no_retrain") and plot its performance over time
-        for model_type in MODEL_LABELS.keys():
-            if model_type == "no_retrain":
-                continue
-
+        # The reference without retraining first in the legend, then the partial strategies and both stages
+        for model_type in ["no_retrain", "lr_only", "sarima_only", "both"]:
             model_data = subset_avg[subset_avg["model_type"] == model_type]
+            style = STRATEGY_STYLES[model_type]
 
             plt.plot(
                 model_data["days_since_start"],
                 model_data[METRIC.lower()],
-                label=MODEL_LABELS.get(model_type, model_type),
-                alpha=0.8,
-                linestyle="-" if model_type == "both" else "--"
+                label=MODEL_LABELS[model_type],
+                **style
             )
+
+            if model_type == "no_retrain":
+                continue
 
             # Add an indicator for the retraining points (where days_since_start is a multiple of the
             # retraining interval)
-            events = subset_avg[
-                (subset_avg["model_type"] == model_type) & (subset_avg["retrain_event"] == 1)
-            ]
+            events = model_data[model_data["retrain_event"] == 1]
 
             plt.scatter(
                 events["days_since_start"],
                 events[METRIC.lower()],
                 marker="x",
                 s=50,
-                alpha=0.7
+                color=style["color"],
+                zorder=style["zorder"]
             )
-
-        # Plot the "no_retrain" strategy separately to ensure it's visible and serves as a clear
-        # baseline
-        no_retrain_data = subset_avg[subset_avg["model_type"] == "no_retrain"]
-
-        plt.plot(
-            no_retrain_data["days_since_start"],
-            no_retrain_data[METRIC.lower()],
-            label=MODEL_LABELS["no_retrain"],
-            color="black",
-            linewidth=2,
-            linestyle="--",
-            zorder=10
-        )
 
         plt.xlabel("Days since start of simulation")
         plt.ylabel(f"Mean {METRIC} (°C)")
-        plt.legend()
+        plt.legend(fontsize=12)
         plt.grid(alpha=0.3)
 
         plt.tight_layout()
@@ -159,6 +155,9 @@ if __name__ == "__main__":
 
     # Make sure the output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
+    # Larger axis labels and tick labels than matplotlib's 10 pt, so they stay readable once LaTeX scales the 10-inch
+    # figure to the text width
+    plt.rcParams.update({"axes.labelsize": 14, "xtick.labelsize": 13, "ytick.labelsize": 13})
 
     df = load_data()
     df = add_relative_time(df)
