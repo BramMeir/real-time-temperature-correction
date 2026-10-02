@@ -19,6 +19,9 @@ os.makedirs(plots_dir, exist_ok=True)
 # Larger axis labels, tick labels and panel titles than matplotlib's defaults, so they stay readable once LaTeX
 # scales the 12-inch figure to the text width
 plt.rcParams.update({"axes.labelsize": 16, "axes.titlesize": 15, "xtick.labelsize": 14, "ytick.labelsize": 14})
+# Saved as vector PDF, which Elsevier prefers for charts, with the fonts embedded as TrueType instead of
+# matplotlib's default Type 3
+plt.rcParams["pdf.fonttype"] = 42
 
 # Load data
 files = glob.glob("output/confidence_analysis_regression_sarima_errors/confidence_station_*.csv")
@@ -108,4 +111,4 @@ ax.grid(alpha=0.2)
 plt.tight_layout()
 
 # Save
-plt.savefig(f"{plots_dir}/confidence_combined_corr.png", dpi=300)
+plt.savefig(f"{plots_dir}/confidence_combined_corr.pdf")

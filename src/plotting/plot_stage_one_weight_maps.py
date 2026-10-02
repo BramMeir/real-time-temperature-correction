@@ -47,8 +47,10 @@ MAP_WIDTH = 0.5 * 390 / 72.27
 # Font size of the rank numbers, in points
 RANK_FONT_SIZE = 8
 
-# Resolution of the maps; Elsevier asks 500 dpi for artwork that combines an image with text
-MAP_DPI = 500
+# Resolution of the maps. Elsevier asks 500 dpi at the printed size for artwork that combines an image with text,
+# and the saved map (the axes alone) is enlarged about 1.3 times in the paper and up to 1.7 times on a 190 mm
+# journal page
+MAP_DPI = 1000
 
 # OpenStreetMap's standard style, which names places in their local language (Antwerpen, Gent, Namur). Its tile
 # policy blocks requests that do not identify the application, so they are sent with TILE_HEADERS. Carto watermarks

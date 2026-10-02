@@ -39,7 +39,7 @@ METRIC = "MAE"
 def _plot_path(name):
     """Keep the MAE filenames unchanged, suffix any other metric so it doesn't overwrite them."""
     suffix = "" if METRIC == "MAE" else f"_{METRIC.lower()}"
-    return f"{OUTPUT_DIR}/{name}{suffix}.png"
+    return f"{OUTPUT_DIR}/{name}{suffix}.pdf"
 
 
 def load_data():
@@ -108,7 +108,7 @@ def plot_per_dataset(df_avg):
         plt.grid(alpha=0.3)
 
         plt.tight_layout()
-        plt.savefig(_plot_path(f"retraining_strategies_{dataset}"), dpi=300)
+        plt.savefig(_plot_path(f"retraining_strategies_{dataset}"))
         plt.close()
 
 
@@ -144,7 +144,7 @@ def plot_training_event_cost(df_avg):
         plt.grid(alpha=0.3)
 
         plt.tight_layout()
-        plt.savefig(_plot_path(f"training_event_cost_{dataset}"), dpi=300)
+        plt.savefig(_plot_path(f"training_event_cost_{dataset}"))
         plt.close()
 
 
@@ -158,6 +158,9 @@ if __name__ == "__main__":
     # Larger axis labels and tick labels than matplotlib's 10 pt, so they stay readable once LaTeX scales the 10-inch
     # figure to the text width
     plt.rcParams.update({"axes.labelsize": 14, "xtick.labelsize": 13, "ytick.labelsize": 13})
+    # Saved as vector PDF, which Elsevier prefers for charts, with the fonts embedded as TrueType instead of
+    # matplotlib's default Type 3
+    plt.rcParams["pdf.fonttype"] = 42
 
     df = load_data()
     df = add_relative_time(df)
