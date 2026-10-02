@@ -31,7 +31,7 @@ def _metric_label():
 def _plot_path(name):
     """Keep the MAE filenames unchanged, suffix any other metric so it doesn't overwrite them."""
     suffix = "" if METRIC == "MAE" else f"_{METRIC.lower()}"
-    return f"plots/{name}{suffix}.png"
+    return f"plots/{name}{suffix}.pdf"
 
 
 def plot_overall_model_performance(df):
@@ -612,6 +612,9 @@ if __name__ == "__main__":
     # Larger axis labels and tick labels than matplotlib's 10 pt, so they stay readable once LaTeX scales the 10-inch
     # figure to the text width
     plt.rcParams.update({"axes.labelsize": 14, "xtick.labelsize": 13, "ytick.labelsize": 13})
+    # Saved as vector PDF, which Elsevier prefers for charts, with the fonts embedded as TrueType instead of
+    # matplotlib's default Type 3
+    plt.rcParams["pdf.fonttype"] = 42
 
     # The results table reports per outage duration, so it needs the horizon in hours
     generate_overall_results_table(df)

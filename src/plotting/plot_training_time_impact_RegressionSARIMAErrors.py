@@ -20,7 +20,7 @@ METRIC = "MAE"
 def _file_name(name):
     """Keep the MAE filenames unchanged, suffix any other metric so it doesn't overwrite them."""
     suffix = "" if METRIC == "MAE" else f"_{METRIC.lower()}"
-    return f"{name}{suffix}.png"
+    return f"{name}{suffix}.pdf"
 
 
 def load_training_weeks_results(results_dir="output/optimal_nr_training_weeks_regression_sarima_errors"):
@@ -293,6 +293,9 @@ if __name__ == "__main__":
     # Larger axis labels and tick labels than matplotlib's 10 pt, so they stay readable once LaTeX scales the 9-inch
     # figure to the text width
     plt.rcParams.update({"axes.labelsize": 13, "xtick.labelsize": 12, "ytick.labelsize": 12})
+    # Saved as vector PDF, which Elsevier prefers for charts, with the fonts embedded as TrueType instead of
+    # matplotlib's default Type 3
+    plt.rcParams["pdf.fonttype"] = 42
 
     results_dir = "output/optimal_nr_training_weeks_regression_sarima_errors"
     df = load_training_weeks_results(results_dir)

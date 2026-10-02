@@ -29,7 +29,7 @@ METRIC = "MAE"
 def _plot_path(name):
     """Keep the MAE filenames unchanged, suffix any other metric so it doesn't overwrite them."""
     suffix = "" if METRIC == "MAE" else f"_{METRIC.lower()}"
-    return os.path.join(OUTPUT_DIR, f"{name}{suffix}.png")
+    return os.path.join(OUTPUT_DIR, f"{name}{suffix}.pdf")
 
 
 def load_data():
@@ -121,7 +121,7 @@ def plot_datasets(df):
     plt.grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(_plot_path("aging_datasets"), dpi=300)
+    plt.savefig(_plot_path("aging_datasets"))
     plt.close()
 
 
@@ -186,7 +186,7 @@ def plot_relative(df):
     plt.grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(_plot_path("aging_relative"), dpi=300)
+    plt.savefig(_plot_path("aging_relative"))
     plt.close()
 
 
@@ -223,7 +223,7 @@ def plot_overall(df):
     plt.grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(_plot_path("aging_overall"), dpi=300)
+    plt.savefig(_plot_path("aging_overall"))
     plt.close()
 
 
@@ -238,6 +238,9 @@ if __name__ == "__main__":
     # 9-inch figure to the text width
     plt.rcParams.update({"axes.labelsize": 13, "xtick.labelsize": 12, "ytick.labelsize": 12,
                          "legend.fontsize": 11, "legend.title_fontsize": 11})
+    # Saved as vector PDF, which Elsevier prefers for charts, with the fonts embedded as TrueType instead of
+    # matplotlib's default Type 3
+    plt.rcParams["pdf.fonttype"] = 42
 
     df = load_data()
     plot_datasets(df)
