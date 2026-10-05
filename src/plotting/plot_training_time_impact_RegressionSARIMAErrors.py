@@ -1,6 +1,7 @@
 """
 Group of functions to plot the impact of the training window on the two-stage regression with SARIMA
-errors model, based on the results of determine_optimal_training_weeks_RegressionSARIMAErrors.py.
+errors model, based on the joltik runs of hpc/submit_training_weeks_regsarima_joltik.sh, whose training times
+were measured with the allocation of the model comparison.
 Mirrors plot_training_time_impact_ARIMAX.py so the two models can be compared on the same kind of plots.
 The plots are saved in the "plots" directory for further analysis and presentation.
 
@@ -23,11 +24,12 @@ def _file_name(name):
     return f"{name}{suffix}.pdf"
 
 
-def load_training_weeks_results(results_dir="output/optimal_nr_training_weeks_regression_sarima_errors"):
+def load_training_weeks_results(results_dir="output/training_weeks_regression_sarima_errors_joltik"):
     """
-    Load all results_*_weeks.csv files into one dataframe.
+    Load all RegressionSARIMAErrors_*_weeks.csv files of hpc/submit_training_weeks_regsarima_joltik.sh into one
+    dataframe, with the columns renamed to the ones the plot functions use.
 
-    Expected columns:
+    Resulting columns:
     dataset, station, training_weeks,
     train_start, train_end,
     horizon, mae, mse, training_duration
@@ -40,25 +42,22 @@ def load_training_weeks_results(results_dir="output/optimal_nr_training_weeks_re
     ------
     combined_df: DataFrame containing all the results from the csv files
     """
-    pattern = os.path.join(results_dir, "results_*_weeks.csv")
+    pattern = os.path.join(results_dir, "RegressionSARIMAErrors_*_weeks.csv")
     files = sorted(glob.glob(pattern))
 
     dfs = []
 
     for f in files:
-        df = pd.read_csv(f)
+        df = pd.read_csv(f).rename(columns={
+            "Dataset": "dataset", "Station": "station", "Train_start": "train_start", "Train_end": "train_end",
+            "Horizon": "horizon", "MAE": "mae", "MSE": "mse", "Train_duration_seconds": "training_duration",
+        })
 
-        # Infer training weeks from filename, because this is not included in the csv files directly
-        if "training_weeks" not in df.columns:
-            weeks = int(os.path.basename(f).split("_")[1])
-            df["training_weeks"] = weeks
+        # The window length is only in the file name, RegressionSARIMAErrors_<weeks>_weeks.csv
+        df["training_weeks"] = int(os.path.basename(f).rsplit("_", 2)[1])
 
-        # Parse timestamps (optional but clean)
         df["train_start"] = pd.to_datetime(df["train_start"])
         df["train_end"] = pd.to_datetime(df["train_end"])
-
-        # Make sure training_duration is in seconds (it is stored as a timedelta in the csv)
-        df["training_duration"] = pd.to_timedelta(df["training_duration"]).dt.total_seconds()
 
         dfs.append(df)
 
@@ -288,7 +287,7 @@ if __name__ == "__main__":
     parser.add_argument("--metric", choices=["MAE", "RMSE"], default="MAE")
     METRIC = parser.parse_args().metric
 
-    output_dir = "plots/training_time_impact_regression_sarima_errors"
+    output_dir = "plots/training_time_impact_regression_sarima_errors_joltik"
     os.makedirs(output_dir, exist_ok=True)
     # Larger axis labels and tick labels than matplotlib's 10 pt, so they stay readable once LaTeX scales the 9-inch
     # figure to the text width
@@ -297,7 +296,7 @@ if __name__ == "__main__":
     # matplotlib's default Type 3
     plt.rcParams["pdf.fonttype"] = 42
 
-    results_dir = "output/optimal_nr_training_weeks_regression_sarima_errors"
+    results_dir = "output/training_weeks_regression_sarima_errors_joltik"
     df = load_training_weeks_results(results_dir)
 
     # Make the plots
