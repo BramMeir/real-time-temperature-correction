@@ -39,6 +39,10 @@ METRICS = [
 
 KEYS = ["Dataset", "Station", "Event_id", "Control", "Lead_days"]
 
+# Outage start of the table in the paper, in days before the first heat wave day, and the errors it shows
+PAPER_LEAD = 3
+PAPER_METRICS = ["RMSE", "Bias", "Tmax_error", "Tmin_error"]
+
 N_BOOTSTRAP = 10000
 SEED = 42
 
@@ -199,6 +203,58 @@ def summarise_stations(metrics):
     return stations.reset_index()
 
 
+def paper_table(summary):
+    """
+    The table of the paper: heat waves and ordinary weather as rows, the errors of PAPER_METRICS as columns.
+
+    Input
+    -----
+    summary: Output of summarise
+
+    Output
+    ------
+    table: DataFrame indexed by Dataset and Weather
+    """
+    rows = summary[(summary.Lead_days == PAPER_LEAD) & summary.Metric.isin(PAPER_METRICS)]
+
+    table = rows.melt(
+        id_vars=["Dataset", "Metric"], value_vars=["Heatwave", "Control"], var_name="Weather"
+    ).pivot(index=["Dataset", "Weather"], columns="Metric", values="value")
+
+    return table[PAPER_METRICS].rename(index={"Heatwave": "Heat waves", "Control": "Ordinary weather"})
+
+
+def print_text_numbers(summary):
+    """
+    The numbers the text of the paper quotes besides the table, per dataset.
+
+    Input
+    -----
+    summary: Output of summarise
+    """
+    for dataset, rows in summary.groupby("Dataset"):
+        at_lead = rows[rows.Lead_days == PAPER_LEAD].set_index("Metric")
+        bias = rows[rows.Metric == "Bias"]
+        rmse = rows[rows.Metric == "RMSE"]
+
+        print(f"\n{dataset}")
+
+        for metric in ["RMSE", "Tmin_error"]:
+            row = at_lead.loc[metric]
+            print(f"{metric} difference at lead {PAPER_LEAD}: {row.Difference:+.2f} "
+                  f"[{row.Difference_low:.2f}, {row.Difference_high:.2f}]")
+
+        for metric in ["RMSE", "Station_gap"]:
+            row = at_lead.loc[metric]
+            print(f"{metric} during heat waves relative to ordinary weather: {row.Heatwave / row.Control - 1:+.0%}")
+
+        print(f"Mean bias over all leads, both kinds of weather: {bias[['Heatwave', 'Control']].min().min():+.3f} "
+              f"to {bias[['Heatwave', 'Control']].max().max():+.3f}")
+        print(f"Heat wave RMSE over all leads: {rmse.Heatwave.min():.2f} to {rmse.Heatwave.max():.2f}")
+        print(f"Share of heat wave hours beyond the training range: {at_lead.loc['Extrapolation', 'Heatwave']:.0%}; "
+              f"sum of the coefficients: {at_lead.loc['Sum_beta', 'Heatwave']:.3f}")
+
+
 def main():
     hourly = pd.read_csv(
         f"{OUTPUT_DIR}/RegressionSARIMAErrors_{TRAINING_WEEKS}_weeks.csv.gz", parse_dates=["Datetime"]
@@ -236,6 +292,9 @@ def main():
     stations = summarise_stations(metrics)
     stations.to_csv(f"{OUTPUT_DIR}/station_summary_{TRAINING_WEEKS}_weeks.csv", index=False)
 
+    table = paper_table(summary)
+    table.to_csv(f"{OUTPUT_DIR}/paper_table_{TRAINING_WEEKS}_weeks.csv")
+
     with pd.option_context("display.width", 250, "display.float_format", "{:.2f}".format):
         print(summary[["Dataset", "Lead_days", "Metric", "N_events", "Heatwave", "Control", "Difference",
                        "Difference_low", "Difference_high"]].to_string(index=False))
@@ -246,6 +305,11 @@ def main():
             .agg(Higher=lambda difference: (difference > 0).sum(), Stations="size", Smallest_difference="min")
             .to_string()
         )
+
+        print(f"\nTable of the paper (outage starting {PAPER_LEAD} days before the heat wave, degC):")
+        print(table.to_string())
+
+    print_text_numbers(summary)
 
 
 if __name__ == "__main__":
