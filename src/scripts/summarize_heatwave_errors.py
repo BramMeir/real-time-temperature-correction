@@ -224,6 +224,80 @@ def paper_table(summary):
     return table[PAPER_METRICS].rename(index={"Heatwave": "Heat waves", "Control": "Ordinary weather"})
 
 
+def print_latex_table(table, summary):
+    """
+    Print the table of the paper as LaTeX, in the layout of the other tables of the manuscript.
+
+    Input
+    -----
+    table: Output of paper_table
+    summary: Output of summarise, for the number of heat waves per dataset
+    """
+    dataset_labels = {"TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
+    column_labels = {
+        "RMSE": "RMSE", "Bias": "Mean bias", "Tmax_error": "Daily max.", "Tmin_error": "Daily min."
+    }
+    n_events = summary[summary.Lead_days == PAPER_LEAD].groupby("Dataset").N_events.first()
+
+    def format_value(metric, value):
+        # Rounded first, so a bias of -0.003 prints as 0.00 rather than -0.00
+        value = round(value, 2) + 0.0
+        return f"${value:.2f}$" if metric == "RMSE" or value == 0 else f"${value:+.2f}$"
+
+    header = ["\\textbf{Weather}"] + [f"\\textbf{{{column_labels[metric]}}}" for metric in PAPER_METRICS]
+    columns = len(header)
+
+    body = []
+    for dataset in dataset_labels:
+        body.append(("group", f"{dataset_labels[dataset]} ({n_events[dataset]} heat waves)"))
+        for weather in ["Heat waves", "Ordinary weather"]:
+            body.append(("row", [f"\\quad {weather}"] + [
+                format_value(metric, table.loc[(dataset, weather), metric]) for metric in PAPER_METRICS
+            ]))
+
+    # Pad every column so the ampersands line up in the .tex source
+    rows = [cells for kind, cells in body if kind == "row"]
+    widths = [max(len(row[i]) for row in [header] + rows) for i in range(columns)]
+
+    def format_row(cells):
+        padded = [cell.ljust(width) for cell, width in zip(cells, widths)]
+        return "    " + " & ".join(padded).rstrip() + " \\\\"
+
+    caption = (
+        "Accuracy of RegSARIMA during heat waves and in windows of ordinary weather around the same events, for an "
+        f"outage that starts {PAPER_LEAD} days before the heat wave. Errors are the reconstruction minus the "
+        "observation, in \\textcelsius{}, so a negative value means the reconstruction is too cold. The errors in the "
+        "daily maximum and minimum are averaged over the days of each window."
+    )
+
+    lines = [
+        "\\begin{table}[!htbp]",
+        "  \\centering",
+        f"  \\caption{{{caption}}}",
+        "  \\label{tab:heatwaves}",
+        "  \\small",
+        f"  \\begin{{tabular*}}{{\\linewidth}}{{@{{\\extracolsep{{\\fill}}}}l{'r' * (columns - 1)}@{{}}}}",
+        "    \\toprule",
+        format_row(header),
+        "    \\midrule",
+    ]
+    for index, (kind, value) in enumerate(body):
+        if kind == "group":
+            if index:
+                lines.append("    \\addlinespace")
+            lines.append(f"    \\multicolumn{{{columns}}}{{l}}{{\\emph{{{value}}}}} \\\\")
+        else:
+            lines.append(format_row(value))
+    lines += [
+        "    \\bottomrule",
+        "  \\end{tabular*}",
+        "\\end{table}",
+    ]
+
+    print("\nLaTeX code for the heat wave table:")
+    print("\n".join(lines))
+
+
 def print_text_numbers(summary):
     """
     The numbers the text of the paper quotes besides the table, per dataset.
@@ -309,6 +383,7 @@ def main():
         print(f"\nTable of the paper (outage starting {PAPER_LEAD} days before the heat wave, degC):")
         print(table.to_string())
 
+    print_latex_table(table, summary)
     print_text_numbers(summary)
 
 
