@@ -1,4 +1,7 @@
+from sklearn.compose import TransformedTargetRegressor
 from sklearn.neural_network import MLPRegressor
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 
 def train_mlp_model(X_train, y_train, activation='relu', bath_size=16,
@@ -6,6 +9,10 @@ def train_mlp_model(X_train, y_train, activation='relu', bath_size=16,
                     random_seed=42):
     """
     Train a MLP model with specified hyperparameters.
+
+    Features and target are standardized with the statistics of the training window, so the network
+    works on values around zero instead of raw temperatures. predict() still takes and returns
+    degrees, so the recursive forecast can keep feeding its own predictions back into the lags.
 
     Input
     -----
@@ -15,7 +22,7 @@ def train_mlp_model(X_train, y_train, activation='relu', bath_size=16,
 
     Output
     ------
-    model: Trained MLP model
+    model: Trained MLP model, wrapped with its scalers
     """
     # Initialize the base MLP model
     mlp_model = MLPRegressor(
@@ -31,7 +38,11 @@ def train_mlp_model(X_train, y_train, activation='relu', bath_size=16,
         max_iter=max_iter,
     )
 
-    # Fit the model to the training data
-    mlp_model.fit(X_train, y_train)
+    # Standardize each feature and the target with the statistics of the training window
+    model = TransformedTargetRegressor(regressor=make_pipeline(StandardScaler(), mlp_model),
+                                       transformer=StandardScaler())
 
-    return mlp_model
+    # Fit the model to the training data
+    model.fit(X_train, y_train)
+
+    return model
