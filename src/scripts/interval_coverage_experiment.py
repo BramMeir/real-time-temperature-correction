@@ -9,13 +9,15 @@ the calibration sample, refit on the full window, then forecast once out to the 
 slice. The residual SARIMA forecast is deterministic given the fitted model, so slicing 720 steps
 is identical to forecasting h steps and one forecast serves every horizon.
 
-The onsets come from the same SEED and history length as models_comparison_experiment.py, so the
-coverage numbers are paired with the MAE numbers already reported. Keep the constants below in sync.
+The onsets come from the same SEED, per-station seed offset and history length as
+models_comparison_experiment.py, so the coverage numbers are paired with the MAE numbers already
+reported. Keep the constants below in sync.
 
 Run:
     python -m src.scripts.interval_coverage_experiment
 """
 import argparse
+import zlib
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.evaluation.experiment_utils import write_results_csv
@@ -176,9 +178,10 @@ def run_single_experiment(task):
     (dataset_name, repeat_id, station, series, exog_df, df_complete, training_days,
      calibration_days, levels) = task
 
-    # Same onset as the accuracy experiment, since SEED and the history length match
+    # Same onset as the accuracy experiment, since SEED, its per-station offset and the history length match
+    station_seed = SEED + zlib.crc32(station.encode())
     forecast_start = generate_forecast_start(
-        series=series, seed=SEED, repeat_id=repeat_id,
+        series=series, seed=station_seed, repeat_id=repeat_id,
         max_history_days=training_days, max_horizon=max(HORIZONS)
     )
 
