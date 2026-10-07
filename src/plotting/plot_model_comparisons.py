@@ -604,6 +604,10 @@ if __name__ == "__main__":
     df = pd.concat(dfs, ignore_index=True)
     df = df[~df["Model"].isin(EXCLUDED_MODELS)]
 
+    # The one-hour outage (#78) was only rerun for the linear models, into their own directory. Of the runs read
+    # here, only the MLP rerun (#97) has it, so it is dropped to give every model the same outage durations
+    df = df[df["Horizon"] != 1]
+
     # Per-forecast RMSE, averaged the same way the MAE is
     df["RMSE"] = df["MSE"] ** 0.5
 
