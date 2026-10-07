@@ -22,9 +22,13 @@ DATASET_LABELS = {"TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
 
 PLOT_DIR = "plots/heatwave_experiment"
 
-# Hours in UTC, as the data are stored; Finnish summer time is UTC+3, so the night of 00-05 local time is 21-02 UTC
-NIGHT_HOURS = [21, 22, 23, 0, 1, 2]
-DAY_HOURS = list(range(6, 18))
+# The data are stored in UTC, but day and night read more naturally in local clock time. Every heat wave of both
+# datasets falls in summer time, so a single offset per dataset converts all of them
+SUMMER_TIME_OFFSET_HOURS = {"TURKU": 3, "SYNTHETIC": 2}
+
+# In local time
+NIGHT_HOURS = list(range(0, 6))
+DAY_HOURS = list(range(9, 21))
 
 
 def hourly_gap_profiles(dataset):
@@ -53,7 +57,9 @@ def hourly_gap_profiles(dataset):
     for window in windows.itertuples():
         window_gap = gap[window.Window_start:window.Window_end + pd.Timedelta(hours=23)]
 
-        for hour, value in window_gap.groupby(window_gap.index.hour).mean().items():
+        local_hours = (window_gap.index + pd.Timedelta(hours=SUMMER_TIME_OFFSET_HOURS[dataset])).hour
+
+        for hour, value in window_gap.groupby(local_hours).mean().items():
             rows.append([window.Event_id, window.Control > 0, hour, value])
 
     profiles = pd.DataFrame(rows, columns=["Event_id", "Is_control", "Hour", "Gap"])
@@ -81,7 +87,7 @@ def plot_profiles(profiles, dataset):
     plt.plot(profiles.index, profiles.Control, color="#475569", linewidth=2, linestyle="--", label="Ordinary weather")
     plt.plot(profiles.index, profiles.Heatwave, color="#c2410c", linewidth=2, label="Heat waves")
 
-    plt.xlabel("Hour of the day (UTC)")
+    plt.xlabel("Hour of the day (local time)")
     plt.ylabel("Warmest minus coolest station (°C)")
     plt.xticks(range(0, 24, 3))
     plt.xlim(0, 23)
@@ -109,6 +115,6 @@ if __name__ == "__main__":
     plot_profiles(profiles, dataset)
 
     print(f"{DATASET_LABELS[dataset]}: warmest minus coolest station (degC)")
-    for name, hours in [("Night (21-02 UTC)", NIGHT_HOURS), ("Day (06-17 UTC)", DAY_HOURS)]:
+    for name, hours in [("Night (00-05 local time)", NIGHT_HOURS), ("Day (09-20 local time)", DAY_HOURS)]:
         heatwave, control = profiles.loc[hours, "Heatwave"].mean(), profiles.loc[hours, "Control"].mean()
         print(f"{name}: heat waves {heatwave:.2f}, ordinary weather {control:.2f}")
