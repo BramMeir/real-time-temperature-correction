@@ -41,6 +41,7 @@ KEYS = ["Dataset", "Station", "Event_id", "Control", "Lead_days"]
 
 # Outage start of the table in the paper, in days before the first heat wave day, and the errors it shows
 PAPER_LEAD = 3
+PAPER_LEAD_TEXT = "three days"
 PAPER_METRICS = ["RMSE", "Bias", "Tmax_error", "Tmin_error"]
 
 N_BOOTSTRAP = 10000
@@ -231,9 +232,10 @@ def print_latex_table(table, summary):
     Input
     -----
     table: Output of paper_table
-    summary: Output of summarise, for the number of heat waves per dataset
+    summary: Output of summarise, for the number of heat waves and the RMSE difference per dataset
     """
     dataset_labels = {"TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
+    caption_labels = {"TURKU": "TURCLIM", "SYNTHETIC": "the synthetic network"}
     column_labels = {
         "RMSE": "RMSE", "Bias": "Mean bias", "Tmax_error": "Daily max.", "Tmin_error": "Daily min."
     }
@@ -263,11 +265,21 @@ def print_latex_table(table, summary):
         padded = [cell.ljust(width) for cell, width in zip(cells, widths)]
         return "    " + " & ".join(padded).rstrip() + " \\\\"
 
+    rmse = summary[(summary.Lead_days == PAPER_LEAD) & (summary.Metric == "RMSE")].set_index("Dataset")
+    # Only the first interval names what it is
+    differences = [
+        f"by {rmse.loc[dataset, 'Difference']:.2f}\\,\\textcelsius{{}} in {caption_labels[dataset]} "
+        f"({'95\\,\\% confidence interval ' if index == 0 else ''}"
+        f"{rmse.loc[dataset, 'Difference_low']:.2f}--{rmse.loc[dataset, 'Difference_high']:.2f}\\,\\textcelsius{{}})"
+        for index, dataset in enumerate(dataset_labels)
+    ]
+
     caption = (
         "Accuracy of RegSARIMA during heat waves and in windows of ordinary weather around the same events, for an "
-        f"outage that starts {PAPER_LEAD} days before the heat wave. Errors are the reconstruction minus the "
-        "observation, in \\textcelsius{}, so a negative value means the reconstruction is too cold. The errors in the "
-        "daily maximum and minimum are averaged over the days of each window."
+        f"outage that starts {PAPER_LEAD_TEXT} before the heat wave. Errors are the reconstruction minus the "
+        "observation, in \\textcelsius{}, so a negative value means an underestimation. The errors in the daily "
+        "maximum and minimum are averaged over the days of each window. During heat waves, the RMSE is higher "
+        f"{differences[0]} and {differences[1]}."
     )
 
     lines = [
