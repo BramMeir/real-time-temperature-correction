@@ -10,6 +10,7 @@ import numpy as np
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+from src.scripts.models_comparison_experiment import DATASETS as COMPARISON_DATASETS
 
 # Define constants for file paths and dataset labels
 INPUT_TEMPLATE = "output/aging_model_regression_sarima_errors/results_{}_100.csv"
@@ -50,6 +51,9 @@ def load_data():
             continue
 
         df = pd.read_csv(file_path)
+        # The aging run has three synthetic targets beyond those of the model comparison, keep only the
+        # comparison's targets so every experiment on part of a network uses the same stations
+        df = df[df["station"].isin(COMPARISON_DATASETS[dataset]["stations"])]
 
         # Ensure correct data types
         df["age_gap"] = df["age_gap"].astype(int)
