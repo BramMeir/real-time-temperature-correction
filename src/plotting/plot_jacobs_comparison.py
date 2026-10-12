@@ -72,7 +72,7 @@ def rmse_summary(results, panels):
 def plot(summary, output_path):
     """Draw the mean RMSE against gap length with its 95 % interval, one panel per panel title in summary."""
     panels = list(summary["panel"].unique())
-    fig, axes = plt.subplots(1, len(panels), figsize=(13, 5), sharey=True)
+    fig, axes = plt.subplots(1, len(panels), figsize=(10, 4.8), sharey=True)
     x = np.arange(len(GAP_LENGTHS))
     # Between the last gap length below 5 h and 5 h itself
     switch = GAP_LENGTHS.index(LI_UNTIL) - 0.5
@@ -87,7 +87,8 @@ def plot(summary, output_path):
         ax.text(switch + 0.12, 0.03, "interpolation → ERA5", color="gray", fontsize=10)
 
         ax.set_title(title, loc="left")
-        ax.set_xticks(x, [gap_label(hours) for hours in GAP_LENGTHS])
+        # Rotated, since 13 labels do not fit side by side at the width of the paper figures
+        ax.set_xticks(x, [gap_label(hours) for hours in GAP_LENGTHS], rotation=45, ha="right", rotation_mode="anchor")
         ax.set_xlabel("Gap length")
         ax.grid(alpha=0.3)
 
