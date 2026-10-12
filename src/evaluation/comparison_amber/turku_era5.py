@@ -2,7 +2,8 @@
 TURCLIM observations joined with the ERA5 series of the nearest land grid point, in the layout of
 Jacobs et al. (2024): one column per station and one per station named <station>_ERA5.
 
-The observations are those of Turku_preprocessed.csv used by the model comparison, in wide format.
+The observations are Turku_1H_LI.csv, the wide-format source of the Turku_preprocessed.csv used by
+the model comparison, with identical values.
 """
 import pandas as pd
 

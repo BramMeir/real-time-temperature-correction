@@ -22,9 +22,9 @@ import random
 import zlib
 import numpy as np
 import pandas as pd
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.evaluation.comparison_amber.evaluation_gf_techniques import Test_techniques_differentgapdates
 from src.evaluation.comparison_amber.turku_era5 import load_turku_with_era5
+from src.evaluation.experiment_utils import get_worker_df_complete, run_tasks_for_station
 
 OUTPUT_DIR = "output/jacobs_validation"
 
@@ -48,11 +48,14 @@ GAP_LENGTHS = [1, 3, 5, 7, 10, 20, 30, 336]
 REPETITIONS = 1000
 
 
-def run_single_length(df, station, gap_length, repetitions):
+def run_single_length(task, repetitions):
     """
     Evaluate all techniques on `repetitions` random single gaps of one length in one station, and
     return one row per technique with E, its standard error and the number of gaps.
     """
+    station, gap_length = task
+    df = get_worker_df_complete()
+
     # Their gap starts come from the random module, so seed it per station and length
     random.seed(SEED + zlib.crc32(station.encode()) + gap_length)
 
@@ -79,18 +82,8 @@ def run_single_length(df, station, gap_length, repetitions):
 
 def run_all(stations, repetitions, max_workers):
     """Run every station and gap length in a worker pool and save the errors to OUTPUT_DIR."""
-    df = load_turku_with_era5()
-
-    rows = []
-    with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        futures = [
-            executor.submit(run_single_length, df, station, gap_length, repetitions)
-            for station in stations
-            for gap_length in GAP_LENGTHS
-        ]
-        for f in as_completed(futures):
-            rows.extend(f.result())
-            print(f"Finished {rows[-1][0]}, {rows[-1][1]} h")
+    tasks = [(station, gap_length) for station in stations for gap_length in GAP_LENGTHS]
+    rows = run_tasks_for_station(load_turku_with_era5(), tasks, run_single_length, (repetitions,), max_workers)
 
     results = pd.DataFrame(rows, columns=["station", "gap_length", "technique", "E", "sterr", "n"])
     results = results.sort_values(["station", "gap_length", "technique"])

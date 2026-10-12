@@ -20,8 +20,9 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from src.scripts.jacobs_validation_experiment import OUTPUT_DIR, REPETITIONS
 
-RESULTS_FILE = "output/jacobs_validation/jacobs_techniques_rep1000.csv"
+RESULTS_FILE = f"{OUTPUT_DIR}/jacobs_techniques_rep{REPETITIONS}.csv"
 PLOTS_DIR = "plots/jacobs_validation"
 
 GAP_LENGTHS = [1, 3, 5, 7, 10, 20, 30, 336]
@@ -82,14 +83,14 @@ def plot(table, output_path):
         for i, (technique, (label, colour)) in enumerate(TECHNIQUES.items()):
             rows = table[(table["station"] == station) & (table["technique"] == technique)].sort_values("gap_length")
             # Spread the techniques slightly along x so their error bars do not overlap
-            offset = (i - 2) * 0.06
+            offset = (i - (len(TECHNIQUES) - 1) / 2) * 0.06
             ax.errorbar(x + offset, rows["E"], yerr=1.96 * rows["sterr"], color=colour, marker="o",
                         markersize=5, linewidth=1.5, capsize=2, label=f"{label}, rerun")
             ax.plot(x + offset, rows["E_published"], color=colour, marker="o", markersize=8,
                     markerfacecolor="none", linestyle="none", label=f"{label}, Jacobs et al.")
 
         ax.set_yscale("log")
-        ax.set_xticks(x, [f"{g}" for g in GAP_LENGTHS])
+        ax.set_xticks(x, GAP_LENGTHS)
         ax.set_xlabel("Gap length (h)")
         ax.set_title(station)
         ax.grid(axis="y", which="both", color="0.9", linewidth=0.5)

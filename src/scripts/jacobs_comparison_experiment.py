@@ -41,7 +41,8 @@ from src.evaluation.comparison_amber.gf_techniques import (
     GF_debmodelMeanbias,
 )
 from src.evaluation.comparison_amber.turku_era5 import load_turku_with_era5
-from src.models.regression_sarima_errors.execute_forecast import run_single_forecast
+from src.evaluation.experiment_utils import _init_worker, get_worker_df_complete
+from src.models.regression_sarima_errors.execute_forecast import forecast_two_stage
 from src.models.regression_sarima_errors.retrospective import fill_gap_retrospective
 from src.models.regression_sarima_errors.train import train_regression_sarima_errors
 
@@ -72,14 +73,6 @@ SEASONAL_ORDER = (1, 0, 0, 24)
 
 # Gaps per task, small enough to spread a station over many workers
 CHUNK_SIZE = 25
-
-# Set by _init_worker, once per worker process
-_df = None
-
-
-def _init_worker():
-    global _df
-    _df = load_turku_with_era5()
 
 
 def draw_gap_starts(n_hours, station, gap_length, repetitions):
@@ -112,56 +105,53 @@ def fill_one_gap(df, station, gap_start, gap_length):
 
     # RegSARIMA in real time, trained and forecast as in models_comparison_experiment.py
     train_end = gap_start - pd.Timedelta(hours=1)
-    train_start = train_end - pd.Timedelta(days=TRAINING_DAYS)
     model = train_regression_sarima_errors(
-        df.loc[train_start:train_end], station, exog_cols, ARIMA_ORDER, SEASONAL_ORDER, max_iter=1000
+        df.loc[train_end - pd.Timedelta(days=TRAINING_DAYS):train_end], station, exog_cols, ARIMA_ORDER, SEASONAL_ORDER
     )
-    fills["RegSARIMA_realtime"] = run_single_forecast(
-        df, station, model=model, exog_cols=exog_cols, start=train_start, train_end=train_end, test_end=gap_end
-    )[3]
-    fills["Regression_realtime"] = pd.Series(
-        model[0].predict(df.loc[gap_start:gap_end, exog_cols]), index=df.loc[gap_start:gap_end].index
+    fills["RegSARIMA_realtime"], fills["Regression_realtime"] = forecast_two_stage(
+        model, df.loc[gap_start:gap_end, exog_cols]
     )
 
     # RegSARIMA retrospectively
     fills["RegSARIMA_retrospective"], fills["Regression_retrospective"] = fill_gap_retrospective(
-        df, station, exog_cols, gap_start, gap_end, arima_order=ARIMA_ORDER, seasonal_order=SEASONAL_ORDER
+        df, station, exog_cols, gap_start, gap_end, ARIMA_ORDER, SEASONAL_ORDER
     )
 
     return {method: fill.loc[gap_start:gap_end] for method, fill in fills.items()}
 
 
-def run_chunk(station, gap_length, gap_ids, positions):
+def run_chunk(station, gap_length, first_id, positions):
     """Fill a chunk of gaps and return one row per gap and method with the MSE over the gap."""
+    df = get_worker_df_complete()
     rows = []
-    for gap_id, position in zip(gap_ids, positions):
-        gap_start = _df.index[position]
-        gap_end = gap_start + pd.Timedelta(hours=gap_length - 1)
-        truth = _df.loc[gap_start:gap_end, station].values
+    for gap_id, position in enumerate(positions, start=first_id):
+        gap_start = df.index[position]
+        truth = df[station].iloc[position:position + gap_length].values
 
-        for method, fill in fill_one_gap(_df, station, gap_start, gap_length).items():
+        for method, fill in fill_one_gap(df, station, gap_start, gap_length).items():
             rows.append([station, gap_length, gap_id, gap_start, method, float(np.mean((fill.values - truth) ** 2))])
     return rows
 
 
 def run_all(stations, gap_lengths, repetitions, max_workers, output_path):
     """Run every station and gap length in a worker pool, appending the rows to output_path as chunks finish."""
-    n_hours = len(load_turku_with_era5())
+    df = load_turku_with_era5()
 
     tasks = []
     for station in stations:
         for gap_length in gap_lengths:
-            positions = draw_gap_starts(n_hours, station, gap_length, repetitions)
+            positions = draw_gap_starts(len(df), station, gap_length, repetitions)
             for first in range(0, repetitions, CHUNK_SIZE):
-                ids = list(range(first, min(first + CHUNK_SIZE, repetitions)))
-                tasks.append((station, gap_length, ids, positions[ids]))
+                tasks.append((station, gap_length, first, positions[first:first + CHUNK_SIZE]))
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["station", "gap_length", "gap_id", "gap_start", "method", "mse"])
 
-        with ProcessPoolExecutor(max_workers=max_workers, initializer=_init_worker) as executor:
+        # Rows are written as chunks finish rather than at the end, so a job that hits its time limit
+        # keeps what it has done, which experiment_utils.run_tasks_for_station does not offer
+        with ProcessPoolExecutor(max_workers=max_workers, initializer=_init_worker, initargs=(df,)) as executor:
             futures = [executor.submit(run_chunk, *task) for task in tasks]
             for done, future in enumerate(as_completed(futures), start=1):
                 writer.writerows(future.result())
