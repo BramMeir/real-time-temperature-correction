@@ -11,6 +11,27 @@ from src.models.regression_sarima_errors.train import train_regression_sarima_er
 from src.evaluation.evaluate_baseline_forecast import evaluate_baseline_forecast
 
 
+def forecast_two_stage(model, X):
+    """
+    Forecast a trained (regression, residual_model) over the hours of X, the neighbours' observations
+    from the first hour after the training window on.
+
+    Output
+    ------
+    predictions: Series with the forecast for every hour of X
+    spatial: Series with the regression part alone, the forecast without the residual model
+    """
+    regression, residual_model = model
+
+    # Spatial part: the OLS regression evaluated on the neighbours' observations
+    spatial = pd.Series(regression.predict(X), index=X.index)
+
+    # Local part: the SARIMA forecast of the residuals, which mean-reverts to zero over the horizon
+    local = residual_model.get_forecast(steps=len(X)).predicted_mean.values
+
+    return spatial + local, spatial
+
+
 def run_single_forecast(df, target_station, model=None, exog_cols=None, start=None, train_end=None,
                         test_end=None, arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), mode="forecast"):
     """
@@ -53,8 +74,6 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
             df.loc[start:train_end], target_station, exog_cols, arima_order, seasonal_order
         )
 
-    regression, residual_model = model
-
     # Test index excludes train_end so the forecast starts one step after the training window
     test_index = df.loc[train_end:test_end].index[1:]
 
@@ -63,13 +82,7 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
     X_test = df.loc[test_index, exog_cols].interpolate(limit_direction="both")
     y_test = df.loc[test_index, target_station]
 
-    # Spatial part: the OLS regression evaluated on the neighbours' observations
-    spatial = regression.predict(X_test)
-
-    # Local part: the SARIMA forecast of the residuals, which mean-reverts to zero over the horizon
-    local = residual_model.get_forecast(steps=len(test_index)).predicted_mean.values
-
-    predictions = pd.Series(spatial + local, index=test_index)
+    predictions, _ = forecast_two_stage(model, X_test)
 
     mae, rmse = evaluate_baseline_forecast(
         predictions, y_test, model_name="regression_sarima_errors", plot=False

@@ -57,16 +57,18 @@ def stage_one_residuals(df, target_station, exog_cols, regression=None):
     return regression, residuals
 
 
-def fit_residual_sarima(residuals, arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), max_iter=1000):
+def fit_residual_sarima(residuals, arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), max_iter=1000,
+                        enforce_stationarity=False):
     """
     Fit the residual SARIMA (stage two) on a series of stage-one residuals. Independent of the number
-    of stations, since the residual series carries no exogenous variables.
+    of stations, since the residual series carries no exogenous variables. Missing residuals are
+    skipped by the state-space likelihood.
     """
     return sm.tsa.statespace.SARIMAX(
         endog=residuals,
         order=arima_order,
         seasonal_order=seasonal_order,
-        enforce_stationarity=False,
+        enforce_stationarity=enforce_stationarity,
         enforce_invertibility=False
     ).fit(maxiter=max_iter, disp=False)
 

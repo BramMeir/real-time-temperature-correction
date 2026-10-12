@@ -21,12 +21,11 @@ matches the model, whose errors are stationary, and leaves the other fits practi
 """
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
-from src.models.regression_sarima_errors.train import stage_one_residuals
+from src.models.regression_sarima_errors.train import fit_residual_sarima, stage_one_residuals
 
 
-def fill_gap_retrospective(df, target_station, exog_cols, gap_start, gap_end, window_days=28,
-                           arima_order=(3, 0, 0), seasonal_order=(1, 0, 0, 24), max_iter=1000):
+def fill_gap_retrospective(df, target_station, exog_cols, gap_start, gap_end, arima_order, seasonal_order,
+                           window_days=28, max_iter=1000):
     """
     Reconstruct the target over a gap from the neighbours and from the target's observations on both
     sides of the gap.
@@ -38,10 +37,10 @@ def fill_gap_retrospective(df, target_station, exog_cols, gap_start, gap_end, wi
     exog_cols: List of neighbouring station column names used as regressors
     gap_start: First missing hour
     gap_end: Last missing hour
+    arima_order: (p, d, q) of the residual SARIMA
+    seasonal_order: (P, D, Q, s) of the residual SARIMA
     window_days: Days of observations used on each side of the gap (default 28, so that the window
       holds eight weeks, as the training window of the real-time correction)
-    arima_order: (p, d, q) of the residual SARIMA (default as in the model comparison)
-    seasonal_order: (P, D, Q, s) of the residual SARIMA (default as in the model comparison)
     max_iter: Maximum number of iterations for fitting the residual SARIMA
 
     Output
@@ -51,25 +50,20 @@ def fill_gap_retrospective(df, target_station, exog_cols, gap_start, gap_end, wi
     """
     window = df.loc[
         gap_start - pd.Timedelta(days=window_days):gap_end + pd.Timedelta(days=window_days),
-        [target_station] + list(exog_cols)
+        [target_station] + exog_cols
     ].copy()
     window.loc[gap_start:gap_end, target_station] = np.nan
 
     # Stage 1 drops the missing rows, so the regression is fitted on both sides of the gap only
-    regression, _ = stage_one_residuals(window, target_station, exog_cols)
+    regression, residuals = stage_one_residuals(window, target_station, exog_cols)
 
     # Stage 2 on the residuals of the whole window, missing inside the gap
-    residuals = window[target_station] - regression.predict(window[exog_cols])
-    residual_model = sm.tsa.statespace.SARIMAX(
-        endog=residuals,
-        order=arima_order,
-        seasonal_order=seasonal_order,
-        enforce_stationarity=True,
-        enforce_invertibility=False
-    ).fit(maxiter=max_iter, disp=False)
+    residual_model = fit_residual_sarima(
+        residuals.reindex(window.index), arima_order, seasonal_order, max_iter, enforce_stationarity=True
+    )
 
-    gap_index = window.loc[gap_start:gap_end].index
-    spatial = pd.Series(regression.predict(window.loc[gap_index, exog_cols]), index=gap_index)
+    X_gap = window.loc[gap_start:gap_end, exog_cols]
+    spatial = pd.Series(regression.predict(X_gap), index=X_gap.index)
     local = residual_model.get_prediction(
         start=gap_start, end=gap_end, information_set="smoothed"
     ).predicted_mean
