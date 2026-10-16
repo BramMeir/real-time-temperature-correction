@@ -42,7 +42,8 @@ def run_single_forecast(df, target_station, model=None, previous_time_steps=24, 
 
     # Select the data based on the provided date ranges
     X_train, y_train = X.loc[start:train_end], y.loc[start:train_end]
-    X_test, y_test = X.loc[train_end:test_end], y.loc[train_end:test_end]
+    # The forecast starts one step after the training window, as for the other models
+    X_test, y_test = X.loc[train_end:test_end].iloc[1:], y.loc[train_end:test_end].iloc[1:]
 
     # Dependant on the mode, train the model using the selected parameters or Bayesian search
     importances = None

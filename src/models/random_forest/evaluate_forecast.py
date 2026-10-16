@@ -30,9 +30,13 @@ def evaluate_forecast(model, y_train, X_test, y_test, plot=False):
     predictions = []
 
     for i in range(len(y_test)):
-        # Predict next step
+        # Predict the current step
         y_pred = model.predict(X_input)[0]
         predictions.append(y_pred)
+
+        # Nothing left to predict after the last step
+        if i + 1 == len(y_test):
+            break
 
         # Shift lag columns to the left
         X_input[lag_cols] = X_input[lag_cols].shift(-1, axis=1)
@@ -40,9 +44,9 @@ def evaluate_forecast(model, y_train, X_test, y_test, plot=False):
         # Prediction becomes the most recent lag
         X_input.iloc[0, X_input.columns.get_loc(lag_cols[-1])] = y_pred
 
-        # Update exogenous columns from the actual future values (known ahead)
-        if i < len(X_test):
-            X_input[exog_cols] = X_test.iloc[i][exog_cols].values
+        # The concurrent network readings and hour of day of the next step, which are available at the moment it
+        # is corrected
+        X_input[exog_cols] = X_test.iloc[i + 1][exog_cols].values
 
     # Convert predictions to series for evaluation
     predictions = pd.Series(predictions, index=y_test.index)
