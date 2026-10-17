@@ -20,8 +20,9 @@ METRIC_CAPTIONS = {"MAE": "Mean absolute error", "RMSE": "Root mean squared erro
 # Gap between the legend of the zoomed horizon plot and the highest curve below it, as a fraction of the panel height
 LEGEND_GAP = 0.04
 
-# Zoom window in degrees for the zoomed horizon plot, per metric
-ZOOM_RANGES = {"MAE": (0.2, 1.3), "RMSE": (0.3, 1.6)}
+# Zoom window in degrees for the zoomed horizon plot, per metric. The top sits just above the highest error bar of the
+# network-based models (the random forest at 30 days)
+ZOOM_RANGES = {"MAE": (0.2, 0.8), "RMSE": (0.3, 1.25)}
 
 
 def _metric_label():
@@ -605,7 +606,7 @@ if __name__ == "__main__":
     df = df[~df["Model"].isin(EXCLUDED_MODELS)]
 
     # The one-hour outage (#78) was only rerun for the linear models, into their own directory. Of the runs read
-    # here, only the MLP rerun (#97) has it, so it is dropped to give every model the same outage durations
+    # here, only the RF and MLP reruns (#97, #107) have it, so it is dropped to give every model the same outage durations
     df = df[df["Horizon"] != 1]
 
     # Per-forecast RMSE, averaged the same way the MAE is
