@@ -216,8 +216,9 @@ __marimo__/
 /hpc/logs/*
 !/hpc/logs/.gitkeep
 
-# Claude Code local overrides
-.claude/settings.local.json
+# Claude Code configuration, kept locally only
+.claude/
+CLAUDE.md
 
 # Editor settings
 .vscode/
