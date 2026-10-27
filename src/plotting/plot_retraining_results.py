@@ -14,7 +14,7 @@ import os
 INPUT_PATH = "output/retraining_results/results_*.csv"
 OUTPUT_DIR = "plots/retraining_results"
 DATASET_LABELS = {
-    "KMI": "RMI",
+    "RMI": "RMI",
     "SYNTHETIC": "Synthetic",
     "TURKU": "TURCLIM"
 }

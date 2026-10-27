@@ -1,6 +1,6 @@
 import pandas as pd
 
-SUPPORTED_DATASETS = ["KMI", "TURKU", "SYNTHETIC"]
+SUPPORTED_DATASETS = ["RMI", "TURKU", "SYNTHETIC"]
 
 
 def load_station_coordinates(dataset_name):
@@ -9,7 +9,7 @@ def load_station_coordinates(dataset_name):
 
     Input
     -----
-    dataset_name: Name of the dataset ("KMI", "TURKU" or "SYNTHETIC"), case-insensitive.
+    dataset_name: Name of the dataset ("RMI", "TURKU" or "SYNTHETIC"), case-insensitive.
 
     Output
     ------
@@ -17,7 +17,7 @@ def load_station_coordinates(dataset_name):
     """
     name = dataset_name.upper()
 
-    if name == "KMI":
+    if name == "RMI":
         metadata = pd.read_csv("data/Full_AWS/metadata.csv")
         coords = {row.station_name: (row.latitude, row.longitude) for row in metadata.itertuples()}
     elif name == "TURKU":

@@ -21,7 +21,7 @@ OUTPUT_FILE = "output/outage_duration_experiment.csv"
 PLOT_DIR = "plots/outage_duration"
 
 # Datasets shown side by side in the faceted comparison plot
-FACETED_DATASETS = ["KMI", "TURKU"]
+FACETED_DATASETS = ["RMI", "TURKU"]
 
 # Which error kind to plot, and the resulting file name / title
 KINDS = {

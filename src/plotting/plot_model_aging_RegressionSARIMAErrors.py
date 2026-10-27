@@ -14,9 +14,9 @@ from src.scripts.models_comparison_experiment import DATASETS as COMPARISON_DATA
 
 # Define constants for file paths and dataset labels
 INPUT_TEMPLATE = "output/aging_model_regression_sarima_errors/results_{}_100.csv"
-DATASETS = ["KMI", "SYNTHETIC", "TURKU"]
+DATASETS = ["RMI", "SYNTHETIC", "TURKU"]
 DATASET_LABELS = {
-    "KMI": "RMI",
+    "RMI": "RMI",
     "SYNTHETIC": "Synthetic",
     "TURKU": "TURCLIM"
 }

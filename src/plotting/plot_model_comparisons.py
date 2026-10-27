@@ -222,7 +222,7 @@ def generate_overall_results_table(df):
 
 
 # Dataset keys as written in the result csv files -> the names used in the paper, in table order
-LATEX_DATASET_NAMES = {"KMI": "RMI", "TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
+LATEX_DATASET_NAMES = {"RMI": "RMI", "TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
 
 # Outage durations shown per dataset in the appendix table, as (hours, column label)
 DATASET_HORIZONS = [(4, "4\\,h"), (720, "30\\,d")]
@@ -519,7 +519,7 @@ def plot_urban_vs_rural_comparison(df):
     """
     5.
     Compare model performance between:
-    - rural-only dataset (KMI)
+    - rural-only dataset (RMI)
     - mixed urban/rural datasets (Turku + Synthetic)
 
     Input:
@@ -530,7 +530,7 @@ def plot_urban_vs_rural_comparison(df):
 
     # Label dataset type
     df["DatasetType"] = df["Dataset"].apply(
-        lambda x: "Rural-only" if x == "KMI" else "Mixed urban/rural"
+        lambda x: "Rural-only" if x == "RMI" else "Mixed urban/rural"
     )
 
     # Aggregate

@@ -20,13 +20,13 @@ import pandas as pd
 from src.evaluation.experiment_utils import write_results_csv
 
 DATASETS = {
-    "KMI": "data/Full_AWS/preprocessed_10m_2022_2025.csv",
+    "RMI": "data/Full_AWS/preprocessed_10m_2022_2025.csv",
     "TURKU": "data/Turku/Turku_preprocessed.csv",
     "SYNTHETIC": "data/Synthetic/temperature_data.csv"
 }
 
 # Station whose series RMI uses for its official heat wave count, per dataset that contains it
-REFERENCE_STATIONS = {"KMI": "UCCLE"}
+REFERENCE_STATIONS = {"RMI": "UCCLE"}
 
 PERCENTILES = [90, 95]
 MIN_RELATIVE_DAYS = 3
