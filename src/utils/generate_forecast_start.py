@@ -1,8 +1,3 @@
-"""
-- generate_forecast_start function to create a reproducible random forecast start date for the experiments.
-  This function ensures that the forecast start date is chosen such that there is enough historical data for training
-  and enough future data for forecasting, based on the specified maximum history and horizon.
-"""
 import numpy as np
 import pandas as pd
 

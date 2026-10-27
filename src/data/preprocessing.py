@@ -1,11 +1,3 @@
-"""
-Script: preprocessing.py
-Description: Loads, preprocesses, and saves raw weather observation data.
-
-Example usage:
-python -m src.data.preprocessing --input ./data/Turku_1H_LI.csv --output ./data/Turku_preprocessed.csv --mode turku
-"""
-
 import argparse
 import pandas as pd
 
@@ -89,16 +81,17 @@ def convert_turku(input_file, output_file):
 
 def include_station_metadata(data_file, metadata_file, output_file):
     """
-    Merges station metadata into the main dataframe.
+    Adds the station name of every station code to the observations.
 
     Input
     -----
-    df: Main dataframe with weather observations.
-    metadata_file: CSV file path containing station metadata.
+    data_file: Input CSV file path with the observations, one row per station code and time step.
+    metadata_file: CSV file path with the station metadata, at least the columns code and name.
+    output_file: Output CSV file path.
 
     Output
     ------
-    Merged dataframe with station metadata included.
+    Saves the observations with an extra station_name column to the specified output CSV file.
     """
     # Load the metadata file
     metadata_df = pd.read_csv(metadata_file)

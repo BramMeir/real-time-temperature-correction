@@ -1,10 +1,3 @@
-"""
-- select_LASSO_stations: Select useful exogenous variables using LASSO regression. This function takes a
-  time series and a DataFrame of exogenous variables, standardizes the features,
-  and fits a LassoCV model to identify which exogenous variables have non-zero coefficients.
-"""
-
-
 import pandas as pd
 from sklearn.linear_model import LassoCV
 from sklearn.preprocessing import StandardScaler
@@ -24,7 +17,7 @@ def select_LASSO_stations(
     -----
     series: Pandas Series with the target time series data
     exog_df: DataFrame with the exogenous variables (must have the same index as the series)
-    random_state: Random seed for reproducibility (default is 42)
+    random_state: Random seed for reproducibility (default is 47)
     n_jobs: Number of cores the cross-validation runs on (default is -1, all cores). Pass 1 when the
       selection itself runs inside a pool of workers, so the workers do not compete for the same cores
 
