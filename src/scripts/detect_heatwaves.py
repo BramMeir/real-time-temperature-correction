@@ -20,9 +20,9 @@ import pandas as pd
 from src.evaluation.experiment_utils import write_results_csv
 
 DATASETS = {
-    "RMI": "data/Full_AWS/preprocessed_10m_2022_2025.csv",
-    "TURKU": "data/Turku/Turku_preprocessed.csv",
-    "SYNTHETIC": "data/Synthetic/temperature_data.csv"
+    "RMI": "data/RMI/observations.csv",
+    "TURKU": "data/Turku/observations.csv",
+    "SYNTHETIC": "data/Synthetic/observations.csv"
 }
 
 # Station whose series RMI uses for its official heat wave count, per dataset that contains it

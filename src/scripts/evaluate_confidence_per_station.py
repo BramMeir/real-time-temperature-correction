@@ -96,8 +96,8 @@ if __name__ == "__main__":
                         help="Number of hours to forecast into the future (default: 168).")
     parser.add_argument("--station_index", type=int, default=0,
                         help="Index of the target station to analyze (default: 0).")
-    parser.add_argument("--input_file", type=str, default="data/Synthetic/temperature_data.csv",
-                        help="Path to the preprocessed data CSV file (default: 'data/Synthetic/temperature_data.csv').")
+    parser.add_argument("--input_file", type=str, default="data/Synthetic/observations.csv",
+                        help="Path to the preprocessed data CSV file (default: 'data/Synthetic/observations.csv').")
     args = parser.parse_args()
 
     # Read the preprocessed data

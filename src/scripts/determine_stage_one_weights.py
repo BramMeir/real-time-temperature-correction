@@ -21,7 +21,7 @@ from src.models.idw.train import _haversine_distance
 from src.models.linear_regression.train import train_neighbour_regression
 from src.scripts.determine_residual_sarima_order import load_station_series, SEED, HORIZONS, MAX_HISTORY_DAYS
 
-DATA_FILE = "data/Synthetic/temperature_data.csv"
+DATA_FILE = "data/Synthetic/observations.csv"
 
 OUTPUT_DIR = "output/stage_one_weights"
 

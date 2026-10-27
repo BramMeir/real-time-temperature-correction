@@ -28,7 +28,7 @@ from src.models.regression_sarima_errors.execute_forecast import run_single_fore
 
 
 DATASET_NAME = "SYNTHETIC"
-DATASET_FILE = "data/Synthetic/temperature_data.csv"
+DATASET_FILE = "data/Synthetic/observations.csv"
 
 # Seed that is used to define the training periods (for reproducibility)
 SEED = 42

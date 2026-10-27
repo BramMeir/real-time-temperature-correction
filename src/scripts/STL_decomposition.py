@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from statsmodels.tsa.seasonal import STL
 
 # 1. Load data
-df = pd.read_csv('./data/Turku/Turku_preprocessed.csv')
+df = pd.read_csv('./data/Turku/observations.csv')
 
 # Print min and max datetime to check the range of the data
 print("Min datetime:", df['datetime'].min())

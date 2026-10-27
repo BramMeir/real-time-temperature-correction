@@ -24,7 +24,7 @@ from src.utils.generate_forecast_start import generate_forecast_start
 # target in turn, giving the largest available candidate pool of neighbours (48 per target)
 DATASETS = {
     "SYNTHETIC": {
-        "file": "data/Synthetic/temperature_data.csv",
+        "file": "data/Synthetic/observations.csv",
         "stations": None
     }
 }

@@ -28,15 +28,15 @@ from src.utils.generate_forecast_start import generate_forecast_start
 # Datasets and stations, mirroring models_comparison_experiment.py
 DATASETS = {
     "RMI": {
-        "file": "data/Full_AWS/preprocessed_10m_2022_2025.csv",
+        "file": "data/RMI/observations.csv",
         "stations": ["MELLE", "DIEPENBEEK", "HUMAIN", "SINT-KATELIJNE-WAVER", "ERNAGE"]
     },
     "TURKU": {
-        "file": "data/Turku/Turku_preprocessed.csv",
+        "file": "data/Turku/observations.csv",
         "stations": ["Betel", "Virastotalo", "Ylijoki", "Kurala"]
     },
     "SYNTHETIC": {
-        "file": "data/Synthetic/temperature_data.csv",
+        "file": "data/Synthetic/observations.csv",
         "stations": [
             "Stadhuis_Brussel_Grote_Markt",
             "Stadhuis_Antwerpen_Grote_Markt",

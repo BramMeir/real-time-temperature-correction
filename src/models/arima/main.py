@@ -41,8 +41,8 @@ if __name__ == "__main__":
                         help="Include exogenous variables from other stations if set.")
     parser.add_argument("--target_station", type=str, default="Melle AWS",
                         help="Name of the target weather station (default: 'Melle AWS').")
-    parser.add_argument("--input_file", type=str, default="data/Part_AWS/preprocessed.csv",
-                        help="Path to the preprocessed data CSV file (default: 'data/Part_AWS/preprocessed.csv').")
+    parser.add_argument("--input_file", type=str, default="data/RMI/observations.csv",
+                        help="Path to the preprocessed data CSV file (default: 'data/RMI/observations.csv').")
     args = parser.parse_args()
 
     # Read the preprocessed data

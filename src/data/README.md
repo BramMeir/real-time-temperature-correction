@@ -14,9 +14,9 @@ python -m src.data.preprocessing --dataset <rmi|turku|synthetic> --input_file <r
 
 | `--dataset` | `--input_file` | `--stations_file` | `--output_file` |
 |---|---|---|---|
-| `rmi` | RMI export (CSV), one row per station code and 10-minute time step, with the columns `code`, `datetime` (`YYYY-MM-DD HH:MM:SS`) and `temp_dry_avg_2m` | RMI station list (CSV) with the columns `code` and `name` | `data/Full_AWS/preprocessed_10m_2022_2025.csv` |
-| `turku` | TURCLIM observations (CSV), the date and time in the first column (`DateTime`) and one column per station | – | `data/Turku/Turku_preprocessed.csv` |
-| `synthetic` | Synthetic network (NetCDF), the variable `tas` in kelvin over the dimensions `time` and `point_index` | Point mapping (CSV) with the columns `point_index` and `station_name` | `data/Synthetic/temperature_data.csv` |
+| `rmi` | RMI export (CSV), one row per station code and 10-minute time step, with the columns `code`, `datetime` (`YYYY-MM-DD HH:MM:SS`) and `temp_dry_avg_2m` | RMI station list (CSV) with the columns `code` and `name` | `data/RMI/observations.csv` |
+| `turku` | TURCLIM observations (CSV), the date and time in the first column (`DateTime`) and one column per station | – | `data/Turku/observations.csv` |
+| `synthetic` | Synthetic network (NetCDF), the variable `tas` in kelvin over the dimensions `time` and `point_index` | Point mapping (CSV) with the columns `point_index` and `station_name` | `data/Synthetic/observations.csv` |
 
 For RMI, the stations with more than 10 % missing temperatures are dropped. The data stays at 10 minutes, the
 experiments themselves keep the observation at every full hour.
@@ -25,12 +25,12 @@ Besides these files, some experiments read a few more files directly:
 
 | File | Content | Read by |
 |---|---|---|
-| `data/Full_AWS/metadata.csv` | RMI stations, with the columns `station_name`, `latitude` and `longitude` | station coordinates |
-| `data/Turku/Turku_coordinates.csv` | TURCLIM stations, with the columns `Site_name`, `Latitude` and `Longitude` | station coordinates |
-| `data/Synthetic/extracted_points_lat_lon.csv` | Synthetic points, with the columns `point_index`, `lat` and `lon` | station coordinates |
-| `data/Synthetic/stations_mapping.csv` | The point mapping used above | station coordinates |
-| `data/Turku/Turku_1H_LI.csv` | The TURCLIM observations, the `--input_file` of `turku` above | comparison with Jacobs et al. (2024) |
-| `data/Turku/Turku_ERA5.csv` | ERA5 temperature at the nearest land grid point of every TURCLIM station, in the same layout as the observations | comparison with Jacobs et al. (2024) |
+| `data/RMI/stations.csv` | RMI stations, with the columns `station_name`, `latitude` and `longitude` | station coordinates |
+| `data/Turku/stations.csv` | TURCLIM stations, with the columns `Site_name`, `Latitude` and `Longitude` | station coordinates |
+| `data/Synthetic/stations.csv` | Synthetic points, with the columns `point_index`, `lat` and `lon` | station coordinates |
+| `data/Synthetic/point_names.csv` | The point mapping used above | station coordinates |
+| `data/Turku/raw_observations.csv` | The TURCLIM observations, the `--input_file` of `turku` above | comparison with Jacobs et al. (2024) |
+| `data/Turku/era5.csv` | ERA5 temperature at the nearest land grid point of every TURCLIM station, in the same layout as the observations | comparison with Jacobs et al. (2024) |
 
 ## Files
 

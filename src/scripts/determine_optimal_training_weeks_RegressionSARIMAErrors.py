@@ -18,11 +18,11 @@ from src.utils.generate_forecast_start import generate_forecast_start
 # Metadata about the used datasets and stations to evaluate on
 DATASETS = {
     "TURKU": {
-        "file": "data/Turku/Turku_preprocessed.csv",
+        "file": "data/Turku/observations.csv",
         "stations": ["Betel", "Virastotalo", "Ylijoki", "Kurala"]
     },
     "SYNTHETIC": {
-        "file": "data/Synthetic/temperature_data.csv",
+        "file": "data/Synthetic/observations.csv",
         "stations": [
             "Stadhuis_Brussel_Grote_Markt",
             "Stadhuis_Antwerpen_Grote_Markt",
