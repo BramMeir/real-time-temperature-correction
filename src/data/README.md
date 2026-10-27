@@ -4,44 +4,39 @@ Preparation of the three datasets, and the conversion of a time series into the 
 
 ## Preparing the datasets
 
-Every experiment reads one long-format CSV file per dataset, with one row per station and time step and the columns
-`datetime`, `station_name` and `temp_dry_avg_2m`. The raw files go in `data/` (not in the repository) and are converted
-as follows, run from the repository root.
-
-**RMI.** The raw export has one row per station code and 10-minute time step. First add the station names, then
-filter the stations:
+The data is not part of the repository. The experiments read one CSV file per dataset from a fixed path under
+`data/`, with one row per station and time step and the columns `datetime`, `station_name` and `temp_dry_avg_2m`.
+`preprocessing.py` converts the raw data of each dataset to that file, run from the repository root:
 
 ```bash
-python -m src.data.preprocessing --mode include_metadata --input_file <raw RMI export>.csv --metadata <RMI station list>.csv --output_file <with names>.csv
-python -m src.data.preprocessing --mode standard --input_file <with names>.csv --output_file data/Full_AWS/preprocessed_10m_2022_2025.csv
+python -m src.data.preprocessing --dataset <rmi|turku|synthetic> --input_file <raw data> [--stations_file <station list>] --output_file <path below>
 ```
 
-The second step drops every station with more than 10 % missing temperatures. The data stays at 10 minutes, the
+| `--dataset` | `--input_file` | `--stations_file` | `--output_file` |
+|---|---|---|---|
+| `rmi` | RMI export (CSV), one row per station code and 10-minute time step, with the columns `code`, `datetime` (`YYYY-MM-DD HH:MM:SS`) and `temp_dry_avg_2m` | RMI station list (CSV) with the columns `code` and `name` | `data/Full_AWS/preprocessed_10m_2022_2025.csv` |
+| `turku` | TURCLIM observations (CSV), the date and time in the first column (`DateTime`) and one column per station | – | `data/Turku/Turku_preprocessed.csv` |
+| `synthetic` | Synthetic network (NetCDF), the variable `tas` in kelvin over the dimensions `time` and `point_index` | Point mapping (CSV) with the columns `point_index` and `station_name` | `data/Synthetic/temperature_data.csv` |
+
+For RMI, the stations with more than 10 % missing temperatures are dropped. The data stays at 10 minutes, the
 experiments themselves keep the observation at every full hour.
 
-**TURCLIM.** The source file has one column per station. It is converted to long format with:
+Besides these files, some experiments read a few more files directly:
 
-```bash
-python -m src.data.preprocessing --mode turku --input_file data/Turku/Turku_1H_LI.csv --output_file data/Turku/Turku_preprocessed.csv
-```
-
-The comparison with Jacobs et al. (2024) reads `Turku_1H_LI.csv` directly, together with `data/Turku/Turku_ERA5.csv`.
-
-**Synthetic.** The NetCDF file holds the temperature (`tas`, in kelvin) per grid point. It is converted to °C and
-long format, with the station name of every point taken from `stations_mapping.csv`:
-
-```bash
-python -m src.data.extract_nc_file --input_file data/Synthetic/extracted_points_tas.nc --station_file data/Synthetic/stations_mapping.csv --output data/Synthetic/temperature_data.csv
-```
-
-The station coordinates are read separately, by `src/utils/load_station_coordinates.py`.
+| File | Content | Read by |
+|---|---|---|
+| `data/Full_AWS/metadata.csv` | RMI stations, with the columns `station_name`, `latitude` and `longitude` | station coordinates |
+| `data/Turku/Turku_coordinates.csv` | TURCLIM stations, with the columns `Site_name`, `Latitude` and `Longitude` | station coordinates |
+| `data/Synthetic/extracted_points_lat_lon.csv` | Synthetic points, with the columns `point_index`, `lat` and `lon` | station coordinates |
+| `data/Synthetic/stations_mapping.csv` | The point mapping used above | station coordinates |
+| `data/Turku/Turku_1H_LI.csv` | The TURCLIM observations, the `--input_file` of `turku` above | comparison with Jacobs et al. (2024) |
+| `data/Turku/Turku_ERA5.csv` | ERA5 temperature at the nearest land grid point of every TURCLIM station, in the same layout as the observations | comparison with Jacobs et al. (2024) |
 
 ## Files
 
 | File | What it does |
 |---|---|
-| `preprocessing.py` | Converts the raw RMI and TURCLIM files, see above. |
-| `extract_nc_file.py` | Converts the synthetic NetCDF file, see above. |
+| `preprocessing.py` | Converts the raw data of each dataset, see above. |
 | `create_supervised.py` | Input-output pairs of the tabular models (RF, MLP, XGBoost): the target's past 24 hours, the network at the current hour and the hour of day. |
 | `create_3d_dataset.py` | Input sequences of the sequence models (LSTM, Transformer, TCN): the preceding hours of all stations, plus the hour of day. |
 | `align_concurrent_exog.py` | Shifts the network readings one hour ahead of the target, so the last step of a sequence pairs the target's previous value with the concurrent network readings. |
