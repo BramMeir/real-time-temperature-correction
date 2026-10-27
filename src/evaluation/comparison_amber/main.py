@@ -23,14 +23,14 @@ from src.data.create_supervised import create_supervised_dataset
 from src.data.create_3d_dataset import create_3d_dataset
 
 
-def test_different_gf_techniques_amber(input_file="data/Turku/Turku_1H_LI.csv"):
+def test_different_gf_techniques_amber(input_file="data/Turku/raw_observations.csv"):
     """
     Test different gap-filling techniques from Amber's paper on the Turku dataset using the Test_techniques_differentgaplengths function.
     The default parameters are set to the ones preferred in Amber's paper.
     """
     # Read the Turku data and the ERA5 data into dataframes
     df_Turku = pd.read_csv(input_file, index_col="DateTime", parse_dates=True)
-    df_ERA5 = pd.read_csv("data/Turku/Turku_ERA5.csv", index_col="DateTime", parse_dates=True)
+    df_ERA5 = pd.read_csv("data/Turku/era5.csv", index_col="DateTime", parse_dates=True)
 
     # Rename the ERA5 station names to station name + '_ERA5'
     df_ERA5.columns = [col + "_ERA5" for col in df_ERA5.columns if col != "DateTime"]
@@ -66,7 +66,7 @@ def test_different_gf_techniques_amber(input_file="data/Turku/Turku_1H_LI.csv"):
     print(df_stderr)
 
 
-def test_SARIMA_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
+def test_SARIMA_approach(input_file="data/Turku/raw_observations.csv", seed=47):
     """
     Test the SARIMA approach on the Turku dataset for different forecast horizons.
 
@@ -141,7 +141,7 @@ def test_SARIMA_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
         print(f"{hours} hours: MAE = {mae}")
 
 
-def test_RF_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
+def test_RF_approach(input_file="data/Turku/raw_observations.csv", seed=47):
     """
     Test the RF approach on the Turku dataset for different forecast horizons.
 
@@ -218,7 +218,7 @@ def test_RF_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
         print(f"{hours} hours: MAE = {mae}")
 
 
-def test_LSTM_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
+def test_LSTM_approach(input_file="data/Turku/raw_observations.csv", seed=47):
     """
     Test the LSTM approach on the Turku dataset for different forecast horizons.
 
@@ -326,7 +326,7 @@ def execute_train_LSTM_model(i, df_train, target_station):
     return model, i
 
 
-def test_MLP_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
+def test_MLP_approach(input_file="data/Turku/raw_observations.csv", seed=47):
     """
     Test the MLP approach on the Turku dataset for different forecast horizons.
 
@@ -442,7 +442,7 @@ def execute_train_mlp_model(i, X_train, y_train, random_seed):
     return model, i
 
 
-def test_TCN_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
+def test_TCN_approach(input_file="data/Turku/raw_observations.csv", seed=47):
     """
     Test the TCN approach on the Turku dataset for different forecast horizons.
 
@@ -573,7 +573,7 @@ def execute_train_tcn_model(i, X_train, y_train, random_seed):
     return model, i
 
 
-def test_transformer_approach(input_file="data/Turku/Turku_1H_LI.csv", seed=47):
+def test_transformer_approach(input_file="data/Turku/raw_observations.csv", seed=47):
     """
     Test the Transformer approach on the Turku dataset for different forecast horizons.
 
@@ -685,7 +685,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run gap-filling technique comparisons.")
     parser.add_argument("--model", choices=["amber", "sarima", "RF", "LSTM", "MLP", "TCN", "transformer"], default="sarima",
                         help="Specify which model to use.")
-    parser.add_argument("--input_file", type=str, default="data/Turku/Turku_1H_LI.csv", help="Path to the input CSV file.")
+    parser.add_argument("--input_file", type=str, default="data/Turku/raw_observations.csv", help="Path to the input CSV file.")
     args = parser.parse_args()
 
     if args.model == "amber":

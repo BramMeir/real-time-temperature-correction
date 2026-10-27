@@ -4,7 +4,7 @@ Main script for XGBoost model training and hyperparameter search.
 The search is run at the settings the model comparison uses (24 lags, 8 training weeks), so the
 resulting hyperparameters are the ones the comparison will actually run with.
 
-python -m src.models.xgboost_model.main --input_file ./data/Full_AWS/preprocessed_10m_2022_2025.csv --mode bayes_search
+python -m src.models.xgboost_model.main --input_file ./data/RMI/observations.csv --mode bayes_search
 """
 import argparse
 import collections

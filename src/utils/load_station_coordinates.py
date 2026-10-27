@@ -18,14 +18,14 @@ def load_station_coordinates(dataset_name):
     name = dataset_name.upper()
 
     if name == "RMI":
-        metadata = pd.read_csv("data/Full_AWS/metadata.csv")
+        metadata = pd.read_csv("data/RMI/stations.csv")
         coords = {row.station_name: (row.latitude, row.longitude) for row in metadata.itertuples()}
     elif name == "TURKU":
-        metadata = pd.read_csv("data/Turku/Turku_coordinates.csv")
+        metadata = pd.read_csv("data/Turku/stations.csv")
         coords = {row.Site_name: (row.Latitude, row.Longitude) for row in metadata.itertuples()}
     elif name == "SYNTHETIC":
-        points = pd.read_csv("data/Synthetic/extracted_points_lat_lon.csv")
-        mapping = pd.read_csv("data/Synthetic/stations_mapping.csv")
+        points = pd.read_csv("data/Synthetic/stations.csv")
+        mapping = pd.read_csv("data/Synthetic/point_names.csv")
 
         merged = points.merge(mapping, on="point_index")
         coords = {row.station_name: (row.lat, row.lon) for row in merged.itertuples()}

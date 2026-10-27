@@ -35,7 +35,7 @@ LCZ_COG_URL = "/vsicurl/https://lcz-generator.rub.de/cogs/lcz_filter_v1_cog.tif"
 
 
 def load_wide_data():
-    df = pd.read_csv("data/Synthetic/temperature_data.csv")
+    df = pd.read_csv("data/Synthetic/observations.csv")
     df["datetime"] = pd.to_datetime(df["datetime"])
     wide = df.pivot(index="datetime", columns="station_name", values="temp_dry_avg_2m")
     return wide.asfreq("1h")

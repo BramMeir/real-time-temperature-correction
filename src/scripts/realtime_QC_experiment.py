@@ -5,7 +5,7 @@ Description: Simulates real-time quality control using a rolling buffer approach
              and consecutive outliers are used to detect sensor malfunctions.
 
 Usage:
-    python -m src.scripts.realtime_QC_experiment --dataset data/Full_AWS/preprocessed_10m_2022_2025.csv
+    python -m src.scripts.realtime_QC_experiment --dataset data/RMI/observations.csv
 """
 import os
 import argparse
@@ -283,9 +283,9 @@ def run_realtime_qc(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Real-time QC simulation using metobs_toolkit")
-    parser.add_argument("--dataset", default="data/Full_AWS/preprocessed_10m_2022_2025.csv")
+    parser.add_argument("--dataset", default="data/RMI/observations.csv")
     parser.add_argument("--template", default="data/Full_AWS/template.json")
-    parser.add_argument("--metadata", default="data/Full_AWS/metadata.csv")
+    parser.add_argument("--metadata", default="data/RMI/stations.csv")
     parser.add_argument("--start", default=None, help="Simulation start (YYYY-MM-DD HH:MM)")
     parser.add_argument("--end", default=None, help="Simulation end   (YYYY-MM-DD HH:MM)")
     args = parser.parse_args()

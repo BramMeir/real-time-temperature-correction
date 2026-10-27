@@ -81,10 +81,10 @@ files = glob.glob("output/confidence_analysis/confidence_station_*.csv")
 df_results = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
 
 # Load mapping
-df_mapping = pd.read_csv("data/Synthetic/stations_mapping.csv")
+df_mapping = pd.read_csv("data/Synthetic/point_names.csv")
 
 # Load coordinates
-df_coords = pd.read_csv("data/Synthetic/extracted_points_lat_lon.csv")
+df_coords = pd.read_csv("data/Synthetic/stations.csv")
 
 # Merge everything
 df = df_results.merge(df_mapping, left_on="target_station", right_on="station_name")

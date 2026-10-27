@@ -9,7 +9,7 @@ for a target station. It does this by:
 
 Example usage:
 python -m src.models.arima.forecast_with_filtered_stations
-       --target_station "Sint_Baafs_Gent" --input_file "data/Synthetic/temperature_data.csv""
+       --target_station "Sint_Baafs_Gent" --input_file "data/Synthetic/observations.csv""
 """
 
 import argparse
@@ -36,8 +36,8 @@ if __name__ == "__main__":
                         help="Number of hours to forecast into the future (default: 48).")
     parser.add_argument("--target_station", type=str, default="Melle AWS",
                         help="Name of the target weather station (default: 'Melle AWS').")
-    parser.add_argument("--input_file", type=str, default="data/Part_AWS/preprocessed.csv",
-                        help="Path to the preprocessed data CSV file (default: 'data/Part_AWS/preprocessed.csv').")
+    parser.add_argument("--input_file", type=str, default="data/RMI/observations.csv",
+                        help="Path to the preprocessed data CSV file (default: 'data/RMI/observations.csv').")
     args = parser.parse_args()
 
     # Read the preprocessed data
