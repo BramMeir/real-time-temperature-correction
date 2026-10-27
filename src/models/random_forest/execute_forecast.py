@@ -42,7 +42,7 @@ def run_single_forecast(df, target_station, model=None, previous_time_steps=24, 
     # Create supervised dataset
     X, y = create_supervised_dataset(df_subset, target_station=target_station,
                                      previous_time_steps=previous_time_steps,
-                                     exog_cols=exog_cols, exog_lags=0)
+                                     exog_cols=exog_cols)
 
     # Select the data based on the provided date ranges
     X_train, y_train = X.loc[start:train_end], y.loc[start:train_end]

@@ -190,7 +190,7 @@ def run_single_experiment(task):
 
         # Create supervised dataset
         X, y = create_supervised_dataset(
-            df_subset, target_station=station, previous_time_steps=24, exog_cols=exog_df.columns.tolist(), exog_lags=0
+            df_subset, target_station=station, previous_time_steps=24, exog_cols=exog_df.columns.tolist()
         )
 
         # Select the data based on the training period
