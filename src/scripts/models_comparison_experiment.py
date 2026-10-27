@@ -48,7 +48,7 @@ from src.utils.load_station_coordinates import load_station_coordinates
 
 # Metadata about the used datasets and stations to evaluate on
 DATASETS = {
-    "KMI": {
+    "RMI": {
         "file": "data/Full_AWS/preprocessed_10m_2022_2025.csv",
         "stations": ["MELLE", "DIEPENBEEK", "HUMAIN", "SINT-KATELIJNE-WAVER", "ERNAGE"]
     },

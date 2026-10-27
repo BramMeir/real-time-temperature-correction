@@ -32,7 +32,7 @@ from src.models.arima.repeat_forecast import _run_single_forecast as run_arimax
 from src.models.regression_sarima_errors.execute_forecast import run_single_forecast as run_regression_sarima_errors
 from src.scripts.models_comparison_experiment import DATASETS as ALL_DATASETS
 
-# Synthetic is left out for now: ARIMAX fitting is much slower on it, and KMI + Turku already
+# Synthetic is left out for now: ARIMAX fitting is much slower on it, and RMI + Turku already
 # give two independent real-world station networks
 DATASETS = {name: info for name, info in ALL_DATASETS.items() if name != "SYNTHETIC"}
 

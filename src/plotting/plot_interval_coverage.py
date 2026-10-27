@@ -26,7 +26,7 @@ RESULTS_GLOB = "output/interval_coverage/interval_coverage_*.csv"
 PLOTS_DIR = "plots/interval_coverage"
 
 DATASET_LABELS = {
-    "KMI": "RMI (rural)",
+    "RMI": "RMI (rural)",
     "TURKU": "TURCLIM (urban)",
     "SYNTHETIC": "Synthetic"
 }

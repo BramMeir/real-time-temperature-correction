@@ -27,7 +27,7 @@ from src.plotting.plot_stage_one_weight_maps import (
 PLOTS_DIR = "plots/station_maps"
 
 # File name of every map
-MAP_NAMES = {"KMI": "RMI", "TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
+MAP_NAMES = {"RMI": "RMI", "TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
 
 # Margin around the stations, as a fraction of the span they cover: wider for TURCLIM, whose stations are named
 MARGIN = 0.12
@@ -68,7 +68,7 @@ def load_station_points(dataset):
 
     Input
     -----
-    dataset: Name of the dataset, as in DATASETS ("KMI", "TURKU" or "SYNTHETIC")
+    dataset: Name of the dataset, as in DATASETS ("RMI", "TURKU" or "SYNTHETIC")
 
     Output
     ------
@@ -183,7 +183,7 @@ def save_map(fig, name):
 
 def plot_belgian_maps():
     """Plot the RMI and the synthetic network in one shared frame around all Belgian stations."""
-    networks = {dataset: load_station_points(dataset) for dataset in ["KMI", "SYNTHETIC"]}
+    networks = {dataset: load_station_points(dataset) for dataset in ["RMI", "SYNTHETIC"]}
     extent = frame(pd.concat(networks.values()), MARGIN)
     borders = gpd.read_file(BORDERS_URL).to_crs(epsg=3857)
 

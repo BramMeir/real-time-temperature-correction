@@ -27,7 +27,7 @@ from src.utils.generate_forecast_start import generate_forecast_start
 
 # Datasets and stations, mirroring models_comparison_experiment.py
 DATASETS = {
-    "KMI": {
+    "RMI": {
         "file": "data/Full_AWS/preprocessed_10m_2022_2025.csv",
         "stations": ["MELLE", "DIEPENBEEK", "HUMAIN", "SINT-KATELIJNE-WAVER", "ERNAGE"]
     },
