@@ -1,17 +1,12 @@
-"""
-Script: create_supervised.py
-Description: Create a supervised learning dataset from time series data. This is necessary for models
-             like Random Forests that require fixed input-output pairs (for example, previous 24 hours to predict next hour).
-
-Example usage:
-python -m src.data.preprocessing --input ./data/Turku_1H_LI.csv --output ./data/Turku_preprocessed.csv --mode turku
-"""
 import pandas as pd
 import numpy as np
 
 
 def create_supervised_dataset(df, target_station, previous_time_steps=24, exog_cols=None):
     """
+    Build the fixed input-output pairs of the tabular models (RF, MLP, XGBoost): for every time step, the target's
+    previous time steps, the exogenous columns at that time step and the hour of day as a sine and a cosine.
+
     Input
     -----
     df: DataFrame with time series data, indexed by datetime

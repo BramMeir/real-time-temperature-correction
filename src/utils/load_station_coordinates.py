@@ -1,8 +1,3 @@
-"""
-- load_station_coordinates function to load the station coordinates (latitude, longitude) for one of the supported
-  datasets (KMI, TURKU, SYNTHETIC). Used by the IDW baseline model to compute the great-circle distances between
-  the target station and its neighbours.
-"""
 import pandas as pd
 
 SUPPORTED_DATASETS = ["KMI", "TURKU", "SYNTHETIC"]

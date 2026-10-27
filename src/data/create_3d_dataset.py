@@ -4,13 +4,13 @@ import numpy as np
 
 def create_3d_dataset(df, target_station, previous_time_steps=24, exog_cols=None):
     """
-    Creates a 3D dataset for TCN models: (Samples, Timesteps, Features).
+    Creates a 3D dataset for the sequence models (LSTM, Transformer, TCN): (Samples, Timesteps, Features).
 
     Input
     -----
     df: DataFrame with time series data, indexed by datetime.
     target_station: Name of the target station column to predict.
-    previous_time_steps: The lookback window (L) for the TCN (max number of past time steps to use).
+    previous_time_steps: The lookback window (L) of the sequence model (max number of past time steps to use).
     exog_cols: List of exogenous columns (neighboring stations).
 
     Output

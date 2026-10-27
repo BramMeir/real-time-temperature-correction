@@ -1,10 +1,3 @@
-"""
-Script: extract_nc_file.py
-Description: This script extracts temperature data from a NetCDF file containing synthetic data.
-             The NetCDF file is assumed to have a variable named "tas" (temperature at surface) with
-                a dimension "point_index" that corresponds to different weather stations. The script converts
-                the temperature from Kelvin to Celsius and prints this to a .csv file.
-"""
 import xarray as xr
 import pandas as pd
 import argparse
@@ -40,7 +33,6 @@ def extract_temperature_data(input_file, output_file, station_file=None):
     # Move columns into rows and reset index
     df_long = df.stack().reset_index()
     df_long.columns = ["datetime", "point_index", "temp_dry_avg_2m"]
-    # print(df_long)
 
     # Convert the point_index to station names using the given station mapping
     if station_file:
