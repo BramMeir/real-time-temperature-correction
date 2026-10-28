@@ -6,6 +6,7 @@ from src.utils.datasets import DATASETS, load_station_data
 from src.utils.experiment_utils import write_results_csv
 from src.evaluation.interval_coverage import conformal_bounds, empirical_bounds, summarise_interval
 from src.models.regsarima.train import train_regression_sarima_errors
+from src.models.regsarima.execute_forecast import forecast_two_stage
 from src.utils.generate_forecast_start import generate_forecast_start
 
 # Must match model_comparison_experiment.py to keep the onsets paired
@@ -19,54 +20,26 @@ NUMBER_OF_REPEATS = 10
 # Residual SARIMA orders as used elsewhere for this model
 RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
 
-# Held-out calibration windows. 3 days is what regsarima/confidence_score.py used at first;
-# the longer ones test how much of the under-coverage is simply too small a calibration sample.
-# The total history stays at training_weeks, so a longer holdout leaves the calibration fit less
-# data - that is the real operational trade-off.
-DEFAULT_CALIBRATION_DAYS = [3, 7, 14]
+# Lengths of the held-out validation episode. The total history stays at the training weeks, so a longer episode
+# leaves the calibration fit less data
+CALIBRATION_DAYS = [3, 7, 14]
 
-# 0.95 is the level the paper claims; the others come free from the same forecast and give the
-# calibration curve. 0.99 is left out: 72 calibration hours cannot pin down that tail.
-DEFAULT_LEVELS = [0.5, 0.8, 0.9, 0.95]
+# Nominal level of the prediction intervals
+LEVEL = 0.95
 
 # Both bands come from the same calibration errors, so comparing them costs no extra fits
 BAND_METHODS = {"quantile": empirical_bounds, "conformal": conformal_bounds}
 
 
-def two_stage_predict(df, target_station, exog_cols, model, test_index):
+def predict(df, exog_cols, model, index):
+    """RegSARIMA's reconstruction over index, with short gaps in the neighbour readings interpolated."""
+    predictions, _ = forecast_two_stage(model, df.loc[index, exog_cols].interpolate(limit_direction="both"))
+    return predictions
+
+
+def run_intervals(df_complete, target_station, exog_cols, train_start, forecast_start, test_index):
     """
-    Point forecast of the two-stage model, as in regsarima/execute_forecast.py: the
-    OLS regression on the neighbours plus the SARIMA forecast of its residuals.
-
-    Input
-    -----
-    df: Wide DataFrame, one column per station, hourly
-    target_station: Target station column
-    exog_cols: Neighbour station columns used as regressors
-    model: (regression, residual_model) tuple from train_regression_sarima_errors
-    test_index: Window to forecast
-
-    Output
-    ------
-    predictions: Series with the forecast over test_index
-    """
-    regression, residual_model = model
-
-    # The neighbour observations are assumed known over the horizon; interpolate short gaps so a
-    # missing regressor value does not crash the prediction
-    X_test = df.loc[test_index, exog_cols].interpolate(limit_direction="both")
-
-    spatial = regression.predict(X_test)
-    local = residual_model.get_forecast(steps=len(test_index)).predicted_mean.values
-
-    return pd.Series(spatial + local, index=test_index)
-
-
-def run_intervals(df_complete, target_station, exog_cols, train_start, forecast_start, test_index,
-                  calibration_days, levels):
-    """
-    Interval bounds over the reconstruction window, for every calibration length, band method and
-    level. The reconstruction forecast is fitted once and shared, so the cost is one test fit plus
+    Interval bounds over the reconstruction window, for every calibration length and band method. The reconstruction forecast is fitted once and shared, so the cost is one test fit plus
     one calibration fit per calibration length.
 
     Input
@@ -76,25 +49,21 @@ def run_intervals(df_complete, target_station, exog_cols, train_start, forecast_
     exog_cols: Neighbour station columns used as regressors
     train_start, forecast_start: Training window boundaries
     test_index: Reconstruction window
-    calibration_days: Holdout lengths in days
-    levels: Nominal coverage levels
 
     Output
     ------
-    bounds: Dict mapping (days, method, level) to a (lower, upper) tuple
+    bounds: Dict mapping (days, method) to a (lower, upper) tuple
     """
     # Fitted on the full history and forecast once; only the band depends on the holdout
     test_model = train_regression_sarima_errors(
         df_complete[train_start:forecast_start], target_station, exog_cols,
         RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER, max_iter=1000
     )
-    test_predictions = two_stage_predict(
-        df_complete, target_station, exog_cols, test_model, test_index
-    )
+    test_predictions = predict(df_complete, exog_cols, test_model, test_index)
 
     bounds = {}
 
-    for days in calibration_days:
+    for days in CALIBRATION_DAYS:
         calibration_start = forecast_start - pd.Timedelta(days=days)
 
         # Starts one step after the boundary, as in the model's execute_forecast module
@@ -105,18 +74,13 @@ def run_intervals(df_complete, target_station, exog_cols, train_start, forecast_
             df_complete[train_start:calibration_start], target_station, exog_cols,
             RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER, max_iter=1000
         )
-        calibration_predictions = two_stage_predict(
-            df_complete, target_station, exog_cols, calibration_model, calibration_index
-        )
+        calibration_predictions = predict(df_complete, exog_cols, calibration_model, calibration_index)
         calibration_errors = (
             df_complete.loc[calibration_index, target_station] - calibration_predictions
         )
 
         for method, build_bounds in BAND_METHODS.items():
-            for level in levels:
-                bounds[(days, method, level)] = build_bounds(
-                    test_predictions, calibration_errors, level
-                )
+            bounds[(days, method)] = build_bounds(test_predictions, calibration_errors, LEVEL)
 
     return bounds
 
@@ -127,15 +91,13 @@ def run_single_experiment(task):
 
     Input
     -----
-    task: Tuple of (dataset_name, repeat_id, station, series, exog_df, df_complete, training_days,
-      calibration_days, levels)
+    task: Tuple of (dataset_name, repeat_id, station, series, exog_df, df_complete, training_days)
 
     Output
     ------
-    rows: One row per (calibration length, method, level, horizon)
+    rows: One row per (calibration length, method, horizon)
     """
-    (dataset_name, repeat_id, station, series, exog_df, df_complete, training_days,
-     calibration_days, levels) = task
+    dataset_name, repeat_id, station, series, exog_df, df_complete, training_days = task
 
     # Same onset as the accuracy experiment, since SEED, its per-station offset and the history length match
     station_seed = SEED + zlib.crc32(station.encode())
@@ -152,20 +114,17 @@ def run_single_experiment(task):
     print(f"{dataset_name} {station} onset {forecast_start} (repeat {repeat_id})")
 
     bounds = run_intervals(
-        df_complete, station, exog_df.columns.tolist(), train_start, forecast_start, test_index,
-        calibration_days, levels
+        df_complete, station, exog_df.columns.tolist(), train_start, forecast_start, test_index
     )
 
     actual = df_complete.loc[test_index, station]
 
     rows = []
-    for (days, method, level), (lower, upper) in bounds.items():
+    for (days, method), (lower, upper) in bounds.items():
         for horizon in HORIZONS:
             # Cumulative over hours 1..horizon, matching how MAE is reported per horizon
             window = test_index[:horizon]
-            summary = summarise_interval(
-                lower.loc[window], upper.loc[window], actual.loc[window], level
-            )
+            summary = summarise_interval(lower.loc[window], upper.loc[window], actual.loc[window])
 
             rows.append([
                 dataset_name,
@@ -175,19 +134,17 @@ def run_single_experiment(task):
                 forecast_start,
                 days,
                 method,
-                level,
                 horizon,
                 summary["n_total"],
                 summary["n_inside"],
                 summary["coverage"],
-                summary["mean_width"],
-                summary["mean_interval_score"]
+                summary["mean_width"]
             ])
 
     return rows
 
 
-def run_all_experiments(training_weeks, repeats, calibration_days, levels, max_workers):
+def run_all_experiments(training_weeks, repeats, max_workers):
     """
     Run every dataset, station and onset, and write the results to output/interval_coverage/.
 
@@ -195,8 +152,6 @@ def run_all_experiments(training_weeks, repeats, calibration_days, levels, max_w
     -----
     training_weeks: Weeks of training data per onset
     repeats: Failure onsets per station
-    calibration_days: Holdout lengths in days
-    levels: Nominal coverage levels
     max_workers: Parallel worker processes (None lets the pool decide)
     """
     training_days = training_weeks * 7
@@ -211,8 +166,7 @@ def run_all_experiments(training_weeks, repeats, calibration_days, levels, max_w
             exog_df = df_complete.drop(columns=station)
 
             tasks = [
-                (dataset_name, i, station, series, exog_df, df_complete, training_days,
-                 calibration_days, levels)
+                (dataset_name, i, station, series, exog_df, df_complete, training_days)
                 for i in range(repeats)
             ]
 
@@ -232,13 +186,11 @@ def run_all_experiments(training_weeks, repeats, calibration_days, levels, max_w
             "Forecast_start",
             "Calibration_days",
             "Method",
-            "Level",
             "Horizon",
             "N_total",
             "N_inside",
             "Coverage",
-            "Mean_width",
-            "Mean_interval_score"
+            "Mean_width"
         ],
         rows
     )
@@ -257,14 +209,8 @@ if __name__ == "__main__":
     parser.add_argument("--repeats", type=int, default=NUMBER_OF_REPEATS,
                         help=f"Number of failure onsets per station (default: {NUMBER_OF_REPEATS}). "
                              "Lower it for a quick trial run.")
-    parser.add_argument("--calibration_days", type=int, nargs="+",
-                        default=DEFAULT_CALIBRATION_DAYS,
-                        help=f"Holdout lengths in days (default: {DEFAULT_CALIBRATION_DAYS}).")
-    parser.add_argument("--levels", type=float, nargs="+", default=DEFAULT_LEVELS,
-                        help=f"Nominal coverage levels to evaluate (default: {DEFAULT_LEVELS}).")
     parser.add_argument("--max_workers", type=int, default=None,
                         help="Number of parallel worker processes (default: let the pool decide).")
     args = parser.parse_args()
 
-    run_all_experiments(args.training_weeks, args.repeats, args.calibration_days, args.levels,
-                        args.max_workers)
+    run_all_experiments(args.training_weeks, args.repeats, args.max_workers)
