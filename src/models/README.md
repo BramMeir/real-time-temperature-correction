@@ -51,7 +51,8 @@ SARIMA model of its residuals, fitted in two stages.
 | `execute_forecast.py` | Reconstructs the target over an outage. |
 | `grid_search.py` | Grid search over the orders by AIC, with fixed differencing (`d`, `D`). |
 | `plot_diagnostics.py` | ACF and PACF of a series. |
-| `tune.py` | Runs the grid search (default) or the diagnostics on a random training window of Melle, with `--exog` for SARIMAX: `python -m src.models.sarima.tune --weeks 8 --exog` |
+| `stationarity_test.py` | Augmented Dickey-Fuller test of a series for a unit root, which decides the differencing `d`. |
+| `tune.py` | Runs the grid search (default), the diagnostics (`--mode diagnostics`) or the stationarity test (`--mode stationarity`) on a random training window of Melle, with `--exog` for SARIMAX: `python -m src.models.sarima.tune --weeks 8 --exog` |
 
 ## Machine-learning models
 
