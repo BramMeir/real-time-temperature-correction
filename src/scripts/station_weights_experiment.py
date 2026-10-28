@@ -32,8 +32,7 @@ def fit_weights(df_complete, series, target, exog_cols, repeats):
 
     Output
     ------
-    Returns a DataFrame with one row per training period and neighbour, with the raw and the standardised
-    coefficient.
+    Returns a DataFrame with one row per training period and neighbour, with the standardised coefficient.
     """
     rows = []
     for repeat_id in range(repeats):
@@ -55,15 +54,7 @@ def fit_weights(df_complete, series, target, exog_cols, repeats):
         scale = data[exog_cols].std() / data[target].std()
 
         for neighbour, coef in zip(exog_cols, regression.coef_):
-            rows.append({
-                "target": target,
-                "neighbour": neighbour,
-                "repeat_id": repeat_id,
-                "train_start": train_start,
-                "train_end": train_end,
-                "raw_coef": coef,
-                "std_coef": coef * scale[neighbour],
-            })
+            rows.append({"target": target, "neighbour": neighbour, "std_coef": coef * scale[neighbour]})
 
     return pd.DataFrame(rows)
 
@@ -79,19 +70,12 @@ def summarise_weights(fits, coords):
 
     Output
     ------
-    Returns a DataFrame with one row per target and neighbour: the distance between them, the mean absolute
-    standardised and raw coefficient, the mean signed standardised coefficient, the share of periods with a
-    negative coefficient, and the rank of the neighbour by weight and by distance (1 = highest / nearest).
+    Returns a DataFrame with one row per target and neighbour: the weight (the mean absolute standardised
+    coefficient), the distance between them, and the rank of the neighbour by weight and by distance (1 = highest /
+    nearest).
     """
-    fits = fits.assign(abs_std_coef=fits["std_coef"].abs(), abs_raw_coef=fits["raw_coef"].abs(),
-                       negative=fits["std_coef"] < 0)
-    weights = fits.groupby(["target", "neighbour"]).agg(
-        weight=("abs_std_coef", "mean"),
-        weight_raw=("abs_raw_coef", "mean"),
-        mean_std_coef=("std_coef", "mean"),
-        share_negative=("negative", "mean"),
-        periods=("repeat_id", "nunique"),
-    ).reset_index()
+    weights = (fits.assign(weight=fits["std_coef"].abs())
+               .groupby(["target", "neighbour"], as_index=False)["weight"].mean())
 
     weights["distance_km"] = [
         _haversine_distance(*coords[target], *coords[neighbour])
@@ -103,21 +87,20 @@ def summarise_weights(fits, coords):
     return weights.sort_values(["target", "weight_rank"]).reset_index(drop=True)
 
 
-def run_weight_analysis(targets, repeats):
+def run_weight_analysis(repeats):
     """
-    Fit the first stage for every target over the training periods and save the per-period coefficients and
-    the averaged weights to OUTPUT_DIR.
+    Fit the first stage for every target of the synthetic network over the training periods and save the averaged
+    weights to OUTPUT_DIR.
 
     Input
     -----
-    targets: List of target station names (None uses every station of the network)
     repeats: Number of training periods per target
     """
     df = pd.read_csv(DATASETS["SYNTHETIC"]["file"])
     coords = load_station_coordinates("SYNTHETIC")
 
     fits = []
-    for target in targets or list(df["station_name"].unique()):
+    for target in df["station_name"].unique():
         df_complete = load_station_data(df, target)
         series = df_complete[target]
         exog_cols = list(df_complete.columns[1:])
@@ -128,7 +111,6 @@ def run_weight_analysis(targets, repeats):
     weights = summarise_weights(fits, coords)
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    fits.to_csv(os.path.join(OUTPUT_DIR, "coefficients_per_period.csv"), index=False)
     weights.to_csv(os.path.join(OUTPUT_DIR, "weights.csv"), index=False)
 
     print("\nFour highest-weighted neighbours per target (distance rank in brackets):")
@@ -142,10 +124,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Average the coefficients of the neighbour regression (the first "
                                                  "stage of the two-stage model) per target of the synthetic "
                                                  "network over many training periods.")
-    parser.add_argument("--targets", nargs="+", default=None,
-                        help="Target stations to fit (default: every station of the synthetic network)")
     parser.add_argument("--repeats", type=int, default=NUMBER_OF_REPEATS,
                         help=f"Number of training periods per target (default: {NUMBER_OF_REPEATS})")
     args = parser.parse_args()
 
-    run_weight_analysis(targets=args.targets, repeats=args.repeats)
+    run_weight_analysis(repeats=args.repeats)
