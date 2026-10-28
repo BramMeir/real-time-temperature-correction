@@ -30,7 +30,6 @@ def train_two_stage(df_window, station, exog_cols):
     Output
     ------
     model: The trained (regression, residual_model)
-    exog_cols: The neighbouring stations the model uses, the ones it was given
     """
     model = train_regression_sarima_errors(
         df=df_window,
@@ -40,7 +39,7 @@ def train_two_stage(df_window, station, exog_cols):
         seasonal_order=RESIDUAL_SEASONAL_ORDER,
         max_iter=1000
     )
-    return model, exog_cols
+    return model
 
 
 def age_two_stage(model, df_gap, station, exog_cols):
@@ -109,7 +108,7 @@ def _run_single_experiment(task, training_weeks):
 
     # Train the model once on the training period to reuse for every age gap
     start_time = pd.Timestamp.now()
-    model, exog_cols = train_two_stage(df_complete[train_start:train_end], station, exog_cols)
+    model = train_two_stage(df_complete[train_start:train_end], station, exog_cols)
     training_duration = pd.Timestamp.now() - start_time
 
     # Evaluate the model for all the 'aging gaps' (0 to MAX_AGING_GAP_DAYS, step 3) to see how

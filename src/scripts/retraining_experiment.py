@@ -36,7 +36,7 @@ def retrain_lr_only(model, df_window, station, exog_cols):
     _, window_residuals = stage_one_residuals(df_window, station, exog_cols, regression=regression)
     residual_model = residual_model.apply(endog=window_residuals, refit=False)
 
-    return (regression, residual_model), exog_cols
+    return regression, residual_model
 
 
 def retrain_sarima_only(model, df_window, station, exog_cols):
@@ -46,7 +46,7 @@ def retrain_sarima_only(model, df_window, station, exog_cols):
     _, window_residuals = stage_one_residuals(df_window, station, exog_cols, regression=regression)
     residual_model = fit_residual_sarima(window_residuals, RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER, max_iter=1000)
 
-    return (regression, residual_model), exog_cols
+    return regression, residual_model
 
 
 # (model_type, retrain_gap_days, retrain_fn). Every arm retrains from scratch on the same
@@ -93,7 +93,7 @@ def _run_single_experiment(task, training_weeks):
     for model_type, retrain_gap, retrain_fn in MODEL_CONFIGS:
         train_start = forecast_start - pd.Timedelta(weeks=training_weeks)
         train_end = forecast_start
-        model, exog_cols = train_two_stage(df_complete[train_start:train_end], station, exog_cols)
+        model = train_two_stage(df_complete[train_start:train_end], station, exog_cols)
 
         last_retrain_time = forecast_start
         last_update_time = forecast_start
@@ -109,7 +109,7 @@ def _run_single_experiment(task, training_weeks):
                 start_time = pd.Timestamp.now()
 
                 new_train_start = current_time - pd.Timedelta(weeks=training_weeks)
-                model, exog_cols = retrain_fn(model, df_complete[new_train_start:current_time], station, exog_cols)
+                model = retrain_fn(model, df_complete[new_train_start:current_time], station, exog_cols)
                 train_start = new_train_start
 
                 retraining_duration = (pd.Timestamp.now() - start_time).total_seconds()
