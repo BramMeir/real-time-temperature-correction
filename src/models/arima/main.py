@@ -1,22 +1,29 @@
 import argparse
 import pandas as pd
 import numpy as np
-from src.models.arima.grid_search import arima_grid_search, sarima_grid_search
+from src.models.arima.grid_search import sarima_grid_search
 from src.models.arima.plot_diagnositcs import arima_plot_diagnostics
+
+# Orders searched for the paper. The differencing is not searched, see sarima_grid_search: the augmented Dickey-Fuller
+# test rejects a unit root, so d = D = 0
+AR_ORDERS = range(0, 49)
+MA_ORDERS = range(0, 6)
+SEASONAL_AR_ORDERS = range(0, 4)
+SEASONAL_MA_ORDERS = range(0, 4)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Select the orders of SARIMA and SARIMAX.")
     parser.add_argument("--mode", choices=["grid_search", "diagnostics"], default="grid_search",
                         help="Grid search over the orders, or plot the ACF and PACF of the series.")
-    parser.add_argument("--model", choices=["arima", "sarima"],
-                        default="arima", help="Choose between ARIMA and SARIMA model (default: ARIMA).")
     parser.add_argument("--weeks", type=int, default=2,
                         help="Number of weeks of data to include (default: 2).")
+    parser.add_argument("--seed", type=int, default=47,
+                        help="Seed of the random choice of the weeks of data (default: 47).")
     parser.add_argument("--resample", type=str, default="1h",
                         help="Resampling interval, e.g. '10min', '30min', '1h' (default: '1h').")
     parser.add_argument("--exog", action="store_true",
-                        help="Include exogenous variables from other stations if set.")
+                        help="Include the other stations as exogenous variables (SARIMAX) if set, else SARIMA.")
     parser.add_argument("--target_station", type=str, default="MELLE",
                         help="Name of the target weather station (default: 'MELLE').")
     parser.add_argument("--input_file", type=str, default="data/RMI/observations.csv",
@@ -60,7 +67,7 @@ if __name__ == "__main__":
                   (series.index.max().day - series.index.min().day) // 7
 
     if total_weeks > args.weeks:
-        start_weeks = np.random.randint(0, total_weeks - args.weeks + 1)
+        start_weeks = np.random.default_rng(args.seed).integers(0, total_weeks - args.weeks + 1)
         start_date = series.index.min() + pd.DateOffset(weeks=start_weeks)
         end_date = start_date + pd.DateOffset(weeks=args.weeks)
         series = series[(series.index >= start_date) & (series.index < end_date)]
@@ -76,11 +83,8 @@ if __name__ == "__main__":
         exog_df = exog_df.resample(args.resample).mean().interpolate(limit_direction="both")
 
     if args.mode == "grid_search":
-        if args.model == "sarima":
-            sarima_grid_search(series, exog_df=exog_df, p_values=[15], d_values=[0], q_values=[0],
-                               P_values=range(1, 4), D_values=[0], Q_values=range(1, 4), S=24, max_workers=10)
-        else:
-            arima_grid_search(series, exog_df=exog_df, p_values=range(10, 41, 10), d_values=[0], q_values=[0], max_workers=10)
+        sarima_grid_search(series, exog_df=exog_df, p_values=AR_ORDERS, q_values=MA_ORDERS, P_values=SEASONAL_AR_ORDERS,
+                           Q_values=SEASONAL_MA_ORDERS, S=24, max_workers=10)
 
     elif args.mode == "diagnostics":
         arima_plot_diagnostics(series)
