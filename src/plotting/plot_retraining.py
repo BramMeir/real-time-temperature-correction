@@ -1,10 +1,3 @@
-"""
-Script: plot_retraining.py
-Description: Plot the retraining-strategy results for the two-stage model. Mirrors
-             plot_retraining_results.py, which ran this analysis for ARIMAX.
-
-python -m src.plotting.plot_retraining [--metric MAE|RMSE]
-"""
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -118,7 +111,7 @@ def plot_per_dataset(df_avg):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Plot the RMSE of RegSARIMA under every retraining strategy, per network.")
     parser.add_argument("--metric", choices=["MAE", "RMSE"], default="RMSE")
     METRIC = parser.parse_args().metric
 

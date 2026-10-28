@@ -1,11 +1,3 @@
-"""
-Group of functions to plot model comparisons based on the results of the experiments (evaluation/model_comparison_experiment.py).
-Each function generates a specific plot to visualize different aspects of model performance, such as
-overall performance, performance across forecast horizons, ...
-The plots are saved in the "plots" directory for further analysis and presentation.
-
-python -m src.plotting.plot_model_comparison [--metric MAE|RMSE]
-"""
 import argparse
 import os
 import pandas as pd
@@ -378,7 +370,7 @@ def plot_performance_vs_horizon_with_zoom(df):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Print the model comparison tables and plot the error against the outage duration.")
     parser.add_argument("--metric", choices=["MAE", "RMSE"], default="RMSE")
     METRIC = parser.parse_args().metric
 

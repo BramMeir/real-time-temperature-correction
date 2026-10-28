@@ -1,14 +1,3 @@
-"""
-Maps of the three station networks (the station maps in the appendix of the paper). Every map shows the stations of
-one dataset as they enter the model comparison, on the basemap of the stage-one weight maps
-(src/plotting/plot_station_weights.py), coloured by the local climate zone (LCZ) group of their surroundings, with
-the LCZ labels of src/scripts/lcz_weights_test.py. The two Belgian networks share one frame, with the
-national borders drawn, so they can be compared directly. The three TURCLIM stations in the centre of Turku lie within
-a kilometre of each other, so that map has an inset of the centre. The legend is saved as a separate figure, to sit
-under all the maps.
-
-python -m src.plotting.plot_station_maps
-"""
 import math
 import os
 import pandas as pd

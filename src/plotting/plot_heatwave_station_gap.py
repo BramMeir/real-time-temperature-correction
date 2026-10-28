@@ -1,16 +1,3 @@
-"""
-Script: plot_heatwave_station_gap.py
-Description: How much the stations of a network differ from one another over the day, during the heat waves of
-heatwave_experiment.py and in their control windows. At each hour, the gap is the temperature of the warmest station
-minus that of the coolest, computed from the observations alone.
-
-The profile is averaged per window first, the controls of an event are then averaged, and finally the events, so every
-heat wave weighs equally, as in table_heatwaves.py. Only TURCLIM is plotted by default: its six stations lie
-in and around one city, so the gap is the contrast between the centre and its surroundings. In the synthetic network,
-which spans all of Belgium, the gap is set by the coast and the Ardennes rather than by the cities.
-
-Usage: python -m src.plotting.plot_heatwave_station_gap [--dataset TURKU]
-"""
 import argparse
 import os
 import pandas as pd
@@ -96,7 +83,7 @@ def plot_profiles(profiles, dataset):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Plot the temperature gap between the warmest and coolest station over the day, during heat waves and in ordinary weather.")
     parser.add_argument("--dataset", choices=EXPERIMENT_DATASETS, default="TURKU")
     dataset = parser.parse_args().dataset
 
