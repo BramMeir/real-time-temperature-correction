@@ -1,19 +1,3 @@
-"""
-Main script to compare what LASSO station selection does to the cost and accuracy of the two estimators
-of the regression with SARIMA errors model: the one-stage SARIMAX fit, which estimates the station
-coefficients jointly with the error model, and the two-stage model, which estimates them by OLS first.
-For every training period LASSO selects the stations once on the training window, and both estimators
-are then fit twice on that window, once on all neighbouring stations and once on the selected subset,
-so the four fits share exactly the same selection and the same forecast periods. Runs over every target
-station of the Synthetic dataset (49 stations, so 48 candidate neighbours per target), the largest
-network available, and writes every result to a CSV file as soon as its training period is done.
-
-Supersedes the timings of determine_LASSO_performance_RegressionSARIMAErrors.py (measured on a
-workstation) and determine_LASSO_performance.py (earlier ARIMAX setup): run on the HPC with the same
-allocation as the model comparison, so the durations are comparable with that experiment.
-
-python -m src.scripts.lasso_experiment [--training_weeks 8] [--repeats 15]
-"""
 import os
 import argparse
 import csv
@@ -33,9 +17,8 @@ DATASET_NAME = "SYNTHETIC"
 # Seed that is used to define the training periods (for reproducibility)
 SEED = 42
 
-# Seed offset per station, as in determine_LASSO_performance_RegressionSARIMAErrors.py, so the first
-# repeats reuse the training periods of that earlier run. The stride has to exceed the number of repeats
-# to keep the streams of the stations apart
+# Seed offset per station, so every station draws its own training periods. The stride has to exceed the
+# number of repeats to keep the streams of the stations apart
 STATION_SEED_STRIDE = 10_000
 
 # Forecasting horizons in hours (1h, 4h, 12h, 1D, 2D, 4D, 7D, 14D, 21D, 30D), as in the model comparison
@@ -86,8 +69,7 @@ def load_network(file):
 
 def station_data(station):
     """
-    Build the target series and the neighbouring stations of one target, with the same preprocessing
-    as determine_LASSO_performance_RegressionSARIMAErrors.py.
+    Build the target series and the neighbouring stations of one target.
 
     Input
     -----

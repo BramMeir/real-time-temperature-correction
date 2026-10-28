@@ -1,21 +1,3 @@
-"""
-Script: interval_coverage_experiment.py
-
-Experiment P1.5: empirical coverage of the two-stage model's prediction intervals, as a function of
-outage duration.
-
-Per onset: fit with the last three days of the training window held out, reconstruct them to build
-the calibration sample, refit on the full window, then forecast once out to the longest horizon and
-slice. The residual SARIMA forecast is deterministic given the fitted model, so slicing 720 steps
-is identical to forecasting h steps and one forecast serves every horizon.
-
-The onsets come from the same SEED, per-station seed offset and history length as
-model_comparison_experiment.py, so the coverage numbers are paired with the MAE numbers already
-reported. Keep the constants below in sync.
-
-Run:
-    python -m src.scripts.interval_coverage_experiment
-"""
 import argparse
 import zlib
 import pandas as pd
@@ -268,7 +250,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Evaluate the empirical coverage of the two-stage model's prediction intervals "
                     "as a function of outage duration, across all datasets, stations and failure "
-                    "onsets (P1.5)."
+                    "onsets."
     )
     parser.add_argument("--training_weeks", type=int, default=8,
                         help="Number of weeks to use for training (default: 8).")

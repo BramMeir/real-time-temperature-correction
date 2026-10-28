@@ -1,16 +1,3 @@
-"""
-Script to check whether the stage-one regression residuals still carry autocorrelation, which is what
-motivates fitting a SARIMA on them instead of stopping at the neighbour regression. Runs over the same
-datasets, stations and training windows as the other residual diagnostics, and repeats every test on
-the stage-two residuals (the SARIMA innovations), which should be close to white noise.
-
-The Ljung-Box test is the one to read: it tests jointly whether the autocorrelations up to a lag are
-all zero. The Durbin-Watson statistic is reported next to it because it is the familiar regression
-diagnostic, but it only looks at lag 1 (2 means no lag-1 autocorrelation, below 2 positive), so it
-says nothing about the daily cycle the seasonal part is there for.
-
-python -m src.scripts.residual_autocorrelation
-"""
 import os
 import csv
 import argparse

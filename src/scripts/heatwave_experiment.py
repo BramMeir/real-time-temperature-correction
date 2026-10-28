@@ -1,26 +1,3 @@
-"""
-Script: heatwave_experiment.py
-
-How well the two-stage model reconstructs a failing station during a heat wave, and whether it underestimates the heat.
-
-The heat waves are the relative P90 events of detect_heatwaves.py, detected on the network median. Every station of
-the network is reconstructed around every event, with the outage starting LEADS days before the first heat wave day:
-a positive lead is an outage that is already running when the heat arrives, a negative one an outage that starts while
-the heat wave is under way. The model is trained on the TRAINING_WEEKS before the onset, as in the main comparison, and
-scored on the heat wave days plus RECOVERY_DAYS after them.
-
-Each event also gets up to NUMBER_OF_CONTROLS control windows: ordinary days within CONTROL_SEARCH_DAYS of the event in
-the same year, of the same length, at least CONTROL_MARGIN_DAYS away from any heat wave and not overlapping each other
-in their scored days. They are reconstructed with the
-same leads, so a heat wave window and its controls differ only in the weather, and the difference between their errors
-is the effect of the heat itself. The controls are drawn once per event and shared by all stations of the network.
-
-Writes the hourly reconstructions and a table of the windows to output/heatwave_experiment/. The metrics are computed
-from these afterwards.
-
-Run:
-    python -m src.scripts.heatwave_experiment
-"""
 import argparse
 import zlib
 import numpy as np

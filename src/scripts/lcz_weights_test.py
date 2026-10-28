@@ -1,21 +1,3 @@
-"""
-Script to test whether the first stage of the two-stage model gives more weight to neighbours in the same urban
-context as the target than their distance explains. It replaces the single-window check of
-test_urban_context_vs_distance.py with a test over every target and neighbour of the synthetic network, on the
-weights averaged over 50 training periods (src/scripts/station_weights_experiment.py, which has to run first).
-
-The context of a station is its local climate zone (LCZ), the majority class of the global WUDAPT LCZ map
-(Demuzere et al. 2022) within LCZ_RADIUS_M of the station. A zone covers several hundred metres, so a single 100 m
-pixel under the station would depend on the road or park it happens to fall on.
-
-Over all target and neighbour pairs, log(weight) is regressed on log(distance) and an indicator for a neighbour in
-the same LCZ as the target, with a fixed effect per target. exp(coefficient) is then how many times the weight of a
-same-zone neighbour is, at the same distance. The pairs are not independent, since every station appears in about a
-hundred of them, so the p-value comes from permuting the LCZ labels over the stations and the confidence interval
-from resampling whole targets.
-
-python -m src.scripts.lcz_weights_test
-"""
 import os
 import numpy as np
 import pandas as pd
