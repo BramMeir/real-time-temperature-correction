@@ -1,6 +1,7 @@
 # src/plotting
 
-The figures and tables of the paper, made from the results the experiments in `src/scripts` write to `output/`.
+Scripts that generate the figures and tables of the paper from the results the experiments in `src/scripts` write to
+`output/`.
 `plot_*.py` draws a figure, `table_*.py` prints a table. Run every file from the repository root, e.g.
 `python -m src.plotting.plot_aging`. The plots that take `--metric` report RMSE by default and MAE with
 `--metric MAE`.
