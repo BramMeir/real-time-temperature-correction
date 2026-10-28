@@ -4,11 +4,9 @@ Module: retraining_experiment.py
 Generic engine for the "retraining strategy" experiment: simulate a long deployment, comparing how
 different retraining strategies keep forecast error under control over time.
 
-Each strategy is a (model_type, retrain_gap_days, window_kind, retrain_fn) config. window_kind is
-"trailing" (retrain_fn refits on the trailing training window, e.g. from scratch) or "delta" (retrain_fn
-warm-starts from the window since the last update). Shared by compare_retraining_strategies.py (ARIMAX)
-and compare_retraining_strategies_RegressionSARIMAErrors.py (the two-stage model); reuses DATASETS/SEED
-and station loading from aging_experiment.py, and the pool/CSV helpers from experiment_utils.py.
+Each strategy is a (model_type, retrain_gap_days, retrain_fn) config, where retrain_fn refits the model on the
+trailing training window. Reuses DATASETS/SEED and station loading from aging_experiment.py, and the pool/CSV
+helpers from experiment_utils.py.
 """
 import pandas as pd
 from src.utils.generate_forecast_start import generate_forecast_start
@@ -16,7 +14,7 @@ from src.evaluation.aging_experiment import DATASETS, SEED, STATION_SEED_STRIDE,
 from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 
 # Every retraining strategy is simulated for this long, forecasting FORECAST_HORIZON_HOURS ahead every
-# STEP_DAYS, exactly as in the paper's retraining-strategy comparison for ARIMAX
+# STEP_DAYS
 SIMULATION_DAYS = 60
 FORECAST_HORIZON_HOURS = 24
 STEP_DAYS = 3
@@ -31,8 +29,8 @@ def _run_single_experiment(task, model_configs, train_fn, age_fn, forecast_fn, t
     Input
     -----
     task: A tuple containing (dataset_name, repeat_id, station, station_index)
-    model_configs: List of (model_type, retrain_gap_days, window_kind, retrain_fn) tuples, see the
-      module docstring. "no_retrain" has retrain_gap_days/window_kind/retrain_fn all None
+    model_configs: List of (model_type, retrain_gap_days, retrain_fn) tuples, see the module docstring.
+      "no_retrain" has retrain_gap_days and retrain_fn None
     train_fn, age_fn, forecast_fn: Same hooks as aging_experiment.py's _run_single_experiment
 
     Output
@@ -57,7 +55,7 @@ def _run_single_experiment(task, model_configs, train_fn, age_fn, forecast_fn, t
 
     results = []
 
-    for model_type, retrain_gap, window_kind, retrain_fn in model_configs:
+    for model_type, retrain_gap, retrain_fn in model_configs:
         train_start = forecast_start - pd.Timedelta(weeks=training_weeks)
         train_end = forecast_start
         model, exog_cols = train_fn(df_complete[train_start:train_end], station, exog_cols)
@@ -75,13 +73,9 @@ def _run_single_experiment(task, model_configs, train_fn, age_fn, forecast_fn, t
                 retrain_event = 1
                 start_time = pd.Timestamp.now()
 
-                if window_kind == "trailing":
-                    new_train_start = current_time - pd.Timedelta(weeks=training_weeks)
-                    model, exog_cols = retrain_fn(model, df_complete[new_train_start:current_time], station, exog_cols)
-                    train_start = new_train_start
-                elif window_kind == "delta":
-                    update_start = last_update_time + pd.Timedelta(hours=1)
-                    model = retrain_fn(model, df_complete[update_start:current_time], station, exog_cols)
+                new_train_start = current_time - pd.Timedelta(weeks=training_weeks)
+                model, exog_cols = retrain_fn(model, df_complete[new_train_start:current_time], station, exog_cols)
+                train_start = new_train_start
 
                 retraining_duration = (pd.Timestamp.now() - start_time).total_seconds()
                 last_retrain_time = current_time
