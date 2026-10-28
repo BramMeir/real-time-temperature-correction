@@ -1,9 +1,3 @@
-"""
-Main script for Random Forest model training.
-
-Example usage:
-python -m src.models.random_forest.main --input ./data/preprocessed.csv --mode repeat_forecast
-"""
 import argparse
 import numpy as np
 import pandas as pd
@@ -12,10 +6,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from src.models.random_forest.execute_forecast import run_single_forecast
 
 
-def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=42, n_repeats=10,
-                weeks=2, hours_to_forecast=48, mode="repeat_forecast"):
+def tune(df, target_station, previous_time_steps, exog_cols, random_seed=42, n_repeats=10,
+         weeks=2, hours_to_forecast=48):
     """
-    Repeats the training and evaluation of the Random Forest model.
+    Runs the Bayesian hyperparameter search of the Random Forest model on n_repeats random training periods.
 
     Input
     -----
@@ -27,11 +21,10 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
     n_repeats: Number of repetitions for the task (default is 10)
     weeks: Number of weeks for the training period (default is 2)
     hours_to_forecast: Number of hours to forecast in each repetition (default is 48)
-    mode: Mode of operation for the task (default is "repeat_forecast")
 
     Output
     ------
-    Prints the average MAE and MSE over all repetitions.
+    The average MAE and MSE over all repetitions, and the most frequent hyperparameters.
     """
     # Select random n_repeats parts with 2-weeks training and 2 days test from the df
     np.random.seed(random_seed)
@@ -55,7 +48,7 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
             df_slice = df.loc[start:end].copy()
             futures.append(
                 executor.submit(
-                    run_single_forecast, df_slice, target_station, None, previous_time_steps, exog_cols, start, train_end, end, mode
+                    run_single_forecast, df_slice, target_station, None, previous_time_steps, exog_cols, start, train_end, end, "bayes_search"
                 )
             )
 
@@ -77,41 +70,38 @@ def repeat_task(df, target_station, previous_time_steps, exog_cols, random_seed=
         print("Average Feature Importances over all runs:")
         print(avg_importances.head(10))
 
-    # If Bayesian search was used, print the most frequent hyperparameters
-    if mode == "bayes_search":
-        print("Best hyperparameters from Bayesian search (most frequent/average values):")
+    print("Best hyperparameters from Bayesian search (most frequent/average values):")
 
-        # Filter out None values
-        filtered_hp = [hp for hp in best_hp_list if hp is not None]
+    # Filter out None values
+    filtered_hp = [hp for hp in best_hp_list if hp is not None]
 
-        if filtered_hp:
-            # Collect all values per hyperparameter
-            hp_values = collections.defaultdict(list)
-            for hp in filtered_hp:
-                for key, value in hp.items():
-                    hp_values[key].append(value)
+    if filtered_hp:
+        # Collect all values per hyperparameter
+        hp_values = collections.defaultdict(list)
+        for hp in filtered_hp:
+            for key, value in hp.items():
+                hp_values[key].append(value)
 
-            # Compute most frequent values
-            most_frequent_hp = {}
-            for key, values in hp_values.items():
-                most_frequent_hp[key] = collections.Counter(values).most_common(1)[0][0]
+        # Compute most frequent values
+        most_frequent_hp = {}
+        for key, values in hp_values.items():
+            most_frequent_hp[key] = collections.Counter(values).most_common(1)[0][0]
 
-            print("\nMost frequent hyperparameters:")
-            for k, v in most_frequent_hp.items():
-                print(f"  {k}: {v}")
+        print("\nMost frequent hyperparameters:")
+        for k, v in most_frequent_hp.items():
+            print(f"  {k}: {v}")
 
     print(f"\nRunning with previous_time_steps={previous_time_steps} and weeks={weeks}")
     print(f"Average MAE over {n_repeats} runs: {np.mean(mae_scores):.4f} ± {np.std(mae_scores):.4f}")
     print(f"Average MSE over {n_repeats} runs: {np.mean(mse_scores):.4f} ± {np.std(mse_scores):.4f}")
-    return np.mean(mae_scores), np.mean(mse_scores), most_frequent_hp if mode == "bayes_search" else None
+    return np.mean(mae_scores), np.mean(mse_scores), most_frequent_hp
 
 
 if __name__ == "__main__":
     # Define the arguments for the main script
-    parser = argparse.ArgumentParser(description="Random Forest Model Training Script")
-    parser.add_argument('--input_file', type=str, required=True, help='Path to the input CSV file')
-    parser.add_argument("--mode", choices=["repeat_forecast", "bayes_search"],
-                        default="repeat_forecast", help="Select which RF task to run.")
+    parser = argparse.ArgumentParser(description="Random Forest hyperparameter search")
+    parser.add_argument('--input_file', type=str, default='data/RMI/observations.csv',
+                        help='Path to the input CSV file (default: data/RMI/observations.csv)')
     args = parser.parse_args()
 
     # Read the dataset
@@ -137,18 +127,12 @@ if __name__ == "__main__":
 
     # Repeat over different number of previous time steps and different number of weeks for training
     # and write results to csv file for later analysis
-    if args.mode == "bayes_search":
-        with open(f"output/random_forest_bayes_search_{target_station}.csv", "w") as f:
-            f.write("previous_time_steps,weeks,mae,mse,most_frequent_hp\n")
+    with open(f"output/random_forest_bayes_search_{target_station}.csv", "w") as f:
+        f.write("previous_time_steps,weeks,mae,mse,most_frequent_hp\n")
 
-            for repeat_step in [1, 3, 6, 8, 12, 24]:
-                for weeks in [2, 4, 8, 12]:
-                    mae, mse, most_frequent_hp = repeat_task(df_pivot, target_station, previous_time_steps=repeat_step,
-                                                             exog_cols=exog_cols, random_seed=47, n_repeats=10, weeks=weeks,
-                                                             hours_to_forecast=48, mode=args.mode)
-                    f.write(f"{repeat_step},{weeks},{mae:.4f},{mse:.4f},{most_frequent_hp}\n")
-
-    else:
-        repeat_task(df_pivot, target_station, previous_time_steps=4,
-                    exog_cols=exog_cols, random_seed=47, n_repeats=30, weeks=8,
-                    hours_to_forecast=48, mode=args.mode)
+        for repeat_step in [1, 3, 6, 8, 12, 24]:
+            for weeks in [2, 4, 8, 12]:
+                mae, mse, most_frequent_hp = tune(df_pivot, target_station, previous_time_steps=repeat_step,
+                                                  exog_cols=exog_cols, random_seed=47, n_repeats=10, weeks=weeks,
+                                                  hours_to_forecast=48)
+                f.write(f"{repeat_step},{weeks},{mae:.4f},{mse:.4f},{most_frequent_hp}\n")
