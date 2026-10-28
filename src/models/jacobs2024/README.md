@@ -14,5 +14,4 @@ The code is unchanged apart from two fixes for current pandas, neither of which 
 frequency is written `"h"` instead of the removed `"H"`, and in `GF_debmodelTvar` a column assignment replaces a
 chained `replace(..., inplace=True)`.
 
-The comparison uses `GF_linint`, `GF_fillmodel`, `GF_debmodelReg`, `GF_debmodelMeanbias` and `makegap`. The other
-functions are kept so the files stay complete copies of theirs.
+The comparison uses `GF_linint`, `GF_fillmodel`, `GF_debmodelReg`, `GF_debmodelMeanbias` and `makegap`.
