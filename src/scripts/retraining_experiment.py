@@ -4,7 +4,7 @@ from src.models.neighbour_regression.train import train_neighbour_regression
 from src.models.regsarima.train import stage_one_residuals, fit_residual_sarima
 from src.scripts.aging_experiment import (
     SEED, STATION_SEED_STRIDE, RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER,
-    train_two_stage, age_two_stage, forecast_two_stage
+    train_two_stage, age_two_stage, evaluate_two_stage
 )
 from src.utils.datasets import DATASETS, load_station_data
 from src.utils.generate_forecast_start import generate_forecast_start
@@ -122,7 +122,7 @@ def _run_single_experiment(task, training_weeks):
 
             test_begin = current_time
             test_end = current_time + pd.Timedelta(hours=FORECAST_HORIZON_HOURS)
-            mae, mse = forecast_two_stage(repeat_id, df_complete, station, model, exog_cols, train_start, test_begin, test_end)
+            mae, mse = evaluate_two_stage(repeat_id, df_complete, station, model, exog_cols, train_start, test_begin, test_end)
 
             results.append([
                 dataset_name, station, repeat_id, model_type, current_time, mae, mse,
