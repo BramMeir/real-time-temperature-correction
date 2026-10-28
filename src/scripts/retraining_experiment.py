@@ -4,8 +4,9 @@ from src.models.neighbour_regression.train import train_neighbour_regression
 from src.models.regsarima.train import stage_one_residuals, fit_residual_sarima
 from src.scripts.aging_experiment import (
     DATASETS, SEED, STATION_SEED_STRIDE, RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER,
-    train_two_stage, age_two_stage, forecast_two_stage, load_station_data
+    train_two_stage, age_two_stage, forecast_two_stage
 )
+from src.utils.datasets import load_station_data
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 
@@ -149,10 +150,12 @@ def run_retraining_experiment(dataset_name, training_weeks, output_path, max_wor
     results_all = []
     dataset_info = DATASETS[dataset_name]
 
+    df = pd.read_csv(dataset_info["file"])
+
     for station_index, station in enumerate(dataset_info["stations"]):
         print(f"Running retraining experiments for dataset {dataset_name}, station {station}...")
 
-        df_complete = load_station_data(dataset_info, station)
+        df_complete = load_station_data(df, station)
 
         tasks = [
             (dataset_name, repeat_id, station, station_index)

@@ -29,7 +29,8 @@ Run:
 """
 import numpy as np
 import pandas as pd
-from src.scripts.detect_heatwaves import DATASETS, load_hourly
+from src.utils.datasets import DATASETS
+from src.scripts.detect_heatwaves import load_hourly
 from src.scripts.heatwave_experiment import EXPERIMENT_DATASETS, OUTPUT_DIR, TRAINING_WEEKS
 
 METRICS = [
@@ -353,7 +354,7 @@ def main():
     rows = []
 
     for dataset in EXPERIMENT_DATASETS:
-        observations = load_hourly(DATASETS[dataset])
+        observations = load_hourly(DATASETS[dataset]["file"])
 
         network_medians = {
             station: observations.drop(columns=station).median(axis=1) for station in observations.columns

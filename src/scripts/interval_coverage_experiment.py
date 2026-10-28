@@ -20,34 +20,11 @@ import argparse
 import zlib
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from src.utils.datasets import DATASETS, load_station_data
 from src.utils.experiment_utils import write_results_csv
 from src.evaluation.interval_coverage import conformal_bounds, empirical_bounds, summarise_interval
 from src.models.regsarima.train import train_regression_sarima_errors
 from src.utils.generate_forecast_start import generate_forecast_start
-
-# Datasets and stations, mirroring models_comparison_experiment.py
-DATASETS = {
-    "RMI": {
-        "file": "data/RMI/observations.csv",
-        "stations": ["MELLE", "DIEPENBEEK", "HUMAIN", "SINT-KATELIJNE-WAVER", "ERNAGE"]
-    },
-    "TURKU": {
-        "file": "data/Turku/observations.csv",
-        "stations": ["Betel", "Virastotalo", "Ylijoki", "Kurala"]
-    },
-    "SYNTHETIC": {
-        "file": "data/Synthetic/observations.csv",
-        "stations": [
-            "Stadhuis_Brussel_Grote_Markt",
-            "Stadhuis_Antwerpen_Grote_Markt",
-            "Grote_Markt_Kortrijk",
-            "Tielt",
-            "Gembloux",
-            "Slag_om_Ardennen_Museum_La_Roche_en_Ardenne",
-            "Abdij_Tongerlo"
-        ]
-    }
-}
 
 # Must match models_comparison_experiment.py to keep the onsets paired
 SEED = 42
@@ -228,46 +205,6 @@ def run_single_experiment(task):
     return rows
 
 
-def prepare_station_data(df, station):
-    """
-    Build the hourly series and neighbour frame for one station, as in
-    models_comparison_experiment.py.
-
-    Input
-    -----
-    df: Long-format DataFrame with station_name, datetime and temp_dry_avg_2m
-    station: Target station
-
-    Output
-    ------
-    series: Hourly target series
-    exog_df: Hourly neighbour observations
-    df_complete: series joined with exog_df
-    """
-    station_data = df[df['station_name'] == station]
-
-    series = pd.Series(
-        station_data['temp_dry_avg_2m'].values,
-        index=pd.to_datetime(station_data['datetime'])
-    ).asfreq('1h').dropna()
-
-    other_stations = [s for s in df['station_name'].unique() if s != station]
-    exog_data = df[df['station_name'].isin(other_stations)]
-
-    exog_pivot = exog_data.pivot_table(
-        index='datetime', columns='station_name', values='temp_dry_avg_2m'
-    )
-    exog_pivot.index = pd.to_datetime(exog_pivot.index)
-    exog_df = exog_pivot.reindex(series.index)
-
-    series = series.resample('1h').mean().interpolate(limit_direction="both")
-    exog_df = exog_df.resample('1h').mean().interpolate(limit_direction="both")
-
-    df_complete = series.to_frame(name=station).join(exog_df)
-
-    return series, exog_df, df_complete
-
-
 def run_all_experiments(training_weeks, repeats, calibration_days, levels, max_workers):
     """
     Run every dataset, station and onset, and write the results to output/interval_coverage/.
@@ -287,7 +224,9 @@ def run_all_experiments(training_weeks, repeats, calibration_days, levels, max_w
         df = pd.read_csv(dataset_info["file"])
 
         for station in dataset_info["stations"]:
-            series, exog_df, df_complete = prepare_station_data(df, station)
+            df_complete = load_station_data(df, station)
+            series = df_complete[station]
+            exog_df = df_complete.drop(columns=station)
 
             tasks = [
                 (dataset_name, i, station, series, exog_df, df_complete, training_days,

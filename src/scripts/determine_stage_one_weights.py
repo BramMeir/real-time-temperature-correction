@@ -15,13 +15,13 @@ python -m src.scripts.determine_stage_one_weights [--targets Vielsalm Station_Ee
 import os
 import argparse
 import pandas as pd
+from src.utils.datasets import DATASETS, load_station_data
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.utils.load_station_coordinates import load_station_coordinates
 from src.models.idw.train import _haversine_distance
 from src.models.neighbour_regression.train import train_neighbour_regression
-from src.scripts.determine_residual_sarima_order import load_station_series, SEED, HORIZONS, MAX_HISTORY_DAYS
+from src.scripts.determine_residual_sarima_order import SEED, HORIZONS, MAX_HISTORY_DAYS
 
-DATA_FILE = "data/Synthetic/observations.csv"
 
 OUTPUT_DIR = "output/stage_one_weights"
 
@@ -127,12 +127,14 @@ def run_weight_analysis(targets, repeats):
     targets: List of target station names (None uses every station of the network)
     repeats: Number of training periods per target
     """
-    df = pd.read_csv(DATA_FILE)
+    df = pd.read_csv(DATASETS["SYNTHETIC"]["file"])
     coords = load_station_coordinates("SYNTHETIC")
 
     fits = []
     for target in targets or list(df["station_name"].unique()):
-        series, df_complete, exog_cols = load_station_series(df, target)
+        df_complete = load_station_data(df, target)
+        series = df_complete[target]
+        exog_cols = list(df_complete.columns[1:])
         fits.append(fit_weights(df_complete, series, target, exog_cols, repeats))
         print(f"{target}: fitted on {repeats} training periods, {len(exog_cols)} neighbours", flush=True)
 

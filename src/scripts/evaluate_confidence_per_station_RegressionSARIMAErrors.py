@@ -16,6 +16,7 @@ For the selected station:
 import argparse
 import os
 import pandas as pd
+from src.utils.datasets import DATASETS, load_station_data
 from src.models.regsarima.repeat_forecast import repeat_forecasts
 
 # Orders selected on the stage-one residuals, as used elsewhere for this model (see
@@ -23,7 +24,7 @@ from src.models.regsarima.repeat_forecast import repeat_forecasts
 RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
 
 
-def run_station_experiment(df, target_station, weeks, resample, hours_to_forecast, calibration_days):
+def run_station_experiment(df, target_station, weeks, hours_to_forecast, calibration_days):
     """
     Run confidence evaluation for a single station.
 
@@ -32,7 +33,6 @@ def run_station_experiment(df, target_station, weeks, resample, hours_to_forecas
     df: pandas DataFrame containing the preprocessed data
     target_station: Name of the target weather station
     weeks: Number of weeks of training data to include per repeat, the calibration window included
-    resample: Resampling interval
     hours_to_forecast: Number of hours to forecast into the future
     calibration_days: Length of the held-out calibration window in days
 
@@ -40,27 +40,8 @@ def run_station_experiment(df, target_station, weeks, resample, hours_to_forecas
     ------
     result: Dictionary containing the evaluation results for the target station
     """
-    # Pivot the long-format data into a wide, hourly DataFrame: target station plus every neighbour
-    other_stations = [s for s in df['station_name'].unique() if s != target_station]
-
-    station_data = df[df['station_name'] == target_station]
-    series = pd.Series(
-        station_data['temp_dry_avg_2m'].values,
-        index=pd.to_datetime(station_data['datetime'])
-    ).asfreq('1h').dropna()
-
-    exog_data = df[df['station_name'].isin(other_stations)]
-    exog_pivot = exog_data.pivot_table(
-        index='datetime', columns='station_name', values='temp_dry_avg_2m'
-    )
-    exog_pivot.index = pd.to_datetime(exog_pivot.index)
-    exog_df = exog_pivot.reindex(series.index)
-
-    series = series.resample(resample).mean().interpolate(limit_direction="both")
-    exog_df = exog_df.resample(resample).mean().interpolate(limit_direction="both")
-
-    df_wide = series.to_frame(name=target_station).join(exog_df)
-    exog_cols = [c for c in df_wide.columns if c != target_station]
+    df_wide = load_station_data(df, target_station)
+    exog_cols = list(df_wide.columns[1:])
 
     # Run repeated forecasts with confidence
     results = repeat_forecasts(
@@ -97,20 +78,16 @@ if __name__ == "__main__":
     )
     parser.add_argument("--weeks", type=int, default=8,
                         help="Number of weeks of training data per repeat, the calibration window included (default: 8).")
-    parser.add_argument("--resample", type=str, default="1h",
-                        help="Resampling interval, e.g. '10min', '30min', '1h' (default: '1h').")
     parser.add_argument("--hours_to_forecast", type=int, default=168,
                         help="Number of hours to forecast into the future (default: 168).")
     parser.add_argument("--calibration_days", type=int, default=14,
                         help="Length of the held-out calibration window in days (default: 14).")
     parser.add_argument("--station_index", type=int, default=0,
                         help="Index of the target station to analyze (default: 0).")
-    parser.add_argument("--input_file", type=str, default="data/Synthetic/observations.csv",
-                        help="Path to the preprocessed data CSV file (default: 'data/Synthetic/observations.csv').")
     args = parser.parse_args()
 
     # Read the preprocessed data
-    df = pd.read_csv(args.input_file)
+    df = pd.read_csv(DATASETS["SYNTHETIC"]["file"])
 
     # Get the list of unique stations and select the target station based on the provided index
     stations = sorted(df['station_name'].unique())
@@ -121,7 +98,6 @@ if __name__ == "__main__":
         df,
         target_station,
         weeks=args.weeks,
-        resample=args.resample,
         hours_to_forecast=args.hours_to_forecast,
         calibration_days=args.calibration_days
     )
