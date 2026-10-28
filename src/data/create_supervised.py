@@ -4,7 +4,7 @@ import numpy as np
 
 def create_supervised_dataset(df, target_station, previous_time_steps=24, exog_cols=None):
     """
-    Build the fixed input-output pairs of the tabular models (RF, MLP, XGBoost): for every time step, the target's
+    Build the fixed input-output pairs of the tabular models (RF, MLP): for every time step, the target's
     previous time steps, the exogenous columns at that time step and the hour of day as a sine and a cosine.
 
     Input
