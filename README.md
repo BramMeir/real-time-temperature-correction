@@ -6,8 +6,8 @@ seasonal ARIMA errors*.
 When a station of a temperature network fails, its readings are reconstructed in real time from the concurrent
 readings of the rest of the network. The corrector of the paper, RegSARIMA, is a regression on the other stations
 with a SARIMA model of its residuals, fitted in two stages. This repository contains that corrector, the eleven
-other models it is compared with (its one-stage fit SARIMAX and ten reference approaches), and every experiment,
-figure and table of the paper.
+other models it is compared with (its one-stage fit SARIMAX and ten reference approaches), the experiments of the
+paper and the scripts that generate its figures and tables from their results.
 
 ## Installation
 
@@ -28,10 +28,7 @@ three networks:
 - **RMI**: automatic weather stations of the Royal Meteorological Institute of Belgium, 2022-2023;
 - **TURCLIM**: the urban network of Turku, Finland, 2012-2021, with ERA5 at its stations for the comparison with
   Jacobs et al. (2024);
-- **Synthetic**: simulated hourly temperatures at 49 locations across Belgium, 2018-2022, from dense urban centres
-  such as Antwerp, Brussels and Ghent to rural sites. Since the simulation sets where the stations are and how
-  densely they are spaced, this network is the one used for the experiments on large networks (station weights,
-  LASSO pre-selection, reliability score).
+- **Synthetic**: simulated hourly temperatures at 49 urban and rural locations in Belgium, 2018-2022.
 
 `src/data/README.md` describes the files each network needs under `data/` and how to prepare them.
 
