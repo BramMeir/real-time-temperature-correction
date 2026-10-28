@@ -33,8 +33,8 @@ import zlib
 import numpy as np
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from src.evaluation.comparison_amber.evaluation_gf_techniques import makegap
-from src.evaluation.comparison_amber.gf_techniques import (
+from src.models.jacobs2024.evaluation_gf_techniques import makegap
+from src.models.jacobs2024.gf_techniques import (
     GF_linint,
     GF_fillmodel,
     GF_debmodelReg,
