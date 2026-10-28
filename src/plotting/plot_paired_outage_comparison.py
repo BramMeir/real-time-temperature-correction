@@ -6,9 +6,8 @@ selection of outage durations in the results (tab:paired) and every duration in 
 reconstructs exactly the same windows, so the comparison works on the per window differences
 (src/evaluation/paired_comparison.py).
 
-python -m src.plotting.plot_paired_outage_comparison [--results_dir output/models_comparison_linear]
+python -m src.plotting.plot_paired_outage_comparison
 """
-import argparse
 import glob
 import os
 
@@ -17,7 +16,7 @@ import pandas as pd
 
 from src.evaluation.paired_comparison import WINDOW, SEED, bootstrap_interval, sign_flip_test, holm
 
-RESULTS_DIR = "output/models_comparison_linear"
+RESULTS_DIR = "output/models_comparison"
 
 # Pairs of models to compare: the two models that extend the neighbour regression against it, and the
 # two estimators of the same model against each other
@@ -261,11 +260,7 @@ def generate_full_table(results):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results_dir", default=RESULTS_DIR)
-    args = parser.parse_args()
-
-    results = compare_outages(load_results(args.results_dir))
+    results = compare_outages(load_results())
 
     pd.set_option("display.width", 200)
     print(results.round(4).to_string(index=False))
