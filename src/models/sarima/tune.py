@@ -3,9 +3,10 @@ import pandas as pd
 import numpy as np
 from src.models.sarima.grid_search import sarima_grid_search
 from src.models.sarima.plot_diagnostics import arima_plot_diagnostics
+from src.models.sarima.stationarity_test import stationarity_test
 
 # Orders searched for the paper. The differencing is not searched, see sarima_grid_search: the augmented Dickey-Fuller
-# test rejects a unit root, so d = D = 0
+# test (--mode stationarity) rejects a unit root, so d = D = 0
 AR_ORDERS = range(0, 49)
 MA_ORDERS = range(0, 6)
 SEASONAL_AR_ORDERS = range(0, 4)
@@ -14,8 +15,9 @@ SEASONAL_MA_ORDERS = range(0, 4)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Select the orders of SARIMA and SARIMAX.")
-    parser.add_argument("--mode", choices=["grid_search", "diagnostics"], default="grid_search",
-                        help="Grid search over the orders, or plot the ACF and PACF of the series.")
+    parser.add_argument("--mode", choices=["grid_search", "diagnostics", "stationarity"], default="grid_search",
+                        help="Grid search over the orders, plot the ACF and PACF of the series, or test it for a unit "
+                             "root.")
     parser.add_argument("--weeks", type=int, default=2,
                         help="Number of weeks of data to include (default: 2).")
     parser.add_argument("--seed", type=int, default=47,
@@ -88,3 +90,6 @@ if __name__ == "__main__":
 
     elif args.mode == "diagnostics":
         arima_plot_diagnostics(series)
+
+    elif args.mode == "stationarity":
+        stationarity_test(series)
