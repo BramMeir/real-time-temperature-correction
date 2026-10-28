@@ -10,7 +10,7 @@ periods rather than by one fit. The coefficients are standardised afterwards (co
 training period) without refitting, so the weights of stations with a different natural variance are
 comparable. The raw coefficients are kept next to them.
 
-python -m src.scripts.determine_stage_one_weights [--targets Vielsalm Station_Eeklo]
+python -m src.scripts.station_weights_experiment [--targets Vielsalm Station_Eeklo]
 """
 import os
 import argparse
@@ -20,7 +20,7 @@ from src.utils.generate_forecast_start import generate_forecast_start
 from src.utils.load_station_coordinates import load_station_coordinates
 from src.models.idw.train import _haversine_distance
 from src.models.neighbour_regression.train import train_neighbour_regression
-from src.scripts.determine_residual_sarima_order import SEED, HORIZONS, MAX_HISTORY_DAYS
+from src.scripts.residual_sarima_order import SEED, HORIZONS, MAX_HISTORY_DAYS
 
 
 OUTPUT_DIR = "output/stage_one_weights"
@@ -51,7 +51,7 @@ def fit_weights(df_complete, series, target, exog_cols, repeats):
     """
     rows = []
     for repeat_id in range(repeats):
-        # Training periods drawn as in the residual diagnostics (check_residual_autocorrelation.py)
+        # Training periods drawn as in the residual diagnostics (residual_autocorrelation.py)
         train_end = generate_forecast_start(
             series=series,
             seed=SEED,

@@ -9,7 +9,7 @@ all zero. The Durbin-Watson statistic is reported next to it because it is the f
 diagnostic, but it only looks at lag 1 (2 means no lag-1 autocorrelation, below 2 positive), so it
 says nothing about the daily cycle the seasonal part is there for.
 
-python -m src.scripts.check_residual_autocorrelation
+python -m src.scripts.residual_autocorrelation
 """
 import os
 import csv
@@ -22,7 +22,7 @@ from statsmodels.tsa.stattools import acf
 from src.utils.datasets import DATASETS, load_station_data
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.models.regsarima.train import stage_one_residuals, fit_residual_sarima
-from src.scripts.determine_residual_sarima_order import SEED, HORIZONS, MAX_HISTORY_DAYS
+from src.scripts.residual_sarima_order import SEED, HORIZONS, MAX_HISTORY_DAYS
 
 # Number of training periods to evaluate per station
 NUMBER_OF_REPEATS = 10

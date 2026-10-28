@@ -1,11 +1,11 @@
 """
 Script to check whether the two-stage model's assumption that the stage-one regression
 residuals are already stationary and mean zero actually holds. The residual SARIMA grid
-search (determine_residual_sarima_order.py) restricts its candidate orders to d=D=0 on
+search (residual_sarima_order.py) restricts its candidate orders to d=D=0 on
 that assumption; this script verifies it with the Augmented Dickey-Fuller test, pooled
 over the same datasets, stations and training periods.
 
-python -m src.scripts.check_residual_stationarity
+python -m src.scripts.residual_stationarity
 """
 import os
 import csv
@@ -16,7 +16,7 @@ from statsmodels.tsa.stattools import adfuller
 from src.utils.datasets import DATASETS, load_station_data
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.models.regsarima.train import stage_one_residuals
-from src.scripts.determine_residual_sarima_order import SEED, HORIZONS, MAX_HISTORY_DAYS
+from src.scripts.residual_sarima_order import SEED, HORIZONS, MAX_HISTORY_DAYS
 
 # Number of training periods to evaluate per station
 NUMBER_OF_REPEATS = 10

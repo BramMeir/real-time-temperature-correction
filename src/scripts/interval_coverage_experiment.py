@@ -10,7 +10,7 @@ slice. The residual SARIMA forecast is deterministic given the fitted model, so 
 is identical to forecasting h steps and one forecast serves every horizon.
 
 The onsets come from the same SEED, per-station seed offset and history length as
-models_comparison_experiment.py, so the coverage numbers are paired with the MAE numbers already
+model_comparison_experiment.py, so the coverage numbers are paired with the MAE numbers already
 reported. Keep the constants below in sync.
 
 Run:
@@ -26,7 +26,7 @@ from src.evaluation.interval_coverage import conformal_bounds, empirical_bounds,
 from src.models.regsarima.train import train_regression_sarima_errors
 from src.utils.generate_forecast_start import generate_forecast_start
 
-# Must match models_comparison_experiment.py to keep the onsets paired
+# Must match model_comparison_experiment.py to keep the onsets paired
 SEED = 42
 
 # Forecasting horizons in hours (4h, 12h, 1D, 2D, 4D, 7D, 14D, 21D, 30D)
