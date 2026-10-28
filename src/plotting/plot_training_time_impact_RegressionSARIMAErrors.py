@@ -71,97 +71,6 @@ def load_training_weeks_results(results_dir="output/training_weeks_regression_sa
     return combined_df
 
 
-def plot_error_vs_training_weeks(df, output_dir):
-    """
-    Average error (METRIC) in function of the number of training weeks, with error bands for standard deviation.
-
-    Input:
-    ------
-    df: DataFrame containing the results (columns: dataset,station,training_weeks,train_start,train_end,horizon,mae,mse,training_duration)
-    output_dir: directory where the plot will be saved
-    """
-
-    summary = (
-        df.groupby("training_weeks")[METRIC.lower()]
-        .agg(["mean", "std", "count"])
-        .reset_index()
-    )
-
-    # 95% confidence interval
-    summary["ci95"] = 1.96 * (
-        summary["std"] / (summary["count"] ** 0.5)
-    )
-
-    plt.figure(figsize=(9, 5))
-
-    plt.errorbar(
-        summary["training_weeks"],
-        summary["mean"],
-        yerr=summary["ci95"],
-        marker="o",
-        capsize=4,
-    )
-
-    # Zoom in on the relevant region
-    ymin = summary["mean"].min() * 0.95
-    ymax = summary["mean"].min() * 1.25
-
-    plt.ylim(ymin, ymax)
-    plt.xlim(left=0)
-
-    plt.xlabel("Number of training weeks")
-    plt.ylabel(f"Mean {METRIC} (°C)")
-
-    # Subtle grid
-    plt.grid(True, linestyle="--", alpha=0.6)
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, _file_name("performance_vs_training_weeks")))
-    plt.close()
-
-
-def plot_training_time_vs_weeks(df, output_dir):
-    """
-    Average trainingtime in function of the number of training weeks, with error bands for 95% confidence interval.
-
-    Input:
-    ------
-    df: DataFrame containing the results (columns: dataset,station,training_weeks,train_start,train_end,horizon,mae,mse,training_duration)
-    output_dir: directory where the plot will be saved
-    """
-
-    agg = (
-        df.groupby("training_weeks")["training_duration"]
-        .agg(["mean", "std", "count"])
-        .reset_index()
-    )
-
-    # 95% confidence interval
-    agg["ci95"] = 1.96 * (
-        agg["std"] / (agg["count"] ** 0.5)
-    )
-
-    plt.figure(figsize=(9, 5))
-
-    plt.errorbar(
-        agg["training_weeks"],
-        agg["mean"],
-        yerr=agg["ci95"],
-        marker="o",
-        capsize=4,
-    )
-
-    plt.xlabel("Number of training weeks")
-    plt.ylabel("Mean training time (seconds)")
-
-    plt.grid(True, linestyle="--", alpha=0.6)
-
-    plt.tight_layout()
-
-    plt.savefig(os.path.join(output_dir, "training_time_vs_training_weeks.png"))
-    plt.close()
-
-
 def plot_performance_vs_training_time(df, output_dir):
     """
     Scatter plot of average error (METRIC) vs average training time, per number of training weeks.
@@ -235,53 +144,6 @@ def plot_performance_vs_training_time(df, output_dir):
     plt.close()
 
 
-def plot_error_vs_weeks_per_horizon(df, output_dir):
-    """
-    Error (METRIC) in function of the number of training weeks, per forecast horizon. This helps to understand
-    the impact of training time on performance for different forecast horizons.
-
-    Input:
-    ------
-    df: DataFrame containing the results (columns: dataset,station,training_weeks,train_start,train_end,horizon,mae,mse,training_duration)
-    output_dir: directory where the plot will be saved
-    """
-
-    plt.figure(figsize=(9, 5))
-
-    horizons = sorted(df["horizon"].unique())
-
-    for i, horizon in enumerate(horizons):
-        group = df[df["horizon"] == horizon]
-
-        agg = (
-            group.groupby("training_weeks")[METRIC.lower()]
-            .agg(["mean", "std", "count"])
-            .reset_index()
-        )
-
-        plt.errorbar(
-            agg["training_weeks"],
-            agg["mean"],
-            marker="o",
-            capsize=3,
-            label=f"{horizon} h",
-        )
-
-    plt.xlabel("Number of training weeks")
-    plt.ylabel(f"Mean {METRIC} (°C)")
-
-    plt.grid(True, linestyle="-", alpha=0.3)
-
-    plt.legend(
-        title="Outage duration",
-        ncol=2,
-    )
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, _file_name("performance_vs_training_weeks_per_horizon")))
-    plt.close()
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--metric", choices=["MAE", "RMSE"], default="RMSE")
@@ -299,10 +161,4 @@ if __name__ == "__main__":
     results_dir = "output/training_weeks_regression_sarima_errors_joltik"
     df = load_training_weeks_results(results_dir)
 
-    # Make the plots
-    plot_error_vs_training_weeks(df, output_dir)
-    # The training time does not depend on the metric, so only the default run draws it
-    if METRIC == "MAE":
-        plot_training_time_vs_weeks(df, output_dir)
     plot_performance_vs_training_time(df, output_dir)
-    plot_error_vs_weeks_per_horizon(df, output_dir)

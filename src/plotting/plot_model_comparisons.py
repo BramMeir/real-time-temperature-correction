@@ -35,31 +35,6 @@ def _plot_path(name):
     return f"plots/{name}{suffix}.pdf"
 
 
-def plot_overall_model_performance(df):
-    """
-    1. Plot the overall error (METRIC) per model with error bars representing standard deviation across stations/datasets/horizons.
-
-    Input:
-    ------
-    df: DataFrame containing all the results (columns: dataset,station,model,train_start,train_end,horizon,mae,mse)
-    """
-    summary_errors = df.groupby("Model")[METRIC].agg(["mean", "std"]).reset_index()
-
-    plt.figure(figsize=(9, 5))
-    plt.bar(
-        summary_errors["Model"].map(_display_name),
-        summary_errors["mean"],
-        yerr=summary_errors["std"],
-        capsize=5,
-    )
-    plt.xlabel("Model")
-    plt.ylabel(_metric_label())
-    plt.xticks(rotation=30, ha="right")
-    plt.tight_layout()
-    plt.savefig(_plot_path("overall_model_performance"))
-    plt.close()
-
-
 # Model keys as written in the result csv files -> the names used in the paper
 LATEX_MODEL_NAMES = {
     "RegressionSARIMAErrors": "RegSARIMA",
@@ -328,51 +303,6 @@ def generate_dataset_results_table(df):
     print("\n".join(lines))
 
 
-def plot_performance_vs_horizon(df):
-    """
-    2. Plot the error (METRIC) vs forecast horizon for each model.
-
-    Input:
-    ------
-    df: DataFrame containing all the results (columns: Dataset,Station,Model,Train_start,Train_end,Horizon,MAE,MSE)
-    """
-    # Compute statistics
-    summary = (
-        df.groupby(["Model", "Horizon"])[METRIC]
-        .agg(["mean", "std", "count"])
-        .reset_index()
-    )
-
-    # 95% confidence interval
-    summary["ci95"] = 1.96 * (summary["std"] / (summary["count"] ** 0.5))
-
-    plt.figure(figsize=(8, 5))
-
-    for model in summary["Model"].unique():
-        model_data = summary[summary["Model"] == model]
-
-        plt.errorbar(
-            model_data["Horizon"],
-            model_data["mean"],
-            yerr=model_data["ci95"],
-            marker="o",
-            capsize=4,
-            color=MODEL_COLOURS[model],
-            label=_display_name(model)
-        )
-
-    plt.xlabel("Outage duration (days)")
-    plt.ylabel(_metric_label())
-
-    # Set both axis limits to start at 0 for better visualization
-    plt.xlim(left=0)
-    plt.ylim(bottom=0)
-
-    plt.legend()
-    plt.savefig(_plot_path("performance_vs_horizon"))
-    plt.close()
-
-
 def plot_performance_vs_horizon_with_zoom(df):
     """
     2. Zoomed version of the error vs horizon without ARIMA to highlight difference between the other models.
@@ -447,141 +377,6 @@ def plot_performance_vs_horizon_with_zoom(df):
     plt.close()
 
 
-def plot_dataset_comparison(df):
-    """
-    3. Plot the error (METRIC) per dataset for each model.
-
-    Input:
-    ------
-    df: DataFrame containing all the results (columns: Dataset,Station,Model,Train_start,Train_end,Horizon,MAE,MSE)
-    """
-    summary = df.groupby(["Dataset", "Model"])[METRIC].mean().reset_index()
-
-    pivot = summary.pivot(index="Dataset", columns="Model", values=METRIC)
-    pivot = pivot.rename(columns=_display_name)
-
-    _, ax = plt.subplots(figsize=(8, 5))
-
-    pivot.plot(kind="bar", ax=ax, width=0.9)
-
-    ax.set_ylabel(_metric_label())
-    # ax.set_title("Model performance per dataset")
-
-    # Add value labels on top of bars
-    for container in ax.containers:
-        ax.bar_label(
-            container,
-            fmt="%.2f",
-            padding=3,
-            fontsize=8
-        )
-
-    # Remove the unncessary x-axis label ("dataset")
-    ax.set_xlabel(None)
-
-    plt.xticks(rotation=0)
-    plt.tight_layout()
-    plt.savefig(_plot_path("dataset_comparison"))
-    plt.close()
-
-
-def plot_station_variability(df):
-    """
-    4. Plot the error (METRIC) per station for each model.
-
-    Input:
-    ------
-    df: DataFrame containing all the results (columns: Dataset,Station,Model,Train_start,Train_end,Horizon,MAE,MSE)
-    """
-    df["station_short"] = df["Station"].apply(lambda x: x[:12] + "…" if len(x) > 12 else x)
-
-    summary = df.groupby(["station_short", "Model"])[METRIC].mean().reset_index()
-    pivot = summary.pivot(index="station_short", columns="Model", values=METRIC)
-    pivot = pivot.rename(columns=_display_name)
-
-    _, ax = plt.subplots(figsize=(8, 5))
-
-    pivot.plot(kind="bar", ax=ax)
-
-    ax.set_ylabel(_metric_label())
-    # ax.set_title("Model performance per station")
-
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig(_plot_path("station_variability"))
-    plt.close()
-
-
-def plot_urban_vs_rural_comparison(df):
-    """
-    5.
-    Compare model performance between:
-    - rural-only dataset (RMI)
-    - mixed urban/rural datasets (Turku + Synthetic)
-
-    Input:
-    ------
-    df: DataFrame containing all the results (columns: Dataset,Station,Model,Train_start,Train_end,Horizon,MAE,MSE)
-    """
-    df = df.copy()
-
-    # Label dataset type
-    df["DatasetType"] = df["Dataset"].apply(
-        lambda x: "Rural-only" if x == "RMI" else "Mixed urban/rural"
-    )
-
-    # Aggregate
-    summary = (
-        df.groupby(["Model", "DatasetType"])[METRIC]
-        .agg(["mean", "std", "count"])
-        .reset_index()
-    )
-
-    summary["ci95"] = 1.96 * (summary["std"] / (summary["count"] ** 0.5))
-
-    models = summary["Model"].unique()
-
-    rural = summary[summary["DatasetType"] == "Rural-only"]
-    mixed = summary[summary["DatasetType"] == "Mixed urban/rural"]
-
-    x = range(len(models))
-    width = 0.35
-
-    plt.figure(figsize=(9, 5))
-
-    plt.bar(
-        [i - width / 2 for i in x],
-        rural["mean"],
-        width,
-        yerr=rural["ci95"],
-        capsize=4,
-        label="Rural stations only"
-    )
-
-    plt.bar(
-        [i + width / 2 for i in x],
-        mixed["mean"],
-        width,
-        yerr=mixed["ci95"],
-        capsize=4,
-        label="Mixed rural/urban"
-    )
-
-    plt.xticks(
-        x,
-        [_display_name(m) for m in models],
-        rotation=30,
-        ha="right",
-    )
-    plt.ylabel(_metric_label())
-
-    plt.legend()
-
-    plt.tight_layout()
-    plt.savefig(_plot_path("rural_vs_mixed_performance"))
-    plt.close()
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--metric", choices=["MAE", "RMSE"], default="RMSE")
@@ -624,9 +419,4 @@ if __name__ == "__main__":
     # Convert horizon to days for better readability
     df["Horizon"] = df["Horizon"] / 24
 
-    plot_overall_model_performance(df)
-    plot_performance_vs_horizon(df)
     plot_performance_vs_horizon_with_zoom(df)
-    plot_dataset_comparison(df)
-    plot_station_variability(df)
-    plot_urban_vs_rural_comparison(df)
