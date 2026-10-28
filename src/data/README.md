@@ -37,6 +37,6 @@ Besides these files, some experiments read a few more files directly:
 | File | What it does |
 |---|---|
 | `preprocessing.py` | Converts the raw data of each dataset, see above. |
-| `create_supervised.py` | Input-output pairs of the tabular models (RF, MLP, XGBoost): the target's past 24 hours, the network at the current hour and the hour of day. |
+| `create_supervised.py` | Input-output pairs of the tabular models (RF, MLP): the target's past 24 hours, the network at the current hour and the hour of day. |
 | `create_3d_dataset.py` | Input sequences of the sequence models (LSTM, Transformer, TCN): the preceding hours of all stations, plus the hour of day. |
 | `align_concurrent_exog.py` | Shifts the network readings one hour ahead of the target, so the last step of a sequence pairs the target's previous value with the concurrent network readings. |

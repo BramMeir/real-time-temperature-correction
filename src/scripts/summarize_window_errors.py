@@ -12,8 +12,6 @@ import pandas as pd
 
 RESULTS = "output/models_comparison/*_8_weeks.csv"
 HORIZONS = [4, 24, 168, 720]
-# Models that were run but are not part of the paper's comparison
-EXCLUDED_MODELS = ["XGBoost"]
 NUMBER_OF_WORST = 10
 
 
@@ -30,7 +28,6 @@ def load_results(pattern=RESULTS):
     Returns a DataFrame with one row per model, window and horizon.
     """
     df = pd.concat(pd.read_csv(path) for path in glob.glob(pattern))
-    df = df[~df["Model"].isin(EXCLUDED_MODELS)].copy()
     df["RMSE"] = np.sqrt(df["MSE"])
 
     return df

@@ -70,9 +70,6 @@ LATEX_MODEL_NAMES = {
     "RF": "Random forest",
 }
 
-# Models that were run but are not part of the paper's comparison
-EXCLUDED_MODELS = ["XGBoost"]
-
 # One fixed colour per model: matplotlib's default cycle has only ten colours, so with more
 # models two curves would share a colour
 MODEL_COLOURS = {
@@ -603,7 +600,6 @@ if __name__ == "__main__":
     dfs = [pd.read_csv(f) for f in csv_files]
 
     df = pd.concat(dfs, ignore_index=True)
-    df = df[~df["Model"].isin(EXCLUDED_MODELS)]
 
     # The one-hour outage (#78) was only rerun for the linear models, into their own directory. Of the runs read
     # here, only the RF and MLP reruns (#97, #107) have it, so it is dropped to give every model the same outage durations
