@@ -1,5 +1,5 @@
 import pandas as pd
-from src.evaluation.evaluate_forecasts import evaluate_forecasts
+from src.evaluation.metrics import forecast_errors
 from src.models.sarima.train import train_sarima_model
 
 
@@ -52,7 +52,7 @@ def run_single_forecast(number, series, exog_df, model, start_date, end_date, ho
     pred = model.get_forecast(steps=len(test), exog=exog_test)
     y_forecasted = pd.Series(pred.predicted_mean.values, index=test.index)
 
-    errors = evaluate_forecasts(test, y_forecasted)
-    print(errors)
+    mae, mse = forecast_errors(test, y_forecasted)
+    print(f"MAE: {mae:.3f}, MSE: {mse:.3f}")
 
-    return errors["MAE"], errors["MSE"], y_forecasted
+    return mae, mse, y_forecasted

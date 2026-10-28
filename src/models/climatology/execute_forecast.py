@@ -1,5 +1,5 @@
 from src.models.climatology.train import train_hourly_climatology
-from src.evaluation.evaluate_baseline_forecast import evaluate_baseline_forecast
+from src.evaluation.metrics import forecast_errors
 
 
 def run_single_forecast(df, target_station, model=None, exog_cols=None, start=None, train_end=None,
@@ -44,7 +44,6 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
     predictions = model.reindex(y_test.index.hour)
     predictions.index = y_test.index
 
-    mae, rmse = evaluate_baseline_forecast(predictions, y_test, y_train=y_train, model_name="climatology", plot=False)
-    mse = rmse ** 2
+    mae, mse = forecast_errors(y_test, predictions)
 
     return mae, mse, None

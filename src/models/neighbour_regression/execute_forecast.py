@@ -1,6 +1,6 @@
 import pandas as pd
 from src.models.neighbour_regression.train import train_neighbour_regression
-from src.evaluation.evaluate_baseline_forecast import evaluate_baseline_forecast
+from src.evaluation.metrics import forecast_errors
 
 
 def run_single_forecast(df, target_station, model=None, exog_cols=None, start=None, train_end=None,
@@ -52,7 +52,6 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
 
     predictions = pd.Series(model.predict(X_test), index=test_index)
 
-    mae, rmse = evaluate_baseline_forecast(predictions, y_test, model_name="linear_regression", plot=False)
-    mse = rmse ** 2
+    mae, mse = forecast_errors(y_test, predictions)
 
     return mae, mse, None, predictions
