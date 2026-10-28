@@ -2,9 +2,9 @@ import argparse
 import os
 import numpy as np
 import pandas as pd
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.models.regsarima.train import RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.utils.datasets import DATASETS, load_station_data
+from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station
 from src.models.regsarima.confidence_score import two_stage_forecast_with_confidence_score
 
 OUTPUT_DIR = "output/confidence_analysis_regression_sarima_errors"
@@ -19,14 +19,19 @@ NUMBER_OF_REPEATS = 20
 SEED = 47
 
 
-def run_period(df_complete, station, start, end):
-    """Score one period [start, end] of one station, returning its MAE, MSE, reliability score and interval width."""
+def run_period(task):
+    """
+    Score one period (station, start, end) on the station's data of the worker process, returning a one-row list
+    with its MAE, MSE, reliability score and interval width.
+    """
+    station, start, end = task
+    df_complete = get_worker_df_complete()
     result = two_stage_forecast_with_confidence_score(
         df_complete[(df_complete.index >= start) & (df_complete.index <= end)], station,
         exog_cols=list(df_complete.columns[1:]), hours_to_forecast=HOURS_TO_FORECAST, arima_order=RESIDUAL_ORDER,
         seasonal_order=RESIDUAL_SEASONAL_ORDER, max_iter=1000, calibration_days=CALIBRATION_DAYS
     )
-    return result["mae"], result["mse"], result["confidence_score"], result["interval_width"]
+    return [(result["mae"], result["mse"], result["confidence_score"], result["interval_width"])]
 
 
 def run_station(df_complete, station, max_workers):
@@ -50,9 +55,8 @@ def run_station(df_complete, station, max_workers):
     np.random.seed(SEED)
     starts = np.random.choice(possible_starts, size=NUMBER_OF_REPEATS, replace=False)
 
-    with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(run_period, df_complete, station, start, start + period) for start in starts]
-        results = np.array([future.result() for future in as_completed(futures)])
+    tasks = [(station, start, start + period) for start in starts]
+    results = np.array(run_tasks_for_station(df_complete, tasks, run_period, (), max_workers=max_workers))
 
     mae, mse, confidence, interval_size = results.mean(axis=0)
 
