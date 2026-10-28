@@ -1,6 +1,6 @@
 """
 Paired comparison of the three linear models on the outage windows of the models comparison
-(src/scripts/models_comparison_experiment.py), printed as the two LaTeX tables of the paper: the
+(src/scripts/model_comparison_experiment.py), printed as the two LaTeX tables of the paper: the
 selection of outage durations in the results (tab:paired) and every duration in the appendix
 (tab:paired_full). The error of a window is its RMSE over the whole outage, and every model
 reconstructs exactly the same windows, so the comparison works on the per window differences

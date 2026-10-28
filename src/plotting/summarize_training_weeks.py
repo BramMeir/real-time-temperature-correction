@@ -1,6 +1,6 @@
 """
 Accuracy of every model that learns from its training window, for windows of 1 to 26 weeks, from the runs of
-hpc/submit_training_weeks.sh (src/scripts/models_comparison_experiment.py with fixed forecast starts). All windows
+hpc/submit_training_weeks.sh (src/scripts/model_comparison_experiment.py with fixed forecast starts). All windows
 reconstruct the same outages, so a difference between two windows comes from the window alone.
 
 Prints the mean RMSE per model and window over all windows and outage durations, and the same relative to the

@@ -1,5 +1,5 @@
 """
-Plot the ACF and PACF of the residuals written by src/scripts/check_residual_autocorrelation.py: the
+Plot the ACF and PACF of the residuals written by src/scripts/residual_autocorrelation.py: the
 stage-one residuals the neighbour regression leaves behind, and the stage-two SARIMA innovations.
 The stage-one panels show the structure the regression cannot explain (a decaying lag-1 correlation
 plus a bump at 24 h), which is what the residual SARIMA is fitted on; the stage-two panels show what

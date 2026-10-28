@@ -103,7 +103,7 @@ def fill_one_gap(df, station, gap_start, gap_length):
         "MB_separate": GF_debmodelMeanbias(gapped, name_gapped, era5, SEASONAL_SPAN, TIME_VARIATION, "separate", False)["P_debmodelMeanbias"],
     }
 
-    # RegSARIMA in real time, trained and forecast as in models_comparison_experiment.py
+    # RegSARIMA in real time, trained and forecast as in model_comparison_experiment.py
     train_end = gap_start - pd.Timedelta(hours=1)
     model = train_regression_sarima_errors(
         df.loc[train_end - pd.Timedelta(days=TRAINING_DAYS):train_end], station, exog_cols, ARIMA_ORDER, SEASONAL_ORDER

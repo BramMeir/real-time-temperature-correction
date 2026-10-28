@@ -2,7 +2,7 @@
 Maps of the stations the first stage of the two-stage model weights most, for a few representative targets of the
 synthetic network (the station selection maps of the paper). Every map is framed on the target and its marked
 neighbours, and shows the other stations in that area, so it can be seen which nearby stations the model passes
-over. The weights come from src/scripts/determine_stage_one_weights.py, which has to run first.
+over. The weights come from src/scripts/station_weights_experiment.py, which has to run first.
 
 python -m src.plotting.plot_stage_one_weight_maps
 """
@@ -123,7 +123,7 @@ def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
     Input
     -----
     points: GeoDataFrame with the station locations, indexed by station name
-    weights: DataFrame with the averaged weights, as written by determine_stage_one_weights.py
+    weights: DataFrame with the averaged weights, as written by station_weights_experiment.py
     target: Name of the target station
     filename: Path of the JPEG file to write
     basemap: Tile provider of the background map (default is BASEMAP)

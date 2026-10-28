@@ -3,7 +3,7 @@ Main script to determine the SARIMA order for stage two of the two-stage regress
 a grid search on the stage-one residuals rather than on the raw temperature series. Runs over all
 datasets, stations and training periods, and saves the results in a CSV file for further analysis.
 
-python -m src.scripts.determine_residual_sarima_order
+python -m src.scripts.residual_sarima_order
 """
 import os
 import csv

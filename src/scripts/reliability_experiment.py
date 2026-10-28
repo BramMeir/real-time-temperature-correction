@@ -1,5 +1,5 @@
 """
-Script: evaluate_confidence_per_station_RegressionSARIMAErrors.py
+Script: reliability_experiment.py
 
 Description:
 Evaluates model performance and confidence score for a single target station, for the two-stage

@@ -12,7 +12,7 @@ Supersedes the timings of determine_LASSO_performance_RegressionSARIMAErrors.py 
 workstation) and determine_LASSO_performance.py (earlier ARIMAX setup): run on the HPC with the same
 allocation as the model comparison, so the durations are comparable with that experiment.
 
-python -m src.scripts.compare_LASSO_selection_estimators [--training_weeks 8] [--repeats 15]
+python -m src.scripts.lasso_experiment [--training_weeks 8] [--repeats 15]
 """
 import os
 import argparse

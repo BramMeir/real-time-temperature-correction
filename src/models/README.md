@@ -38,7 +38,7 @@ SARIMA model of its residuals, fitted in two stages.
 |---|---|
 | `train.py` | The two-stage fit: the regression (stage one), its residuals, and the SARIMA on those residuals (stage two). |
 | `execute_forecast.py` | The real-time reconstruction: the regression at the current network readings, plus the SARIMA forecast of the residual from the last hour before the outage. |
-| `grid_search.py` | Grid search over the orders of the stage-two SARIMA, with fixed differencing (`d`, `D`), run by `src/scripts/determine_residual_sarima_order.py`. |
+| `grid_search.py` | Grid search over the orders of the stage-two SARIMA, with fixed differencing (`d`, `D`), run by `src/scripts/residual_sarima_order.py`. |
 | `confidence_score.py` | Reliability score and prediction interval: the model is fitted without the last part of the training window, reconstructs that part as if the target had failed, and is refitted on the full window for the actual correction. |
 | `repeat_forecast.py` | Runs `confidence_score.py` over random periods of one station, so the score can be compared with the error realised afterwards. |
 | `retrospective.py` | The retrospective variant of the comparison with Jacobs et al. (2024): the regression is fitted on a window around the gap, and the residual inside the gap is estimated by the Kalman smoother from both sides of it rather than forecast from before it. |
