@@ -16,7 +16,7 @@ from src.models.persistence.train import train_persistence
 from src.models.climatology.train import train_hourly_climatology
 from src.models.idw.train import train_idw
 from src.models.neighbour_regression.train import train_neighbour_regression
-from src.models.regsarima.train import train_regression_sarima_errors
+from src.models.regsarima.train import train_regression_sarima_errors, RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.models.sarima.execute_forecast import run_single_forecast as run_arimax
 from src.models.random_forest.execute_forecast import run_single_forecast as run_rf
 from src.models.LSTM.execute_forecast import run_single_forecast as run_lstm
@@ -189,8 +189,8 @@ def run_single_experiment(task):
             df=df_complete[train_start:train_end],
             target_station=station,
             exog_cols=exog_df.columns.tolist(),
-            arima_order=(3, 0, 0),
-            seasonal_order=(1, 0, 0, 24),
+            arima_order=RESIDUAL_ORDER,
+            seasonal_order=RESIDUAL_SEASONAL_ORDER,
             max_iter=1000
         )
     train_duration = pd.Timestamp.now() - train_start_time

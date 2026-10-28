@@ -1,5 +1,5 @@
 import pandas as pd
-from src.models.regsarima.train import train_regression_sarima_errors
+from src.models.regsarima.train import train_regression_sarima_errors, RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.evaluation.metrics import forecast_errors
 
 
@@ -25,7 +25,7 @@ def forecast_two_stage(model, X):
 
 
 def run_single_forecast(df, target_station, model=None, exog_cols=None, start=None, train_end=None,
-                        test_end=None, arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), mode="forecast"):
+                        test_end=None, arima_order=RESIDUAL_ORDER, seasonal_order=RESIDUAL_SEASONAL_ORDER, mode="forecast"):
     """
     Runs a single forecast with a regression on the neighbouring stations plus a SARIMA model of the
     regression residuals. As for SARIMAX and the random forest, the neighbours' observations over the
@@ -44,8 +44,8 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
     start: Start date for the training window
     train_end: End date for the training window / start of the forecast horizon
     test_end: End date for the forecast horizon
-    arima_order: Tuple specifying the (p, d, q) parameters for the residual SARIMA (default is (2, 0, 0))
-    seasonal_order: Tuple specifying the (P, D, Q, s) parameters for the residual SARIMA (default is (1, 0, 1, 24))
+    arima_order: Tuple specifying the (p, d, q) parameters for the residual SARIMA (default is RESIDUAL_ORDER)
+    seasonal_order: Tuple specifying the (P, D, Q, s) parameters for the residual SARIMA (default is RESIDUAL_SEASONAL_ORDER)
     mode: Mode of operation (kept only for interface compatibility, unused)
 
     Output

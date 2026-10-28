@@ -5,6 +5,7 @@ import zlib
 import numpy as np
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from src.models.regsarima.train import RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.models.jacobs2024.evaluation_gf_techniques import makegap
 from src.models.jacobs2024.gf_techniques import (
     GF_linint,
@@ -40,8 +41,6 @@ TIME_VARIATION = 1
 
 # As in the model comparison
 TRAINING_DAYS = 56
-ARIMA_ORDER = (3, 0, 0)
-SEASONAL_ORDER = (1, 0, 0, 24)
 
 # Gaps per task, small enough to spread a station over many workers
 CHUNK_SIZE = 25
@@ -78,7 +77,7 @@ def fill_one_gap(df, station, gap_start, gap_length):
     # RegSARIMA in real time, trained and forecast as in model_comparison_experiment.py
     train_end = gap_start - pd.Timedelta(hours=1)
     model = train_regression_sarima_errors(
-        df.loc[train_end - pd.Timedelta(days=TRAINING_DAYS):train_end], station, exog_cols, ARIMA_ORDER, SEASONAL_ORDER
+        df.loc[train_end - pd.Timedelta(days=TRAINING_DAYS):train_end], station, exog_cols, RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
     )
     fills["RegSARIMA_realtime"], fills["Regression_realtime"] = forecast_two_stage(
         model, df.loc[gap_start:gap_end, exog_cols]
@@ -86,7 +85,7 @@ def fill_one_gap(df, station, gap_start, gap_length):
 
     # RegSARIMA retrospectively
     fills["RegSARIMA_retrospective"], fills["Regression_retrospective"] = fill_gap_retrospective(
-        df, station, exog_cols, gap_start, gap_end, ARIMA_ORDER, SEASONAL_ORDER
+        df, station, exog_cols, gap_start, gap_end, RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
     )
 
     return {method: fill.loc[gap_start:gap_end] for method, fill in fills.items()}

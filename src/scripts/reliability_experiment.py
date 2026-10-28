@@ -3,13 +3,11 @@ import os
 import numpy as np
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from src.models.regsarima.train import RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.utils.datasets import DATASETS, load_station_data
 from src.models.regsarima.confidence_score import two_stage_forecast_with_confidence_score
 
 OUTPUT_DIR = "output/confidence_analysis_regression_sarima_errors"
-
-# Orders of the residual SARIMA, selected on the stage-one residuals
-RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
 
 # Every period holds WEEKS of training data, the last CALIBRATION_DAYS of which are held out for the score, followed
 # by a reconstruction of HOURS_TO_FORECAST

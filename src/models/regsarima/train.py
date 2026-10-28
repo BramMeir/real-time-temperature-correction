@@ -2,6 +2,9 @@ import pandas as pd
 import statsmodels.api as sm
 from src.models.neighbour_regression.train import train_neighbour_regression
 
+# Orders of the residual SARIMA of the paper, selected by src/scripts/residual_sarima_order.py
+RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
+
 
 def stage_one_residuals(df, target_station, exog_cols, regression=None):
     """
@@ -35,7 +38,7 @@ def stage_one_residuals(df, target_station, exog_cols, regression=None):
     return regression, residuals
 
 
-def fit_residual_sarima(residuals, arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), max_iter=1000,
+def fit_residual_sarima(residuals, arima_order=RESIDUAL_ORDER, seasonal_order=RESIDUAL_SEASONAL_ORDER, max_iter=1000,
                         enforce_stationarity=False):
     """
     Fit the residual SARIMA (stage two) on a series of stage-one residuals. Independent of the number
@@ -51,8 +54,8 @@ def fit_residual_sarima(residuals, arima_order=(2, 0, 0), seasonal_order=(1, 0, 
     ).fit(maxiter=max_iter, disp=False)
 
 
-def train_regression_sarima_errors(df, target_station, exog_cols, arima_order=(2, 0, 0),
-                                   seasonal_order=(1, 0, 1, 24), max_iter=1000):
+def train_regression_sarima_errors(df, target_station, exog_cols, arima_order=RESIDUAL_ORDER,
+                                   seasonal_order=RESIDUAL_SEASONAL_ORDER, max_iter=1000):
     """
     Fit a regression on the neighbouring stations with SARIMA errors in two stages: an OLS
     regression of the target station on the contemporaneous neighbour observations, followed
@@ -63,8 +66,8 @@ def train_regression_sarima_errors(df, target_station, exog_cols, arima_order=(2
     df: DataFrame with a datetime index and one column per station, hourly frequency
     target_station: Name of the target station column to predict
     exog_cols: List of neighbouring station column names used as regressors
-    arima_order: Tuple specifying the (p, d, q) parameters for the residual SARIMA (default is (2, 0, 0))
-    seasonal_order: Tuple specifying the (P, D, Q, s) parameters for the residual SARIMA (default is (1, 0, 1, 24))
+    arima_order: Tuple specifying the (p, d, q) parameters for the residual SARIMA (default is RESIDUAL_ORDER)
+    seasonal_order: Tuple specifying the (P, D, Q, s) parameters for the residual SARIMA (default is RESIDUAL_SEASONAL_ORDER)
     max_iter: Maximum number of iterations for fitting the residual SARIMA (default is 1000)
 
     Output

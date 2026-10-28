@@ -2,6 +2,7 @@ import argparse
 import zlib
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from src.models.regsarima.train import RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.utils.datasets import DATASETS, load_station_data
 from src.utils.experiment_utils import write_results_csv
 from src.evaluation.interval_coverage import conformal_bounds, empirical_bounds, summarise_interval
@@ -16,9 +17,6 @@ SEED = 42
 HORIZONS = [4, 12, 24, 48, 96, 168, 336, 504, 720]
 
 NUMBER_OF_REPEATS = 10
-
-# Residual SARIMA orders as used elsewhere for this model
-RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
 
 # Lengths of the held-out validation episode. The total history stays at the training weeks, so a longer episode
 # leaves the calibration fit less data

@@ -1,6 +1,7 @@
 import argparse
 import pandas as pd
 from statsmodels.tsa.stattools import acf
+from src.models.regsarima.train import RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.utils.datasets import DATASETS, load_station_data
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.utils.experiment_utils import write_results_csv
@@ -10,9 +11,6 @@ from src.scripts.residual_sarima_order import SEED, HORIZONS, MAX_HISTORY_DAYS
 # Number of training periods to evaluate per station
 NUMBER_OF_REPEATS = 10
 
-# Order of the residual SARIMA, the one the two-stage model forecasts with
-ARIMA_ORDER = (3, 0, 0)
-SEASONAL_ORDER = (1, 0, 0, 24)
 
 
 def run_autocorrelation_check(training_weeks, repeats, output_file):
@@ -48,7 +46,7 @@ def run_autocorrelation_check(training_weeks, repeats, output_file):
                 train_start = forecast_start - pd.Timedelta(days=training_weeks * 7)
 
                 _, residuals = stage_one_residuals(df_complete[train_start:forecast_start], station, exog_cols)
-                innovations = fit_residual_sarima(residuals, ARIMA_ORDER, SEASONAL_ORDER).resid
+                innovations = fit_residual_sarima(residuals, RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER).resid
 
                 rows.append([dataset_name, station, repeat_id, train_start, forecast_start,
                              acf(residuals, nlags=1, fft=True)[1], acf(innovations, nlags=1, fft=True)[1]])

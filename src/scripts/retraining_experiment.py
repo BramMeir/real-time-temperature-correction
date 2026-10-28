@@ -1,9 +1,9 @@
 import argparse
 import pandas as pd
 from src.models.neighbour_regression.train import train_neighbour_regression
-from src.models.regsarima.train import stage_one_residuals, fit_residual_sarima
+from src.models.regsarima.train import stage_one_residuals, fit_residual_sarima, RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.scripts.aging_experiment import (
-    SEED, STATION_SEED_STRIDE, RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER,
+    SEED, STATION_SEED_STRIDE,
     train_two_stage, age_two_stage, evaluate_two_stage
 )
 from src.utils.datasets import DATASETS, load_station_data
