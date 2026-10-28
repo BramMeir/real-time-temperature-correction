@@ -1,77 +1,43 @@
 import numpy as np
 import pandas as pd
-from src.utils.datasets import DATASETS
-from src.scripts.detect_heatwaves import load_hourly
-from src.scripts.heatwave_experiment import EXPERIMENT_DATASETS, OUTPUT_DIR, TRAINING_WEEKS
+from src.scripts.heatwave_experiment import OUTPUT_DIR, TRAINING_WEEKS
 
-METRICS = [
-    "Bias", "RMSE", "Recovery_bias", "Tmax_error", "Tmin_error", "Peak_error", "Tmax3_error", "Tmin3_error",
-    "Sum_beta", "Extrapolation", "Station_gap"
-]
-
-KEYS = ["Dataset", "Station", "Event_id", "Control", "Lead_days"]
-
-# Outage start of the table in the paper, in days before the first heat wave day, and the errors it shows
+# Errors of the table, and the outage start of the table in days before the first heat wave day
+METRICS = ["RMSE", "Bias", "Tmax_error", "Tmin_error"]
 PAPER_LEAD = 3
 PAPER_LEAD_TEXT = "three days"
-PAPER_METRICS = ["RMSE", "Bias", "Tmax_error", "Tmin_error"]
+
+KEYS = ["Dataset", "Station", "Event_id", "Control", "Lead_days"]
 
 N_BOOTSTRAP = 10000
 SEED = 42
 
 
-def highest_3day_mean(daily):
-    """Highest mean over 3 consecutive days of a daily Series."""
-    return daily.rolling(3).mean().max()
-
-
-def window_metrics(scored, window, observed, network_median, station_gap):
+def window_metrics(scored, window):
     """
-    Metrics of one window.
+    Errors of one window over its heat wave days, the reconstruction minus the observation.
 
     Input
     -----
     scored: Hourly rows of the window, with Datetime, Observed and Predicted
     window: Row of the window table
-    observed: Hourly observations of the target station
-    network_median: Hourly median of the other stations
-    station_gap: Hourly difference between the warmest and the coolest station of the network
 
     Output
     ------
     metrics: Dict with one value per name in METRICS
     """
     scored = scored.set_index("Datetime")
-    heat_end = window.Window_end + pd.Timedelta(hours=23)
 
-    heat = scored[:heat_end]
-    recovery = scored[heat_end + pd.Timedelta(hours=1):]
+    # The experiment also scores the days after the heat wave, which the table leaves out
+    heat = scored[:window.Window_end + pd.Timedelta(hours=23)]
     error = heat.Predicted - heat.Observed
-
     heat_days = heat.groupby(heat.index.floor("D"))
 
-    # Observed until the onset and reconstructed after it, over every heat wave day
-    actual = observed[window.Window_start:heat_end]
-    operational = actual.copy()
-    operational[heat.index] = heat.Predicted
-
-    actual_days = actual.groupby(actual.index.floor("D"))
-    operational_days = operational.groupby(operational.index.floor("D"))
-
-    training_max = network_median[window.Train_start:window.Onset].max()
-
     return {
-        "Bias": error.mean(),
         "RMSE": np.sqrt((error ** 2).mean()),
-        "Recovery_bias": (recovery.Predicted - recovery.Observed).mean(),
+        "Bias": error.mean(),
         "Tmax_error": (heat_days.Predicted.max() - heat_days.Observed.max()).mean(),
-        "Tmin_error": (heat_days.Predicted.min() - heat_days.Observed.min()).mean(),
-        "Peak_error": operational.max() - actual.max(),
-        "Tmax3_error": highest_3day_mean(operational_days.max()) - highest_3day_mean(actual_days.max()),
-        "Tmin3_error": highest_3day_mean(operational_days.min()) - highest_3day_mean(actual_days.min()),
-        "Sum_beta": window.Sum_beta,
-        "Extrapolation": (network_median[heat.index] > training_max).mean(),
-        "Station_gap": station_gap[heat.index].mean()
+        "Tmin_error": (heat_days.Predicted.min() - heat_days.Observed.min()).mean()
     }
 
 
@@ -93,29 +59,10 @@ def bootstrap_ci(values, rng):
     return np.percentile(means, [2.5, 97.5])
 
 
-def pair_windows(metrics):
-    """
-    Each heat wave window next to the mean of its controls (same station, same lead).
-
-    Input
-    -----
-    metrics: DataFrame with KEYS and METRICS, one row per window
-
-    Output
-    ------
-    heatwave, controls: DataFrames with METRICS, indexed by Dataset, Station, Event_id and Lead_days
-    """
-    pair_keys = ["Dataset", "Station", "Event_id", "Lead_days"]
-
-    heatwave = metrics[metrics.Control == 0].set_index(pair_keys)[METRICS]
-    controls = metrics[metrics.Control > 0].groupby(pair_keys)[METRICS].mean()
-
-    return heatwave, controls
-
-
 def summarise(metrics):
     """
     Heat wave mean, control mean and their difference per dataset, lead and metric, with intervals over events.
+    Each heat wave window is paired with the mean of its controls (same station, same lead).
 
     Input
     -----
@@ -127,13 +74,14 @@ def summarise(metrics):
     """
     rng = np.random.default_rng(SEED)
 
-    heatwave, controls = pair_windows(metrics)
-    difference = heatwave - controls
+    pair_keys = ["Dataset", "Station", "Event_id", "Lead_days"]
+    heatwave = metrics[metrics.Control == 0].set_index(pair_keys)[METRICS]
+    controls = metrics[metrics.Control > 0].groupby(pair_keys)[METRICS].mean()
 
     # Every event has the same stations, so the mean over events equals the mean over windows
     per_event = {
         name: frame.groupby(["Dataset", "Lead_days", "Event_id"]).mean()
-        for name, frame in [("Heatwave", heatwave), ("Control", controls), ("Difference", difference)]
+        for name, frame in [("Heatwave", heatwave), ("Control", controls), ("Difference", heatwave - controls)]
     }
 
     rows = []
@@ -152,81 +100,34 @@ def summarise(metrics):
     return pd.DataFrame(rows)
 
 
-def summarise_stations(metrics):
+def print_latex_table(summary):
     """
-    Mean RMSE of every station over its heat wave windows and over its controls, per dataset and lead.
-
-    Input
-    -----
-    metrics: DataFrame with KEYS and METRICS, one row per window
-
-    Output
-    ------
-    stations: DataFrame with one row per (dataset, lead, station)
-    """
-    heatwave, controls = pair_windows(metrics)
-    station_keys = ["Dataset", "Lead_days", "Station"]
-
-    stations = pd.DataFrame({
-        "RMSE_heatwave": heatwave.RMSE.groupby(station_keys).mean(),
-        "RMSE_control": controls.RMSE.groupby(station_keys).mean()
-    })
-    stations["Difference"] = stations.RMSE_heatwave - stations.RMSE_control
-
-    return stations.reset_index()
-
-
-def paper_table(summary):
-    """
-    The table of the paper: heat waves and ordinary weather as rows, the errors of PAPER_METRICS as columns.
+    Print the table of the paper as LaTeX: heat waves and ordinary weather as rows, the errors of METRICS as
+    columns, at PAPER_LEAD, with the RMSE difference and its interval in the caption.
 
     Input
     -----
     summary: Output of summarise
-
-    Output
-    ------
-    table: DataFrame indexed by Dataset and Weather
     """
-    rows = summary[(summary.Lead_days == PAPER_LEAD) & summary.Metric.isin(PAPER_METRICS)]
-
-    table = rows.melt(
-        id_vars=["Dataset", "Metric"], value_vars=["Heatwave", "Control"], var_name="Weather"
-    ).pivot(index=["Dataset", "Weather"], columns="Metric", values="value")
-
-    return table[PAPER_METRICS].rename(index={"Heatwave": "Heat waves", "Control": "Ordinary weather"})
-
-
-def print_latex_table(table, summary):
-    """
-    Print the table of the paper as LaTeX, in the layout of the other tables of the manuscript.
-
-    Input
-    -----
-    table: Output of paper_table
-    summary: Output of summarise, for the number of heat waves and the RMSE difference per dataset
-    """
+    at_lead = summary[summary.Lead_days == PAPER_LEAD].set_index(["Dataset", "Metric"])
     dataset_labels = {"TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
     caption_labels = {"TURKU": "TURCLIM", "SYNTHETIC": "the synthetic network"}
-    column_labels = {
-        "RMSE": "RMSE", "Bias": "Mean bias", "Tmax_error": "Daily max.", "Tmin_error": "Daily min."
-    }
-    n_events = summary[summary.Lead_days == PAPER_LEAD].groupby("Dataset").N_events.first()
+    column_labels = {"RMSE": "RMSE", "Bias": "Mean bias", "Tmax_error": "Daily max.", "Tmin_error": "Daily min."}
 
     def format_value(metric, value):
         # Rounded first, so a bias of -0.003 prints as 0.00 rather than -0.00
         value = round(value, 2) + 0.0
         return f"${value:.2f}$" if metric == "RMSE" or value == 0 else f"${value:+.2f}$"
 
-    header = ["\\textbf{Weather}"] + [f"\\textbf{{{column_labels[metric]}}}" for metric in PAPER_METRICS]
+    header = ["\\textbf{Weather}"] + [f"\\textbf{{{column_labels[metric]}}}" for metric in METRICS]
     columns = len(header)
 
     body = []
     for dataset in dataset_labels:
-        body.append(("group", f"{dataset_labels[dataset]} ({n_events[dataset]} heat waves)"))
-        for weather in ["Heat waves", "Ordinary weather"]:
+        body.append(("group", f"{dataset_labels[dataset]} ({at_lead.loc[(dataset, 'RMSE'), 'N_events']} heat waves)"))
+        for weather, column in [("Heat waves", "Heatwave"), ("Ordinary weather", "Control")]:
             body.append(("row", [f"\\quad {weather}"] + [
-                format_value(metric, table.loc[(dataset, weather), metric]) for metric in PAPER_METRICS
+                format_value(metric, at_lead.loc[(dataset, metric), column]) for metric in METRICS
             ]))
 
     # Pad every column so the ampersands line up in the .tex source
@@ -237,14 +138,15 @@ def print_latex_table(table, summary):
         padded = [cell.ljust(width) for cell, width in zip(cells, widths)]
         return "    " + " & ".join(padded).rstrip() + " \\\\"
 
-    rmse = summary[(summary.Lead_days == PAPER_LEAD) & (summary.Metric == "RMSE")].set_index("Dataset")
     # Only the first interval names what it is
-    differences = [
-        f"by {rmse.loc[dataset, 'Difference']:.2f}\\,\\textcelsius{{}} in {caption_labels[dataset]} "
-        f"({'95\\,\\% confidence interval ' if index == 0 else ''}"
-        f"{rmse.loc[dataset, 'Difference_low']:.2f}--{rmse.loc[dataset, 'Difference_high']:.2f}\\,\\textcelsius{{}})"
-        for index, dataset in enumerate(dataset_labels)
-    ]
+    differences = []
+    for index, dataset in enumerate(dataset_labels):
+        rmse = at_lead.loc[(dataset, "RMSE")]
+        differences.append(
+            f"by {rmse.Difference:.2f}\\,\\textcelsius{{}} in {caption_labels[dataset]} "
+            f"({'95\\,\\% confidence interval ' if index == 0 else ''}"
+            f"{rmse.Difference_low:.2f}--{rmse.Difference_high:.2f}\\,\\textcelsius{{}})"
+        )
 
     caption = (
         "Accuracy of RegSARIMA during heat waves and in windows of ordinary weather around the same events, for an "
@@ -282,94 +184,23 @@ def print_latex_table(table, summary):
     print("\n".join(lines))
 
 
-def print_text_numbers(summary):
-    """
-    The numbers the text of the paper quotes besides the table, per dataset.
-
-    Input
-    -----
-    summary: Output of summarise
-    """
-    for dataset, rows in summary.groupby("Dataset"):
-        at_lead = rows[rows.Lead_days == PAPER_LEAD].set_index("Metric")
-        bias = rows[rows.Metric == "Bias"]
-        rmse = rows[rows.Metric == "RMSE"]
-
-        print(f"\n{dataset}")
-
-        for metric in ["RMSE", "Tmin_error"]:
-            row = at_lead.loc[metric]
-            print(f"{metric} difference at lead {PAPER_LEAD}: {row.Difference:+.2f} "
-                  f"[{row.Difference_low:.2f}, {row.Difference_high:.2f}]")
-
-        for metric in ["RMSE", "Station_gap"]:
-            row = at_lead.loc[metric]
-            print(f"{metric} during heat waves relative to ordinary weather: {row.Heatwave / row.Control - 1:+.0%}")
-
-        print(f"Mean bias over all leads, both kinds of weather: {bias[['Heatwave', 'Control']].min().min():+.3f} "
-              f"to {bias[['Heatwave', 'Control']].max().max():+.3f}")
-        print(f"Heat wave RMSE over all leads: {rmse.Heatwave.min():.2f} to {rmse.Heatwave.max():.2f}")
-        print(f"Share of heat wave hours beyond the training range: {at_lead.loc['Extrapolation', 'Heatwave']:.0%}; "
-              f"sum of the coefficients: {at_lead.loc['Sum_beta', 'Heatwave']:.3f}")
-
-
-def main():
+if __name__ == "__main__":
     hourly = pd.read_csv(
         f"{OUTPUT_DIR}/RegressionSARIMAErrors_{TRAINING_WEEKS}_weeks.csv.gz", parse_dates=["Datetime"]
     )
     windows = pd.read_csv(
-        f"{OUTPUT_DIR}/windows_{TRAINING_WEEKS}_weeks.csv",
-        parse_dates=["Window_start", "Window_end", "Train_start", "Onset"]
+        f"{OUTPUT_DIR}/windows_{TRAINING_WEEKS}_weeks.csv", parse_dates=["Window_start", "Window_end"]
     ).set_index(KEYS)
 
-    rows = []
-
-    for dataset in EXPERIMENT_DATASETS:
-        observations = load_hourly(DATASETS[dataset]["file"])
-
-        network_medians = {
-            station: observations.drop(columns=station).median(axis=1) for station in observations.columns
-        }
-        station_gap = observations.max(axis=1) - observations.min(axis=1)
-
-        for keys, scored in hourly[hourly.Dataset == dataset].groupby(KEYS):
-            station = keys[1]
-            rows.append({
-                **dict(zip(KEYS, keys)),
-                **window_metrics(
-                    scored, windows.loc[keys], observations[station], network_medians[station], station_gap
-                )
-            })
-
-    metrics = pd.DataFrame(rows)
-    metrics.to_csv(f"{OUTPUT_DIR}/window_metrics_{TRAINING_WEEKS}_weeks.csv", index=False)
-
+    metrics = pd.DataFrame([
+        {**dict(zip(KEYS, keys)), **window_metrics(scored, windows.loc[keys])}
+        for keys, scored in hourly.groupby(KEYS)
+    ])
     summary = summarise(metrics)
-    summary.to_csv(f"{OUTPUT_DIR}/summary_{TRAINING_WEEKS}_weeks.csv", index=False)
 
-    stations = summarise_stations(metrics)
-    stations.to_csv(f"{OUTPUT_DIR}/station_summary_{TRAINING_WEEKS}_weeks.csv", index=False)
-
-    table = paper_table(summary)
-    table.to_csv(f"{OUTPUT_DIR}/paper_table_{TRAINING_WEEKS}_weeks.csv")
-
+    # Every outage start, for the statement that the result holds regardless of when the outage starts
     with pd.option_context("display.width", 250, "display.float_format", "{:.2f}".format):
         print(summary[["Dataset", "Lead_days", "Metric", "N_events", "Heatwave", "Control", "Difference",
                        "Difference_low", "Difference_high"]].to_string(index=False))
 
-        print("\nStations with a higher RMSE during heat waves than in their controls:")
-        print(
-            stations.groupby(["Dataset", "Lead_days"]).Difference
-            .agg(Higher=lambda difference: (difference > 0).sum(), Stations="size", Smallest_difference="min")
-            .to_string()
-        )
-
-        print(f"\nTable of the paper (outage starting {PAPER_LEAD} days before the heat wave, degC):")
-        print(table.to_string())
-
-    print_latex_table(table, summary)
-    print_text_numbers(summary)
-
-
-if __name__ == "__main__":
-    main()
+    print_latex_table(summary)
