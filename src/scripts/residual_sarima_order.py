@@ -1,10 +1,8 @@
-import os
-import csv
 import argparse
-import statistics
 import pandas as pd
 from src.utils.datasets import DATASETS, load_station_data
 from src.utils.generate_forecast_start import generate_forecast_start
+from src.utils.experiment_utils import write_results_csv
 from src.models.regsarima.train import stage_one_residuals
 from src.models.regsarima.grid_search import build_candidate_grid, residual_sarima_grid_search
 
@@ -23,80 +21,21 @@ NUMBER_OF_REPEATS = 3
 MAX_HISTORY_DAYS = 8 * 7
 
 
-def summarise(rows, criterion):
+def run_grid_search(training_weeks, repeats, output_file):
     """
-    Rank the candidate orders over all evaluated windows.
-
-    Reports the mean criterion, which weighs a window by how far apart it drives the candidates, the
-    mean rank, which gives every window an equal vote, and the number of windows won, which shows
-    whether the criterion separates the candidates at all.
-
-    Input
-    -----
-    rows: List of result dictionaries, one per (window, candidate)
-    criterion: Information criterion that was minimised, either "aic" or "bic"
-
-    Output
-    ------
-    Returns a list of summary dictionaries, sorted by the mean of the criterion.
-    """
-    # Group the results per window, so the candidates can be ranked within each window
-    windows = {}
-    for row in rows:
-        windows.setdefault((row["dataset"], row["station"], row["repeat_id"]), []).append(row)
-
-    ranks = {}
-    wins = {}
-    for window_rows in windows.values():
-        for rank, row in enumerate(sorted(window_rows, key=lambda r: r[criterion]), 1):
-            candidate = (row["order"], row["seasonal_order"])
-            ranks.setdefault(candidate, []).append(rank)
-            if rank == 1:
-                wins[candidate] = wins.get(candidate, 0) + 1
-
-    values = {}
-    for row in rows:
-        values.setdefault((row["order"], row["seasonal_order"]), []).append(row[criterion])
-
-    summary = [
-        {
-            "order": candidate[0],
-            "seasonal_order": candidate[1],
-            "mean_criterion": statistics.fmean(values[candidate]),
-            "mean_rank": statistics.fmean(ranks[candidate]),
-            "windows_won": wins.get(candidate, 0)
-        }
-        for candidate in values
-    ]
-
-    return sorted(summary, key=lambda entry: entry["mean_criterion"])
-
-
-def run_grid_search(training_weeks, repeats, criterion, seasonal_period, output_file, datasets=None):
-    """
-    Run the grid search on the stage-one residuals over all datasets, stations and training periods,
-    and save the results to a CSV file.
+    Run the grid search on the stage-one residuals over all datasets, stations and training periods, save the AIC
+    of every candidate per window to a CSV file and print the candidates ranked by their mean AIC rank.
 
     Input
     -----
     training_weeks: Number of weeks of training data to fit the residual models on
     repeats: Number of training periods to evaluate per station
-    criterion: Information criterion to minimise, either "aic" or "bic"
-    seasonal_period: Seasonal period of the candidate orders
     output_file: Path of the CSV file to write the per-window results to
-    datasets: List of dataset names to evaluate (default is None, which uses all of them)
     """
-    candidates = build_candidate_grid(S=seasonal_period)
-
-    print(f"Evaluating {len(candidates)} candidate orders on the stage-one residuals, "
-          f"minimising {criterion.upper()}\n")
-
+    candidates = build_candidate_grid()
     rows = []
 
-    # Loop through all combinations of dataset, station and training period
-    for dataset_name in (datasets or DATASETS):
-        dataset_info = DATASETS[dataset_name]
-        # Read the preprocessed data
+    for dataset_name, dataset_info in DATASETS.items():
         df = pd.read_csv(dataset_info["file"])
 
         for station in dataset_info["stations"]:
@@ -105,7 +44,6 @@ def run_grid_search(training_weeks, repeats, criterion, seasonal_period, output_
             exog_cols = list(df_complete.columns[1:])
 
             for repeat_id in range(repeats):
-                # Generate random training period (start and end date) for the given dataset and station
                 forecast_start = generate_forecast_start(
                     series=series,
                     seed=SEED,
@@ -115,81 +53,42 @@ def run_grid_search(training_weeks, repeats, criterion, seasonal_period, output_
                 )
 
                 train_start = forecast_start - pd.Timedelta(days=training_weeks * 7)
-                train_end = forecast_start
 
-                # Residuals from the training window only, so the order is never selected on data
-                # the model is evaluated on
-                _, residuals = stage_one_residuals(
-                    df_complete[train_start:train_end], station, exog_cols
-                )
+                # Residuals from the training window only, so the order is never selected on data the model is
+                # evaluated on
+                _, residuals = stage_one_residuals(df_complete[train_start:forecast_start], station, exog_cols)
 
-                print(f"{dataset_name} {station} repeat {repeat_id} "
-                      f"({train_start.date()} to {train_end.date()}, {len(residuals)} hours)")
+                print(f"{dataset_name} {station} repeat {repeat_id} ({train_start.date()} to {forecast_start.date()})")
 
-                _, _, window_rows = residual_sarima_grid_search(
-                    residuals, candidates=candidates, criterion=criterion, verbose=False
-                )
+                _, _, window_rows = residual_sarima_grid_search(residuals, candidates=candidates, verbose=False)
 
-                for row in window_rows:
-                    rows.append({
-                        "dataset": dataset_name,
-                        "station": station,
-                        "repeat_id": repeat_id,
-                        "train_start": train_start,
-                        "train_end": train_end,
-                        **row
-                    })
+                rows += [[dataset_name, station, repeat_id, train_start, forecast_start,
+                          row["order"], row["seasonal_order"], row["aic"]] for row in window_rows]
 
-    # Save all results to a CSV file for later analysis
-    with open(output_file, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
+    columns = ["dataset", "station", "repeat_id", "train_start", "train_end", "order", "seasonal_order", "aic"]
+    write_results_csv(output_file, columns, rows)
 
-    # Report the ranking over all windows, which is what the order should be selected on
-    summary = summarise(rows, criterion)
-    n_windows = len(rows) // len(candidates)
-
-    print(f"\nCandidates ranked over {n_windows} windows, by mean {criterion.upper()}")
-    header = f"{'order':<24}{'mean ' + criterion.upper():>14}{'mean rank':>12}{'windows won':>14}"
-    print(header)
-    for entry in summary:
-        label = f"{entry['order']}x{entry['seasonal_order']}"
-        print(f"{label:<24}{entry['mean_criterion']:14.2f}{entry['mean_rank']:12.1f}"
-              f"{entry['windows_won']:14d}")
-
-    best = summary[0]
-    print(f"\nBest by mean {criterion.upper()}: "
-          f"arima_order={best['order']}, seasonal_order={best['seasonal_order']}")
-    print(f"Per-window results written to {output_file}")
+    # Every window gets an equal vote: the candidates are ranked by AIC within each window, and the order is the one
+    # with the best mean rank. The mean AIC itself would let the few windows that separate the candidates most decide
+    results = pd.DataFrame(rows, columns=columns).astype({"order": str, "seasonal_order": str})
+    results["rank"] = results.groupby(["dataset", "station", "repeat_id"])["aic"].rank()
+    ranking = results.groupby(["order", "seasonal_order"])["rank"].mean().sort_values()
+    print(f"\nCandidates ranked by their mean AIC rank over {len(rows) // len(candidates)} windows:")
+    print(ranking.to_string())
 
 
 if __name__ == "__main__":
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Determine the SARIMA order for stage two of the two-stage "
-                                                 "regression model by running a grid search on the stage-one "
-                                                 "residuals, pooled over datasets, stations and training "
-                                                 "periods. The results are saved to a CSV file.")
+    parser = argparse.ArgumentParser(description="Select the orders of the stage-two SARIMA of the two-stage model "
+                                                 "by a grid search on the stage-one residuals, pooled over datasets, "
+                                                 "stations and training periods.")
     parser.add_argument("--training_weeks", type=int, default=8,
                         help="Number of weeks to use for training (default: 8, as in the comparison experiment)")
     parser.add_argument("--repeats", type=int, default=NUMBER_OF_REPEATS,
                         help=f"Number of training periods per station (default: {NUMBER_OF_REPEATS})")
-    parser.add_argument("--criterion", choices=["aic", "bic"], default="aic",
-                        help="Information criterion to minimise (default: aic)")
-    parser.add_argument("--seasonal_period", type=int, default=24,
-                        help="Seasonal period of the candidate orders (default: 24)")
-    parser.add_argument("--datasets", nargs="+", choices=list(DATASETS), default=list(DATASETS),
-                        help="Datasets to evaluate (default: all of them)")
     args = parser.parse_args()
-
-    # Make sure the output directory exists
-    os.makedirs("output/residual_sarima_order_grid_search", exist_ok=True)
 
     run_grid_search(
         training_weeks=args.training_weeks,
         repeats=args.repeats,
-        criterion=args.criterion,
-        seasonal_period=args.seasonal_period,
-        output_file=f"output/residual_sarima_order_grid_search/results_{args.training_weeks}_weeks_{args.criterion}.csv",
-        datasets=args.datasets
+        output_file=f"output/residual_sarima_order_grid_search/results_{args.training_weeks}_weeks.csv"
     )
