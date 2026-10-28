@@ -115,9 +115,9 @@ def run_single_experiment(task):
 
     # Train the model once on the training period to reuse for all horizons
     train_model_fn = TRAIN_MODELS[model_name]
+    train_start_time = pd.Timestamp.now()
 
     if model_name in ["ARIMA", "ARIMAX"]:
-        train_start_time = pd.Timestamp.now()
         model = train_model_fn(
             series=series[train_start:train_end],
             exog_df=exog_df[train_start:train_end] if model_name == "ARIMAX" else None,
@@ -125,26 +125,19 @@ def run_single_experiment(task):
             seasonal_order=(1, 0, 1, 24),
             max_iter=1000
         )
-        train_duration = pd.Timestamp.now() - train_start_time
     elif model_name == "LSTM":
-        train_start_time = pd.Timestamp.now()
         model = train_model_fn(
             df=df_complete[train_start:train_end],
             target_station=station,
             previous_time_steps=24,
         )
-        train_duration = pd.Timestamp.now() - train_start_time
     elif model_name == "Transformer":
-        train_start_time = pd.Timestamp.now()
         model, x_scaler, y_scaler = train_model_fn(
             df=df_complete[train_start:train_end],
             target_station=station,
             previous_time_steps=8,
         )
-        train_duration = pd.Timestamp.now() - train_start_time
     elif model_name in ["RF", "MLP"]:
-        train_start_time = pd.Timestamp.now()
-
         # Limit the dataframe so only the relevant range is used for creating the supervised dataset
         history_start = train_start - pd.Timedelta(hours=24)
         df_subset = df_complete.loc[history_start:train_end]
@@ -159,11 +152,8 @@ def run_single_experiment(task):
 
         # Train the model
         train_result = train_model_fn(X_train, y_train)
-        train_duration = pd.Timestamp.now() - train_start_time
         model = train_result[0] if model_name == "RF" else train_result
     elif model_name == "TCN":
-        train_start_time = pd.Timestamp.now()
-
         # Limit the dataframe so only the relevant range is used for creating the supervised dataset
         history_start = train_start - pd.Timedelta(hours=24 * 3)
         df_subset = df_complete.loc[history_start:train_end]
@@ -179,31 +169,22 @@ def run_single_experiment(task):
 
         # Train the TCN model
         model = train_model_fn(X_train, y_train)
-        train_duration = pd.Timestamp.now() - train_start_time
     elif model_name in ["Persistence", "Climatology"]:
-        train_start_time = pd.Timestamp.now()
         model = train_model_fn(series=series[train_start:train_end])
-        train_duration = pd.Timestamp.now() - train_start_time
     elif model_name == "IDW":
-        train_start_time = pd.Timestamp.now()
-
         # IDW learns nothing from the observations: "training" only determines the spatial weights of the neighbours
         model = train_model_fn(
             coords=load_station_coordinates(dataset_name),
             target_station=station,
             neighbour_stations=exog_df.columns.tolist()
         )
-        train_duration = pd.Timestamp.now() - train_start_time
     elif model_name == "LinearRegression":
-        train_start_time = pd.Timestamp.now()
         model = train_model_fn(
             df=df_complete[train_start:train_end],
             target_station=station,
             exog_cols=exog_df.columns.tolist()
         )
-        train_duration = pd.Timestamp.now() - train_start_time
     elif model_name == "RegressionSARIMAErrors":
-        train_start_time = pd.Timestamp.now()
         model = train_model_fn(
             df=df_complete[train_start:train_end],
             target_station=station,
@@ -212,7 +193,7 @@ def run_single_experiment(task):
             seasonal_order=(1, 0, 0, 24),
             max_iter=1000
         )
-        train_duration = pd.Timestamp.now() - train_start_time
+    train_duration = pd.Timestamp.now() - train_start_time
 
     # Evaluate the model for each forecast horizon and save the results
     results = []
@@ -362,7 +343,7 @@ def run_all_experiments(model_name, training_weeks, output_dir=OUTPUT_DIR, onset
                 if model_name in SEQUENCE_MODELS:
                     df_complete = align_concurrent_exog(df_complete, station)
 
-                # Build a list of taks to run in parallel
+                # Build a list of tasks to run in parallel
                 tasks = []
 
                 # Generate NUMBER_OF_REPEATS random training periods for the given dataset and station
@@ -381,7 +362,7 @@ def run_all_experiments(model_name, training_weeks, output_dir=OUTPUT_DIR, onset
 
                 # If on GPU (for LSTM + Transformer + TCN), do not use too much parallelism to avoid out-of-memory errors,
                 # so we run sequentially
-                if model_name in ["LSTM", "Transformer", "TCN"]:
+                if model_name in SEQUENCE_MODELS:
                     for task in tasks:
                         results = run_single_experiment(task)
 
