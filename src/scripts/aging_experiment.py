@@ -56,7 +56,7 @@ def age_two_stage(model, df_gap, station, exog_cols):
     return regression, residual_model.append(endog=gap_residuals, refit=False)
 
 
-def forecast_two_stage(repeat_id, df_complete, station, model, exog_cols, train_start, test_begin, test_end):
+def evaluate_two_stage(repeat_id, df_complete, station, model, exog_cols, train_start, test_begin, test_end):
     """Reconstruct the target over [test_begin, test_end] with a trained model, returning its MAE and MSE."""
     result = run_regression_sarima_errors(
         df=df_complete,
@@ -129,7 +129,7 @@ def _run_single_experiment(task, training_weeks):
             gap_start = train_end + pd.Timedelta(hours=1)  # Right after the training period
             aged_model = age_two_stage(model, df_complete[gap_start:test_begin], station, exog_cols)
 
-        mae, mse = forecast_two_stage(
+        mae, mse = evaluate_two_stage(
             repeat_id, df_complete, station, aged_model, exog_cols, train_start, test_begin, test_end
         )
 
