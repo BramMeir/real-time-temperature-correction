@@ -149,8 +149,8 @@ def test_context(pairs, labels, same_context, permute_targets=True, rng=None):
 
 def run_context_test():
     """
-    Label the stations, run the context test over all targets and over the LCZ 2 targets, and save the labels and
-    the results to OUTPUT_DIR.
+    Label the stations, run the context test over all targets, over the LCZ 2 targets and over the other targets,
+    and save the labels and the results to OUTPUT_DIR.
     """
     weights = pd.read_csv(WEIGHTS_FILE)
     coords = load_station_coordinates("SYNTHETIC")
@@ -162,10 +162,12 @@ def run_context_test():
     rng = np.random.default_rng(SEED)
     lcz = labels["lcz"]
     urban_pairs = weights[weights["target"].map(lcz) == URBAN_CLASS]
+    other_pairs = weights[weights["target"].map(lcz) != URBAN_CLASS]
     tests = {
         "same LCZ class, all targets": (weights, lambda t, n: t == n, True),
         f"LCZ {URBAN_CLASS} neighbour, LCZ {URBAN_CLASS} targets": (
             urban_pairs, lambda t, n: n == URBAN_CLASS, False),
+        f"same LCZ class, targets outside LCZ {URBAN_CLASS}": (other_pairs, lambda t, n: t == n, False),
     }
 
     results = []
