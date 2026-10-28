@@ -1,8 +1,8 @@
 import argparse
 import pandas as pd
 import numpy as np
-from src.models.arima.grid_search import sarima_grid_search
-from src.models.arima.plot_diagnositcs import arima_plot_diagnostics
+from src.models.sarima.grid_search import sarima_grid_search
+from src.models.sarima.plot_diagnostics import arima_plot_diagnostics
 
 # Orders searched for the paper. The differencing is not searched, see sarima_grid_search: the augmented Dickey-Fuller
 # test rejects a unit root, so d = D = 0

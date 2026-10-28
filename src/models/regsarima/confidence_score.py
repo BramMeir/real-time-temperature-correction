@@ -2,7 +2,7 @@
 Script: confidence_score.py
 
 Confidence scoring for the two-stage regression with SARIMA errors model, analogous to
-src/models/arima/confidence_score.py for ARIMAX but derived empirically instead of from
+src/models/sarima/confidence_score.py for ARIMAX but derived empirically instead of from
 statsmodels' conf_int(): the spatial stage is a plain sklearn LinearRegression, which exposes
 no prediction-interval machinery, and even for the SARIMA stage a parametric interval on the
 residual alone would ignore the spatial stage's error. Both stages' error is instead measured
@@ -24,8 +24,8 @@ Functions:
 import numpy as np
 import pandas as pd
 from src.evaluation.interval_coverage import conformal_rank
-from src.models.regression_sarima_errors.train import train_regression_sarima_errors
-from src.models.regression_sarima_errors.execute_forecast import run_single_forecast
+from src.models.regsarima.train import train_regression_sarima_errors
+from src.models.regsarima.execute_forecast import run_single_forecast
 
 
 def conformal_interval_width(errors, ci_level=0.95):

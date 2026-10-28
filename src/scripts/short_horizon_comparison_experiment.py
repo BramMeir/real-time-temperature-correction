@@ -13,12 +13,12 @@ import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.scripts.determine_residual_sarima_order import DATASETS, SEED, load_station_series
-from src.models.arima.train import train_sarima_model
-from src.models.arima.execute_forecast import run_single_forecast as run_arimax
-from src.models.linear_regression.train import train_neighbour_regression
-from src.models.linear_regression.execute_forecast import run_single_forecast as run_linear_regression
-from src.models.regression_sarima_errors.train import train_regression_sarima_errors
-from src.models.regression_sarima_errors.execute_forecast import run_single_forecast as run_regression_sarima_errors
+from src.models.sarima.train import train_sarima_model
+from src.models.sarima.execute_forecast import run_single_forecast as run_arimax
+from src.models.neighbour_regression.train import train_neighbour_regression
+from src.models.neighbour_regression.execute_forecast import run_single_forecast as run_linear_regression
+from src.models.regsarima.train import train_regression_sarima_errors
+from src.models.regsarima.execute_forecast import run_single_forecast as run_regression_sarima_errors
 
 # The three models being compared, cheapest first so a long ARIMAX run never blocks the other two
 MODELS = ["LinearRegression", "RegressionSARIMAErrors", "ARIMAX"]

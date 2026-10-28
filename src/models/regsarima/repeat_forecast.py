@@ -1,8 +1,8 @@
 """
 Script: repeat_forecast.py
 
-Repeat the two-stage model's confidence scoring (src/models/regression_sarima_errors/confidence_score.py)
-on random segments of one station's data, mirroring src/models/arima/repeat_forecast.py so the two
+Repeat the two-stage model's confidence scoring (src/models/regsarima/confidence_score.py)
+on random segments of one station's data, mirroring src/models/sarima/repeat_forecast.py so the two
 models' reliability indicators are directly comparable, and so the MAE realised on a later, independent
 segment can be checked against the reliability indicators computed on the internal calibration window
 (as in Fig. 8 of the paper, for ARIMAX).
@@ -14,7 +14,7 @@ Functions:
 import numpy as np
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from src.models.regression_sarima_errors.confidence_score import two_stage_forecast_with_confidence_score
+from src.models.regsarima.confidence_score import two_stage_forecast_with_confidence_score
 
 
 def _run_single_forecast(

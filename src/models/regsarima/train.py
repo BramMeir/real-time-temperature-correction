@@ -22,7 +22,7 @@ Functions:
 """
 import pandas as pd
 import statsmodels.api as sm
-from src.models.linear_regression.train import train_neighbour_regression
+from src.models.neighbour_regression.train import train_neighbour_regression
 
 
 def stage_one_residuals(df, target_station, exog_cols, regression=None):

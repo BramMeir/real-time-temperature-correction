@@ -9,7 +9,7 @@ import argparse
 import pandas as pd
 import numpy as np
 from src.evaluation.comparison_amber.evaluation_gf_techniques import Test_techniques_differentgaplengths
-from src.models.arima.sarima_forecast import sarima_forecast
+from src.models.sarima.sarima_forecast import sarima_forecast
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.models.random_forest.execute_forecast import run_single_forecast
 from src.models.TCN.evaluate_forecast import evaluate_forecast as evaluate_tcn_forecast

@@ -11,8 +11,8 @@ import argparse
 import statistics
 import pandas as pd
 from src.utils.generate_forecast_start import generate_forecast_start
-from src.models.regression_sarima_errors.train import stage_one_residuals
-from src.models.regression_sarima_errors.grid_search import build_candidate_grid, residual_sarima_grid_search
+from src.models.regsarima.train import stage_one_residuals
+from src.models.regsarima.grid_search import build_candidate_grid, residual_sarima_grid_search
 
 # Metadata about the used datasets and stations to evaluate on
 DATASETS = {

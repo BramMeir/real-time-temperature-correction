@@ -13,7 +13,7 @@ python -m src.scripts.determine_optimal_nr_stations --target_station "Sint_Baafs
 import argparse
 import os
 import pandas as pd
-from src.models.arima.repeat_forecast import repeat_forecasts
+from src.models.sarima.repeat_forecast import repeat_forecasts
 
 
 def run_station_experiment(

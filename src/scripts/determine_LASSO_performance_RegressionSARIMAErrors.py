@@ -15,8 +15,8 @@ import csv
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.utils.select_LASSO_stations import select_LASSO_stations
-from src.models.regression_sarima_errors.train import train_regression_sarima_errors
-from src.models.regression_sarima_errors.execute_forecast import run_single_forecast as run_regression_sarima_errors
+from src.models.regsarima.train import train_regression_sarima_errors
+from src.models.regsarima.execute_forecast import run_single_forecast as run_regression_sarima_errors
 from src.utils.generate_forecast_start import generate_forecast_start
 
 

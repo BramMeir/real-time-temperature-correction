@@ -23,7 +23,7 @@ water for the 100m raster to classify), so its context label isn't valid.
 import pandas as pd
 import rasterio
 
-from src.models.linear_regression.train import train_neighbour_regression
+from src.models.neighbour_regression.train import train_neighbour_regression
 from src.utils.load_station_coordinates import load_station_coordinates
 from src.models.idw.train import _haversine_distance
 

@@ -1,6 +1,6 @@
 import pandas as pd
 from src.evaluation.evaluate_forecasts import evaluate_forecasts
-from src.models.arima.train import train_sarima_model
+from src.models.sarima.train import train_sarima_model
 
 
 def run_single_forecast(number, series, exog_df, model, start_date, end_date, hours_to_forecast,

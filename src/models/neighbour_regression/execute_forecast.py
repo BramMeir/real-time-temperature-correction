@@ -1,5 +1,5 @@
 import pandas as pd
-from src.models.linear_regression.train import train_neighbour_regression
+from src.models.neighbour_regression.train import train_neighbour_regression
 from src.evaluation.evaluate_baseline_forecast import evaluate_baseline_forecast
 
 

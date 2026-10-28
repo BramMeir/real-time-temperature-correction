@@ -13,7 +13,7 @@ For the selected station:
 import argparse
 import os
 import pandas as pd
-from src.models.arima.repeat_forecast import repeat_forecasts
+from src.models.sarima.repeat_forecast import repeat_forecasts
 
 
 def run_station_experiment(df, target_station, weeks, resample, hours_to_forecast):

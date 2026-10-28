@@ -17,7 +17,7 @@ import pandas as pd
 import argparse
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.utils.generate_forecast_start import generate_forecast_start
-from src.models.arima.train import train_sarima_model
+from src.models.sarima.train import train_sarima_model
 from src.models.LSTM.train import train_LSTM_model
 from src.models.MLP.train import train_mlp_model
 from src.models.transformer.train import train_transformer_model
@@ -26,9 +26,9 @@ from src.models.TCN.train import train_tcn_model
 from src.models.persistence.train import train_persistence
 from src.models.climatology.train import train_hourly_climatology
 from src.models.idw.train import train_idw
-from src.models.linear_regression.train import train_neighbour_regression
-from src.models.regression_sarima_errors.train import train_regression_sarima_errors
-from src.models.arima.execute_forecast import run_single_forecast as run_arimax
+from src.models.neighbour_regression.train import train_neighbour_regression
+from src.models.regsarima.train import train_regression_sarima_errors
+from src.models.sarima.execute_forecast import run_single_forecast as run_arimax
 from src.models.random_forest.execute_forecast import run_single_forecast as run_rf
 from src.models.LSTM.execute_forecast import run_single_forecast as run_lstm
 from src.models.MLP.execute_forecast import run_single_forecast as run_mlp
@@ -37,8 +37,8 @@ from src.models.TCN.execute_forecast import run_single_forecast as run_tcn
 from src.models.persistence.execute_forecast import run_single_forecast as run_persistence
 from src.models.climatology.execute_forecast import run_single_forecast as run_climatology
 from src.models.idw.execute_forecast import run_single_forecast as run_idw
-from src.models.linear_regression.execute_forecast import run_single_forecast as run_linear_regression
-from src.models.regression_sarima_errors.execute_forecast import run_single_forecast as run_regression_sarima_errors
+from src.models.neighbour_regression.execute_forecast import run_single_forecast as run_linear_regression
+from src.models.regsarima.execute_forecast import run_single_forecast as run_regression_sarima_errors
 from src.data.create_supervised import create_supervised_dataset
 from src.data.create_3d_dataset import create_3d_dataset
 from src.data.align_concurrent_exog import align_concurrent_exog

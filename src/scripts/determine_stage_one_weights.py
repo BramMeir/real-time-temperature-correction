@@ -18,7 +18,7 @@ import pandas as pd
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.utils.load_station_coordinates import load_station_coordinates
 from src.models.idw.train import _haversine_distance
-from src.models.linear_regression.train import train_neighbour_regression
+from src.models.neighbour_regression.train import train_neighbour_regression
 from src.scripts.determine_residual_sarima_order import load_station_series, SEED, HORIZONS, MAX_HISTORY_DAYS
 
 DATA_FILE = "data/Synthetic/observations.csv"

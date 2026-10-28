@@ -15,7 +15,7 @@ drawn uniformly over the record, 60 days away from both ends. Each gap is filled
 - RegSARIMA in real time, exactly as in the model comparison: trained on the eight weeks before the
   gap and forecast from its start;
 - RegSARIMA retrospectively, trained on four weeks on either side of the gap with the residual
-  inside it estimated by the Kalman smoother (src/models/regression_sarima_errors/retrospective.py);
+  inside it estimated by the Kalman smoother (src/models/regsarima/retrospective.py);
 - the regression of both RegSARIMA variants on its own, to separate the contribution of the
   residual model.
 
@@ -42,9 +42,9 @@ from src.evaluation.comparison_amber.gf_techniques import (
 )
 from src.evaluation.comparison_amber.turku_era5 import load_turku_with_era5
 from src.evaluation.experiment_utils import _init_worker, get_worker_df_complete
-from src.models.regression_sarima_errors.execute_forecast import forecast_two_stage
-from src.models.regression_sarima_errors.retrospective import fill_gap_retrospective
-from src.models.regression_sarima_errors.train import train_regression_sarima_errors
+from src.models.regsarima.execute_forecast import forecast_two_stage
+from src.models.regsarima.retrospective import fill_gap_retrospective
+from src.models.regsarima.train import train_regression_sarima_errors
 
 OUTPUT_DIR = "output/jacobs_comparison"
 

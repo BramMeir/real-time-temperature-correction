@@ -16,7 +16,7 @@ For the selected station:
 import argparse
 import os
 import pandas as pd
-from src.models.regression_sarima_errors.repeat_forecast import repeat_forecasts
+from src.models.regsarima.repeat_forecast import repeat_forecasts
 
 # Orders selected on the stage-one residuals, as used elsewhere for this model (see
 # short_horizon_comparison_experiment.py, test_aging_model_RegressionSARIMAErrors.py)

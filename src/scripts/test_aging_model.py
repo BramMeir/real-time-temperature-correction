@@ -8,8 +8,8 @@ python -m src.scripts.test_aging_model --dataset SYNTHETIC
 """
 import argparse
 from src.utils.select_LASSO_stations import select_LASSO_stations
-from src.models.arima.train import train_sarima_model
-from src.models.arima.execute_forecast import run_single_forecast as run_arimax
+from src.models.sarima.train import train_sarima_model
+from src.models.sarima.execute_forecast import run_single_forecast as run_arimax
 from src.evaluation.aging_experiment import run_aging_experiment, DATASETS
 
 ARIMA_ORDER, SEASONAL_ORDER = (2, 0, 0), (1, 0, 1, 24)

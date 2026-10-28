@@ -7,7 +7,7 @@ residuals. The local part decays to zero within a few hours, after which the for
 OLS regression of the neighbouring stations.
 """
 import pandas as pd
-from src.models.regression_sarima_errors.train import train_regression_sarima_errors
+from src.models.regsarima.train import train_regression_sarima_errors
 from src.evaluation.evaluate_baseline_forecast import evaluate_baseline_forecast
 
 

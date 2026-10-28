@@ -22,7 +22,7 @@ import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.evaluation.experiment_utils import write_results_csv
 from src.evaluation.interval_coverage import conformal_bounds, empirical_bounds, summarise_interval
-from src.models.regression_sarima_errors.train import train_regression_sarima_errors
+from src.models.regsarima.train import train_regression_sarima_errors
 from src.utils.generate_forecast_start import generate_forecast_start
 
 # Datasets and stations, mirroring models_comparison_experiment.py
@@ -60,7 +60,7 @@ NUMBER_OF_REPEATS = 10
 # Residual SARIMA orders as used elsewhere for this model
 RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
 
-# Held-out calibration windows. 3 days is what regression_sarima_errors/confidence_score.py used at first;
+# Held-out calibration windows. 3 days is what regsarima/confidence_score.py used at first;
 # the longer ones test how much of the under-coverage is simply too small a calibration sample.
 # The total history stays at training_weeks, so a longer holdout leaves the calibration fit less
 # data - that is the real operational trade-off.
@@ -76,7 +76,7 @@ BAND_METHODS = {"quantile": empirical_bounds, "conformal": conformal_bounds}
 
 def two_stage_predict(df, target_station, exog_cols, model, test_index):
     """
-    Point forecast of the two-stage model, as in regression_sarima_errors/execute_forecast.py: the
+    Point forecast of the two-stage model, as in regsarima/execute_forecast.py: the
     OLS regression on the neighbours plus the SARIMA forecast of its residuals.
 
     Input
