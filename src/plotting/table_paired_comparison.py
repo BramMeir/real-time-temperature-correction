@@ -6,7 +6,7 @@ selection of outage durations in the results (tab:paired) and every duration in 
 reconstructs exactly the same windows, so the comparison works on the per window differences
 (src/evaluation/paired_comparison.py).
 
-python -m src.plotting.plot_paired_outage_comparison
+python -m src.plotting.table_paired_comparison
 """
 import glob
 import os

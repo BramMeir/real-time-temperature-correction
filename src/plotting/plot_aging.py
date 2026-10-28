@@ -1,9 +1,9 @@
 """
-Script: plot_model_aging_RegressionSARIMAErrors.py
+Script: plot_aging.py
 Description: Plots to analyze the effect of model aging on the two-stage regression with SARIMA
 errors model's performance. Mirrors plot_model_aging.py, which ran this analysis for ARIMAX.
 
-Usage: python -m src.plotting.plot_model_aging_RegressionSARIMAErrors [--metric MAE|RMSE]
+Usage: python -m src.plotting.plot_aging [--metric MAE|RMSE]
 """
 import argparse
 import numpy as np
@@ -23,7 +23,7 @@ DATASET_LABELS = {
 OUTPUT_DIR = "plots/aging_model_regression_sarima_errors/"
 
 # Error metric to report, set from --metric. RMSE is derived per row as sqrt(MSE), so the
-# reported value is the mean of the per-forecast RMSEs, as in plot_model_comparisons.py.
+# reported value is the mean of the per-forecast RMSEs, as in plot_model_comparison.py.
 METRIC = "RMSE"
 
 

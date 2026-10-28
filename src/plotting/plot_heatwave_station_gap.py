@@ -5,7 +5,7 @@ heatwave_experiment.py and in their control windows. At each hour, the gap is th
 minus that of the coolest, computed from the observations alone.
 
 The profile is averaged per window first, the controls of an event are then averaged, and finally the events, so every
-heat wave weighs equally, as in summarize_heatwave_errors.py. Only TURCLIM is plotted by default: its six stations lie
+heat wave weighs equally, as in table_heatwaves.py. Only TURCLIM is plotted by default: its six stations lie
 in and around one city, so the gap is the contrast between the centre and its surroundings. In the synthetic network,
 which spans all of Belgium, the gap is set by the coast and the Ardennes rather than by the cities.
 
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     dataset = parser.parse_args().dataset
 
     os.makedirs(PLOT_DIR, exist_ok=True)
-    # Same text sizes and font embedding as the other paper figures, see plot_training_time_impact_RegressionSARIMAErrors.py
+    # Same text sizes and font embedding as the other paper figures, see plot_training_history.py
     plt.rcParams.update({"axes.labelsize": 13, "xtick.labelsize": 12, "ytick.labelsize": 12, "legend.fontsize": 12})
     plt.rcParams["pdf.fonttype"] = 42
 
