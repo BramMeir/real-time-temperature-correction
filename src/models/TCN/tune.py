@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import collections
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from src.utils.datasets import load_station_data
 from src.models.TCN.execute_forecast import run_single_forecast
 
 
@@ -95,23 +96,11 @@ if __name__ == "__main__":
                         help="Number of weeks for the training period (default is 2)")
     args = parser.parse_args()
 
-    # Read the dataset
-    df = pd.read_csv(args.input_file, index_col='datetime', parse_dates=True)
-
-    # Pivot the DataFrame to have every station as a separate column
-    df_pivot = df.pivot_table(index='datetime', columns='station_name', values='temp_dry_avg_2m')
-
-    # Remove the multi-index on columns if present (to simplify column access)
-    df_pivot.columns.name = None
-
-    # Sort by datetime index
-    df_pivot = df_pivot.sort_index()
-
-    # Resample to hourly frequency if not already
-    df_pivot = df_pivot.resample('1h').mean()
-
     # Define the target station
     target_station = "MELLE"
+
+    # The hourly data of the experiments: the observation at each full hour, with gaps interpolated
+    df_pivot = load_station_data(pd.read_csv(args.input_file), target_station)
 
     # Define the other stations as exogenous variables
     exog_cols = [col for col in df_pivot.columns if col != target_station]
