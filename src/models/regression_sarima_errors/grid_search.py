@@ -14,29 +14,31 @@ import statsmodels.api as sm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
-def build_candidate_grid(p_values=range(0, 4), d_values=(0,), q_values=range(0, 3),
-                         P_values=range(0, 2), D_values=(0,), Q_values=range(0, 2), S=24):
+def build_candidate_grid(p_values=range(0, 4), q_values=range(0, 3), P_values=range(0, 2), Q_values=range(0, 2),
+                         S=24, d=0, D=0):
     """
     Build the list of (order, seasonal_order) candidates to evaluate.
 
-    The differencing orders default to zero, as the residuals are already stationary and mean zero.
+    The differencing orders d and D are the same for every candidate rather than searched: a model with more
+    differencing is fitted to a different series, so its information criteria cannot be compared with those of the
+    others. They default to zero, as the residuals are already stationary and mean zero.
 
     Input
     -----
     p_values: Range of p values to try (default is range(0, 4))
-    d_values: Range of d values to try (default is (0,))
     q_values: Range of q values to try (default is range(0, 3))
     P_values: Range of P values to try (default is range(0, 2))
-    D_values: Range of D values to try (default is (0,))
     Q_values: Range of Q values to try (default is range(0, 2))
     S: Seasonal period (default is 24)
+    d: Order of differencing of every candidate (default is 0)
+    D: Order of seasonal differencing of every candidate (default is 0)
 
     Output
     ------
     Returns a list of (order, seasonal_order) tuples.
     """
-    orders = itertools.product(p_values, d_values, q_values)
-    seasonal_orders = list(itertools.product(P_values, D_values, Q_values))
+    orders = [(p, d, q) for p, q in itertools.product(p_values, q_values)]
+    seasonal_orders = [(P, D, Q) for P, Q in itertools.product(P_values, Q_values)]
 
     return [(order, seasonal + (S,)) for order, seasonal in itertools.product(orders, seasonal_orders)]
 
