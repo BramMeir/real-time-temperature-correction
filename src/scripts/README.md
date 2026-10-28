@@ -12,8 +12,9 @@ repository root, after preparing the data (`src/data/README.md`). `--help` lists
 | Comparison with Jacobs et al. (2024) | `python -m src.scripts.jacobs_comparison_experiment` | `output/jacobs_comparison/` |
 | Heat waves | `python -m src.scripts.heatwave_experiment` | `output/heatwave_experiment/` |
 
-`detect_heatwaves.py` lists the heat waves of every network (`output/heatwaves/`); the heat-wave experiment detects
-them itself.
+`detect_heatwaves.py` lists the heat waves of every network under three definitions, the 90th and 95th percentile of
+the network's summer days and the RMI definition (`output/heatwaves/`), which were compared to choose the one of the
+paper. The heat-wave experiment uses the 90th percentile and detects the events itself.
 
 ## Drivers of accuracy
 
