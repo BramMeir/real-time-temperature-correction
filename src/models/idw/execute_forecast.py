@@ -1,5 +1,5 @@
 import pandas as pd
-from src.evaluation.evaluate_baseline_forecast import evaluate_baseline_forecast
+from src.evaluation.metrics import forecast_errors
 
 
 def run_single_forecast(df, target_station, model=None, exog_cols=None, start=None, train_end=None,
@@ -48,7 +48,6 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
     predictions = (exog_test.fillna(0) * weights_row).sum(axis=1)
     predictions[weights_row.sum(axis=1) == 0] = float("nan")
 
-    mae, rmse = evaluate_baseline_forecast(predictions, y_test, model_name="idw", plot=False)
-    mse = rmse ** 2
+    mae, mse = forecast_errors(y_test, predictions)
 
     return mae, mse, None

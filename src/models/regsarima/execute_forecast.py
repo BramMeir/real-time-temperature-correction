@@ -1,6 +1,6 @@
 import pandas as pd
 from src.models.regsarima.train import train_regression_sarima_errors
-from src.evaluation.evaluate_baseline_forecast import evaluate_baseline_forecast
+from src.evaluation.metrics import forecast_errors
 
 
 def forecast_two_stage(model, X):
@@ -76,9 +76,6 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
 
     predictions, _ = forecast_two_stage(model, X_test)
 
-    mae, rmse = evaluate_baseline_forecast(
-        predictions, y_test, model_name="regression_sarima_errors", plot=False
-    )
-    mse = rmse ** 2
+    mae, mse = forecast_errors(y_test, predictions)
 
     return mae, mse, None, predictions
