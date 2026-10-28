@@ -1,26 +1,3 @@
-"""
-Script: confidence_score.py
-
-Confidence scoring for the two-stage regression with SARIMA errors model, analogous to
-src/models/sarima/confidence_score.py for ARIMAX but derived empirically instead of from
-statsmodels' conf_int(): the spatial stage is a plain sklearn LinearRegression, which exposes
-no prediction-interval machinery, and even for the SARIMA stage a parametric interval on the
-residual alone would ignore the spatial stage's error. Both stages' error is instead measured
-jointly on a held-out calibration window and turned into an empirical prediction interval.
-
-The width comes from the conformal rank of the absolute calibration errors, not from bootstrapped
-percentiles. Experiment P1.5 (src/scripts/interval_coverage_experiment.py) measured the bootstrap
-at 0.87 coverage against a nominal 0.95: resampling pins down the percentile of the calibration
-sample precisely, but that percentile is itself biased narrow as a bound on a new error. The rank
-instead leaves k of the n + 1 gaps between the sorted errors inside the band, which is the
-quantity that actually governs coverage.
-
-Functions:
-- conformal_interval_width: Symmetric empirical prediction interval from an error sample.
-- two_stage_forecast_with_confidence_score: Fit the two-stage model, holding out a calibration
-  window to derive a MAE-based confidence score and an interval width, then forecast the actual
-  test window.
-"""
 import numpy as np
 import pandas as pd
 from src.evaluation.interval_coverage import conformal_rank

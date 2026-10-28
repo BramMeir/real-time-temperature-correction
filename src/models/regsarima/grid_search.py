@@ -1,12 +1,3 @@
-"""
-Module for performing a parallel grid search to find the best SARIMA parameters for the residuals
-of the stage-one regression on the neighbouring stations.
-
-Functions:
-- build_candidate_grid: Build the list of (order, seasonal_order) candidates to evaluate.
-- fit_residual_sarima: Fit one candidate on a residual series and return its information criteria.
-- residual_sarima_grid_search: Perform a parallel grid search over the candidates for one residual series.
-"""
 import itertools
 import warnings
 import pandas as pd

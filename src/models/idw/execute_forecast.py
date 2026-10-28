@@ -8,7 +8,7 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
     Runs a single forecast using inverse distance weighting (IDW). The forecast for each timestamp is the weighted
     sum of the neighbour stations' observed values at that timestamp, with fixed weights based on the distance
     between each neighbour and the target station. This assumes the neighbour observations are known over the
-    forecast horizon, the same assumption the exogenous variables make for ARIMAX and the Random Forest.
+    forecast horizon, the same assumption the exogenous variables make for SARIMAX and the random forest.
 
     IDW does not learn from the training window, so start and train_end are only used to define where the test
     window begins (the day after train_end): the test index is df.loc[train_end:test_end] for the target station,

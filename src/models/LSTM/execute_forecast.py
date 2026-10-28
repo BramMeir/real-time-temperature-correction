@@ -6,7 +6,7 @@ from src.models.LSTM.bayes_search import bayesian_search_LSTM
 def run_single_forecast(df, number, target_station, model=None, previous_time_steps=24,
                         start=None, train_end=None, test_end=None, mode="bayes_search"):
     """
-    Runs a single forecast using Random Forest, either with Bayesian hyperparameter search or
+    Runs a single forecast using LSTM, either with Bayesian hyperparameter search or
     with the default parameters for training. Evaluates the model using recursive multi-step forecasting.
 
 
