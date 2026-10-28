@@ -1,11 +1,3 @@
-"""
-Maps of the stations the first stage of the two-stage model weights most, for a few representative targets of the
-synthetic network (the station selection maps of the paper). Every map is framed on the target and its marked
-neighbours, and shows the other stations in that area, so it can be seen which nearby stations the model passes
-over. The weights come from src/scripts/station_weights_experiment.py, which has to run first.
-
-python -m src.plotting.plot_station_weights
-"""
 import os
 import pandas as pd
 import geopandas as gpd

@@ -1,10 +1,3 @@
-"""
-Script: plot_aging.py
-Description: Plots to analyze the effect of model aging on the two-stage regression with SARIMA
-errors model's performance. Mirrors plot_model_aging.py, which ran this analysis for ARIMAX.
-
-Usage: python -m src.plotting.plot_aging [--metric MAE|RMSE]
-"""
 import argparse
 import numpy as np
 import os
@@ -120,7 +113,7 @@ def plot_datasets(df):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Plot the RMSE of RegSARIMA against the time since its training, per network.")
     parser.add_argument("--metric", choices=["MAE", "RMSE"], default="RMSE")
     METRIC = parser.parse_args().metric
 

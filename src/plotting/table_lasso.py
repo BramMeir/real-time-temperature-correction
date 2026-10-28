@@ -1,12 +1,3 @@
-"""
-Summarise what LASSO station selection does to the one-stage SARIMAX fit and to the two-stage regression
-with SARIMA errors model, based on the results of lasso_experiment.py. Prints one table
-with a column per estimator: the selected stations, the selection and training times, the net effect on
-the training time, and the effect on the RMSE averaged over all horizons, with a paired sign-flip test
-over the training periods. The table is also saved as a CSV file in the "plots" directory.
-
-python -m src.plotting.table_lasso
-"""
 import os
 import numpy as np
 import pandas as pd

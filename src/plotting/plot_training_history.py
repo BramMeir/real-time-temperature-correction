@@ -1,12 +1,3 @@
-"""
-Group of functions to plot the impact of the training window on the two-stage regression with SARIMA
-errors model, based on the joltik runs of hpc/submit_training_weeks_regsarima_joltik.sh, whose training times
-were measured with the allocation of the model comparison.
-Mirrors plot_training_time_impact_ARIMAX.py so the two models can be compared on the same kind of plots.
-The plots are saved in the "plots" directory for further analysis and presentation.
-
-python -m src.plotting.plot_training_history [--metric MAE|RMSE]
-"""
 import argparse
 import os
 import pandas as pd
@@ -26,7 +17,7 @@ def _file_name(name):
 
 def load_training_weeks_results(results_dir="output/training_weeks_regression_sarima_errors_joltik"):
     """
-    Load all RegressionSARIMAErrors_*_weeks.csv files of hpc/submit_training_weeks_regsarima_joltik.sh into one
+    Load all RegressionSARIMAErrors_*_weeks.csv files of the training-history runs (src/scripts/README.md) into one
     dataframe, with the columns renamed to the ones the plot functions use.
 
     Resulting columns:
@@ -145,7 +136,7 @@ def plot_performance_vs_training_time(df, output_dir):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Plot the RMSE of RegSARIMA against its training time, per length of the training window.")
     parser.add_argument("--metric", choices=["MAE", "RMSE"], default="RMSE")
     METRIC = parser.parse_args().metric
 

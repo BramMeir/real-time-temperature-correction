@@ -1,32 +1,3 @@
-"""
-Script: table_heatwaves.py
-
-Error metrics of the two-stage model during the heat waves of heatwave_experiment.py, and how they differ from its
-error in the control windows around the same events.
-
-Errors are reconstruction minus observation, so a negative value is an underestimation. Per window:
-- Bias, RMSE: over the reconstructed heat wave hours
-- Recovery_bias: over the RECOVERY_DAYS after the heat wave
-- Tmax_error, Tmin_error: mean error in the daily maximum and minimum over the reconstructed heat wave days
-- Peak_error: error in the highest temperature of the heat wave
-- Tmax3_error, Tmin3_error: error in the highest 3-day mean of the daily maximum and minimum, the quantities heat
-  warnings are issued on
-The last three are computed on the station series as it would exist operationally, observed until the onset and
-reconstructed after it, which only differs from the reconstruction when the outage starts during the heat wave.
-
-Three diagnostics come with every window: Sum_beta, the sum of the regression coefficients, Extrapolation, the share of
-the reconstructed heat wave hours in which the median of the other stations exceeds its maximum over the training window,
-and Station_gap, the warmest minus the coolest station of the network at each reconstructed heat wave hour, averaged
-over those hours. Station_gap is computed from the observations alone, so it is the same for every station of a window,
-and describes how much the stations differ from one another.
-
-Each heat wave window is compared with the mean of its controls (same station, same lead), and the confidence intervals
-come from a bootstrap over events: all stations reconstruct the same heat wave, so their windows are not independent.
-The RMSE is also compared per station, to see whether the heat waves affect every station or only a few.
-
-Run:
-    python -m src.plotting.table_heatwaves
-"""
 import numpy as np
 import pandas as pd
 from src.utils.datasets import DATASETS
