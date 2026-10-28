@@ -15,7 +15,8 @@ import argparse
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
-from src.scripts.detect_heatwaves import DATASETS, load_hourly
+from src.utils.datasets import DATASETS
+from src.scripts.detect_heatwaves import load_hourly
 from src.scripts.heatwave_experiment import EXPERIMENT_DATASETS, OUTPUT_DIR, TRAINING_WEEKS
 
 DATASET_LABELS = {"TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
@@ -39,7 +40,7 @@ def hourly_gap_profiles(dataset):
     ------
     profiles: DataFrame indexed by hour of the day, with columns Heatwave and Control
     """
-    observations = load_hourly(DATASETS[dataset])
+    observations = load_hourly(DATASETS[dataset]["file"])
     gap = observations.max(axis=1) - observations.min(axis=1)
 
     windows = pd.read_csv(

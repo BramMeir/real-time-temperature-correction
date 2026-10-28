@@ -18,7 +18,7 @@ import contextily as ctx
 from matplotlib.lines import Line2D
 from matplotlib_scalebar.scalebar import ScaleBar
 from src.utils.load_station_coordinates import load_station_coordinates
-from src.scripts.models_comparison_experiment import DATASETS
+from src.utils.datasets import DATASETS
 from src.scripts.test_urban_context_weights import load_lcz_labels
 from src.plotting.plot_stage_one_weight_maps import (
     ASPECT, BASEMAP, JPEG_QUALITY, MAP_DPI, MAP_WIDTH, TILE_HEADERS

@@ -10,33 +10,10 @@ import csv
 import argparse
 import statistics
 import pandas as pd
+from src.utils.datasets import DATASETS, load_station_data
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.models.regsarima.train import stage_one_residuals
 from src.models.regsarima.grid_search import build_candidate_grid, residual_sarima_grid_search
-
-# Metadata about the used datasets and stations to evaluate on
-DATASETS = {
-    "RMI": {
-        "file": "data/RMI/observations.csv",
-        "stations": ["MELLE", "DIEPENBEEK", "HUMAIN", "SINT-KATELIJNE-WAVER", "ERNAGE"]
-    },
-    "TURKU": {
-        "file": "data/Turku/observations.csv",
-        "stations": ["Betel", "Virastotalo", "Ylijoki", "Kurala"]
-    },
-    "SYNTHETIC": {
-        "file": "data/Synthetic/observations.csv",
-        "stations": [
-            "Stadhuis_Brussel_Grote_Markt",
-            "Stadhuis_Antwerpen_Grote_Markt",
-            "Grote_Markt_Kortrijk",
-            "Tielt",
-            "Gembloux",
-            "Slag_om_Ardennen_Museum_La_Roche_en_Ardenne",
-            "Abdij_Tongerlo"
-        ]
-    }
-}
 
 # Seed that is used to define the training periods (for reproducibility)
 SEED = 42
@@ -51,56 +28,6 @@ NUMBER_OF_REPEATS = 3
 # History that generate_forecast_start has to keep available, matching the comparison experiment so
 # the order is selected on the same training windows the model is evaluated on
 MAX_HISTORY_DAYS = 8 * 7
-
-
-def load_station_series(df, station):
-    """
-    Build the hourly target series and neighbour DataFrame for one station, using the same
-    preprocessing as the comparison experiment.
-
-    Input
-    -----
-    df: DataFrame with the preprocessed dataset in long format
-    station: Name of the target station
-
-    Output
-    ------
-    series: Target time series with an hourly datetime index
-    df_complete: DataFrame with the target station and all neighbouring stations as columns
-    exog_cols: List of the neighbouring station column names
-    """
-    # Select target station
-    station_data = df[df["station_name"] == station]
-
-    # Create target time series with a datetime index
-    series = pd.Series(
-        station_data["temp_dry_avg_2m"].values,
-        index=pd.to_datetime(station_data["datetime"])
-    ).asfreq("1h").dropna()
-
-    # Create exogenous DataFrame
-    other_stations = [s for s in df["station_name"].unique() if s != station]
-
-    exog_data = df[df["station_name"].isin(other_stations)]
-
-    # Pivot to get each station as a separate column
-    exog_pivot = exog_data.pivot_table(
-        index="datetime", columns="station_name", values="temp_dry_avg_2m"
-    )
-
-    # Create datetime index
-    exog_pivot.index = pd.to_datetime(exog_pivot.index)
-
-    # Remove the missing timestamps and align with the main series
-    exog_df = exog_pivot.reindex(series.index)
-
-    # Resample data by taking the mean
-    series = series.resample("1h").mean().interpolate(limit_direction="both")
-    exog_df = exog_df.resample("1h").mean().interpolate(limit_direction="both")
-
-    df_complete = series.to_frame(name=station).join(exog_df)
-
-    return series, df_complete, exog_df.columns.tolist()
 
 
 def summarise(rows, criterion):
@@ -180,7 +107,9 @@ def run_grid_search(training_weeks, repeats, criterion, seasonal_period, output_
         df = pd.read_csv(dataset_info["file"])
 
         for station in dataset_info["stations"]:
-            series, df_complete, exog_cols = load_station_series(df, station)
+            df_complete = load_station_data(df, station)
+            series = df_complete[station]
+            exog_cols = list(df_complete.columns[1:])
 
             for repeat_id in range(repeats):
                 # Generate random training period (start and end date) for the given dataset and station

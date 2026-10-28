@@ -18,12 +18,7 @@ Run:
 """
 import pandas as pd
 from src.utils.experiment_utils import write_results_csv
-
-DATASETS = {
-    "RMI": "data/RMI/observations.csv",
-    "TURKU": "data/Turku/observations.csv",
-    "SYNTHETIC": "data/Synthetic/observations.csv"
-}
+from src.utils.datasets import DATASETS
 
 PERCENTILE = 90
 MIN_RELATIVE_DAYS = 3
@@ -51,7 +46,7 @@ def load_hourly(file):
 
     hourly = df.pivot_table(index="datetime", columns="station_name", values="temp_dry_avg_2m")
 
-    # The RMI data is 10-minute; keep the observation at each full hour, as prepare_station_data does
+    # The RMI data is 10-minute; keep the observation at each full hour, as load_station_data in src/utils/datasets.py does
     return hourly[hourly.index.minute == 0]
 
 
@@ -166,8 +161,8 @@ def main():
     ]
     rows = []
 
-    for dataset, file in DATASETS.items():
-        tmax, tmin = daily_extremes(load_hourly(file))
+    for dataset, dataset_info in DATASETS.items():
+        tmax, tmin = daily_extremes(load_hourly(dataset_info["file"]))
         first_day, last_day = tmax.index[0], tmax.index[-1]
 
         print(f"\n== {dataset}: {tmax.shape[1]} stations, {first_day.date()} to {last_day.date()}")

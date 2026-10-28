@@ -3,33 +3,16 @@ import pandas as pd
 from src.models.regsarima.train import train_regression_sarima_errors, stage_one_residuals
 from src.models.regsarima.execute_forecast import run_single_forecast as run_regression_sarima_errors
 from src.utils.generate_forecast_start import generate_forecast_start
+from src.utils.datasets import DATASETS as SHARED_DATASETS, load_station_data
 from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 
 
-# Metadata about the used datasets and stations to evaluate on
+# The aging and retraining experiments add three synthetic targets to those of the other experiments
 DATASETS = {
-    "RMI": {
-        "file": "data/RMI/observations.csv",
-        "stations": ["MELLE", "DIEPENBEEK", "HUMAIN", "SINT-KATELIJNE-WAVER", "ERNAGE"]
-    },
-    "TURKU": {
-        "file": "data/Turku/observations.csv",
-        "stations": ["Betel", "Virastotalo", "Ylijoki", "Kurala"]
-    },
+    **SHARED_DATASETS,
     "SYNTHETIC": {
-        "file": "data/Synthetic/observations.csv",
-        "stations": [
-            "Stadhuis_Brussel_Grote_Markt",
-            "Stadhuis_Antwerpen_Grote_Markt",
-            "Grote_Markt_Kortrijk",
-            "Tielt",
-            "Gembloux",
-            "Slag_om_Ardennen_Museum_La_Roche_en_Ardenne",
-            "Abdij_Tongerlo",
-            "Etalle",
-            "Centrum_Malmedy",
-            "Markt_Hoei"
-        ]
+        "file": SHARED_DATASETS["SYNTHETIC"]["file"],
+        "stations": SHARED_DATASETS["SYNTHETIC"]["stations"] + ["Etalle", "Centrum_Malmedy", "Markt_Hoei"]
     }
 }
 
@@ -176,44 +159,6 @@ def _run_single_experiment(task, training_weeks):
     return results
 
 
-def load_station_data(dataset_info, station):
-    """
-    Build the wide, hourly (target + neighbouring stations) DataFrame for one station, from the
-    preprocessed long-format dataset file.
-
-    Input
-    -----
-    dataset_info: One DATASETS entry, with "file" and "stations" keys
-    station: Name of the target station
-
-    Output
-    ------
-    df_complete: DataFrame with a datetime index, the target station and every neighbouring station
-      as columns, resampled to hourly frequency with short gaps interpolated
-    """
-    df = pd.read_csv(dataset_info["file"])
-    station_data = df[df['station_name'] == station]
-
-    series = pd.Series(
-        station_data['temp_dry_avg_2m'].values,
-        index=pd.to_datetime(station_data['datetime'])
-    ).asfreq('1h').dropna()
-
-    other_stations = [s for s in df['station_name'].unique() if s != station]
-    exog_data = df[df['station_name'].isin(other_stations)]
-
-    exog_pivot = exog_data.pivot_table(
-        index='datetime', columns='station_name', values='temp_dry_avg_2m'
-    )
-    exog_pivot.index = pd.to_datetime(exog_pivot.index)
-    exog_df = exog_pivot.reindex(series.index)
-
-    series = series.resample('1h').mean().interpolate(limit_direction="both")
-    exog_df = exog_df.resample('1h').mean().interpolate(limit_direction="both")
-
-    return series.to_frame(name=station).join(exog_df)
-
-
 def run_aging_experiment(dataset_name, training_weeks, output_path, max_workers=None):
     """
     Run the aging experiment for every station of one dataset and save the results to a CSV file.
@@ -229,10 +174,12 @@ def run_aging_experiment(dataset_name, training_weeks, output_path, max_workers=
     results_all = []
     dataset_info = DATASETS[dataset_name]
 
+    df = pd.read_csv(dataset_info["file"])
+
     for station_index, station in enumerate(dataset_info["stations"]):
         print(f"Running experiments for dataset {dataset_name}, station {station}...")
 
-        df_complete = load_station_data(dataset_info, station)
+        df_complete = load_station_data(df, station)
 
         tasks = [
             (dataset_name, repeat_id, station, station_index)

@@ -19,9 +19,10 @@ import pandas as pd
 from statsmodels.stats.stattools import durbin_watson
 from statsmodels.stats.diagnostic import acorr_ljungbox
 from statsmodels.tsa.stattools import acf
+from src.utils.datasets import DATASETS, load_station_data
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.models.regsarima.train import stage_one_residuals, fit_residual_sarima
-from src.scripts.determine_residual_sarima_order import DATASETS, load_station_series, SEED, HORIZONS, MAX_HISTORY_DAYS
+from src.scripts.determine_residual_sarima_order import SEED, HORIZONS, MAX_HISTORY_DAYS
 
 # Number of training periods to evaluate per station
 NUMBER_OF_REPEATS = 10
@@ -118,7 +119,9 @@ def run_autocorrelation_check(training_weeks, repeats, output_dir, datasets=None
         df = pd.read_csv(dataset_info["file"])
 
         for station in dataset_info["stations"]:
-            series, df_complete, exog_cols = load_station_series(df, station)
+            df_complete = load_station_data(df, station)
+            series = df_complete[station]
+            exog_cols = list(df_complete.columns[1:])
 
             for repeat_id in range(repeats):
                 forecast_start = generate_forecast_start(

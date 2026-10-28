@@ -19,6 +19,7 @@ import argparse
 import csv
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from src.utils.datasets import DATASETS
 from src.utils.select_LASSO_stations import select_LASSO_stations
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.models.sarima.train import train_sarima_model
@@ -28,7 +29,6 @@ from src.models.regsarima.execute_forecast import run_single_forecast as run_reg
 
 
 DATASET_NAME = "SYNTHETIC"
-DATASET_FILE = "data/Synthetic/observations.csv"
 
 # Seed that is used to define the training periods (for reproducibility)
 SEED = 42
@@ -270,7 +270,7 @@ def run_all_experiments(training_weeks, repeats):
     training_weeks: Number of training weeks
     repeats: Number of training periods per target station
     """
-    stations = sorted(pd.read_csv(DATASET_FILE, usecols=["station_name"])["station_name"].unique())
+    stations = sorted(pd.read_csv(DATASETS[DATASET_NAME]["file"], usecols=["station_name"])["station_name"].unique())
 
     tasks = [
         (station, station_index, repeat_id, training_weeks)
@@ -286,7 +286,7 @@ def run_all_experiments(training_weeks, repeats):
         writer.writerow(COLUMNS)
 
         with ProcessPoolExecutor(
-            max_workers=max_workers, initializer=load_network, initargs=(DATASET_FILE,)
+            max_workers=max_workers, initializer=load_network, initargs=(DATASETS[DATASET_NAME]["file"],)
         ) as executor:
             futures = [executor.submit(run_single_experiment, t) for t in tasks]
 

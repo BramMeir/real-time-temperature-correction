@@ -28,7 +28,8 @@ import pandas as pd
 from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 from src.models.regsarima.train import train_regression_sarima_errors
 from src.models.regsarima.execute_forecast import run_single_forecast
-from src.scripts.detect_heatwaves import DATASETS, load_hourly, daily_extremes, relative_events
+from src.utils.datasets import DATASETS
+from src.scripts.detect_heatwaves import load_hourly, daily_extremes, relative_events
 
 # The RMI record holds a single 3-day P90 event, too little to draw conclusions from
 EXPERIMENT_DATASETS = ["TURKU", "SYNTHETIC"]
@@ -193,7 +194,7 @@ def main(datasets, max_workers):
     window_rows, hourly_frames = [], []
 
     for dataset in datasets:
-        hourly = load_hourly(DATASETS[dataset])
+        hourly = load_hourly(DATASETS[dataset]["file"])
         windows = build_windows(dataset, hourly)
 
         tasks = [

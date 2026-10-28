@@ -16,6 +16,7 @@ import zlib
 import pandas as pd
 import argparse
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from src.utils.datasets import DATASETS, load_station_data
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.models.sarima.train import train_sarima_model
 from src.models.LSTM.train import train_LSTM_model
@@ -43,30 +44,6 @@ from src.data.create_supervised import create_supervised_dataset
 from src.data.create_3d_dataset import create_3d_dataset
 from src.data.align_concurrent_exog import align_concurrent_exog
 from src.utils.load_station_coordinates import load_station_coordinates
-
-# Metadata about the used datasets and stations to evaluate on
-DATASETS = {
-    "RMI": {
-        "file": "data/RMI/observations.csv",
-        "stations": ["MELLE", "DIEPENBEEK", "HUMAIN", "SINT-KATELIJNE-WAVER", "ERNAGE"]
-    },
-    "TURKU": {
-        "file": "data/Turku/observations.csv",
-        "stations": ["Betel", "Virastotalo", "Ylijoki", "Kurala"]
-    },
-    "SYNTHETIC": {
-        "file": "data/Synthetic/observations.csv",
-        "stations": [
-            "Stadhuis_Brussel_Grote_Markt",
-            "Stadhuis_Antwerpen_Grote_Markt",
-            "Grote_Markt_Kortrijk",
-            "Tielt",
-            "Gembloux",
-            "Slag_om_Ardennen_Museum_La_Roche_en_Ardenne",
-            "Abdij_Tongerlo"
-        ]
-    }
-}
 
 # Seed that is used to define the training periods (for reproducibility)
 SEED = 42
@@ -386,38 +363,9 @@ def run_all_experiments(model_name, training_weeks, output_dir=OUTPUT_DIR, onset
             df = pd.read_csv(dataset_file)
 
             for station in dataset_info["stations"]:
-                # Create the pandas DataFrame for the dataset with hourly frequency and datetime index
-                # Select target station
-                station_data = df[df['station_name'] == station]
-
-                # Create target time series with a datetime index
-                series = pd.Series(
-                    station_data['temp_dry_avg_2m'].values,
-                    index=pd.to_datetime(station_data['datetime'])
-                ).asfreq('1h').dropna()
-
-                # Create exogenous DataFrame
-                other_stations = [s for s in df['station_name'].unique() if s != station]
-
-                exog_data = df[df['station_name'].isin(other_stations)]
-
-                # Pivot to get each station as a separate column
-                exog_pivot = exog_data.pivot_table(
-                    index='datetime', columns='station_name', values='temp_dry_avg_2m'
-                )
-
-                # Create datetime index
-                exog_pivot.index = pd.to_datetime(exog_pivot.index)
-
-                # Remove the missing timestamps and align with the main series
-                exog_df = exog_pivot.reindex(series.index)
-
-                # Resample data by taking the mean
-                series = series.resample('1h').mean().interpolate(limit_direction="both")
-                exog_df = exog_df.resample('1h').mean().interpolate(limit_direction="both")
-
-                # Create also a complete version of the DataFrame for some of the models that require it (e.g., LSTM, Transformer)
-                df_complete = series.to_frame(name=station).join(exog_df)
+                df_complete = load_station_data(df, station)
+                series = df_complete[station]
+                exog_df = df_complete.drop(columns=station)
 
                 # LSTM, Transformer and TCN read a window ending at t-1, so without this they
                 # are the only models that never see the neighbours' reading at t. Shifting
