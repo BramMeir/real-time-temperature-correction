@@ -1,10 +1,9 @@
 import argparse
 import zlib
 import pandas as pd
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.models.regsarima.train import RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.utils.datasets import DATASETS, load_station_data
-from src.utils.experiment_utils import write_results_csv
+from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 from src.evaluation.interval_coverage import conformal_bounds, empirical_bounds, summarise_interval
 from src.models.regsarima.train import train_regression_sarima_errors
 from src.models.regsarima.execute_forecast import forecast_two_stage
@@ -83,19 +82,24 @@ def run_intervals(df_complete, target_station, exog_cols, train_start, forecast_
     return bounds
 
 
-def run_single_experiment(task):
+def run_single_experiment(task, training_days):
     """
-    Coverage rows for one (dataset, station, onset).
+    Coverage rows for one (dataset, station, onset), on the station's data of the worker process.
 
     Input
     -----
-    task: Tuple of (dataset_name, repeat_id, station, series, exog_df, df_complete, training_days)
+    task: Tuple of (dataset_name, repeat_id, station)
+    training_days: Days of training data per onset
 
     Output
     ------
     rows: One row per (calibration length, method, horizon)
     """
-    dataset_name, repeat_id, station, series, exog_df, df_complete, training_days = task
+    dataset_name, repeat_id, station = task
+
+    df_complete = get_worker_df_complete()
+    series = df_complete[station]
+    exog_df = df_complete.drop(columns=station)
 
     # Same onset as the accuracy experiment, since SEED, its per-station offset and the history length match
     station_seed = SEED + zlib.crc32(station.encode())
@@ -159,20 +163,10 @@ def run_all_experiments(training_weeks, repeats, max_workers):
         df = pd.read_csv(dataset_info["file"])
 
         for station in dataset_info["stations"]:
-            df_complete = load_station_data(df, station)
-            series = df_complete[station]
-            exog_df = df_complete.drop(columns=station)
-
-            tasks = [
-                (dataset_name, i, station, series, exog_df, df_complete, training_days)
-                for i in range(repeats)
-            ]
-
-            with ProcessPoolExecutor(max_workers=max_workers) as executor:
-                futures = [executor.submit(run_single_experiment, task) for task in tasks]
-
-                for future in as_completed(futures):
-                    rows.extend(future.result())
+            tasks = [(dataset_name, i, station) for i in range(repeats)]
+            rows.extend(run_tasks_for_station(
+                load_station_data(df, station), tasks, run_single_experiment, (training_days,), max_workers=max_workers
+            ))
 
     write_results_csv(
         f"output/interval_coverage/interval_coverage_{training_weeks}_weeks.csv",
