@@ -14,8 +14,8 @@ does for ARIMAX's coefficients.
 python -m src.scripts.test_aging_model_RegressionSARIMAErrors --dataset SYNTHETIC
 """
 import argparse
-from src.models.regression_sarima_errors.train import train_regression_sarima_errors, stage_one_residuals
-from src.models.regression_sarima_errors.execute_forecast import run_single_forecast as run_regression_sarima_errors
+from src.models.regsarima.train import train_regression_sarima_errors, stage_one_residuals
+from src.models.regsarima.execute_forecast import run_single_forecast as run_regression_sarima_errors
 from src.evaluation.aging_experiment import run_aging_experiment, DATASETS
 
 # Orders selected on the stage-one residuals, as used in short_horizon_comparison_experiment.py

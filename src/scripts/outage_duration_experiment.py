@@ -25,11 +25,11 @@ import csv
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.utils.generate_forecast_start import generate_forecast_start
-from src.models.arima.train import train_sarima_model
-from src.models.linear_regression.train import train_neighbour_regression
-from src.models.regression_sarima_errors.train import train_regression_sarima_errors
-from src.models.arima.execute_forecast import run_single_forecast as run_arimax
-from src.models.regression_sarima_errors.execute_forecast import run_single_forecast as run_regression_sarima_errors
+from src.models.sarima.train import train_sarima_model
+from src.models.neighbour_regression.train import train_neighbour_regression
+from src.models.regsarima.train import train_regression_sarima_errors
+from src.models.sarima.execute_forecast import run_single_forecast as run_arimax
+from src.models.regsarima.execute_forecast import run_single_forecast as run_regression_sarima_errors
 from src.scripts.models_comparison_experiment import DATASETS as ALL_DATASETS
 
 # Synthetic is left out for now: ARIMAX fitting is much slower on it, and RMI + Turku already

@@ -20,7 +20,7 @@ from statsmodels.stats.stattools import durbin_watson
 from statsmodels.stats.diagnostic import acorr_ljungbox
 from statsmodels.tsa.stattools import acf
 from src.utils.generate_forecast_start import generate_forecast_start
-from src.models.regression_sarima_errors.train import stage_one_residuals, fit_residual_sarima
+from src.models.regsarima.train import stage_one_residuals, fit_residual_sarima
 from src.scripts.determine_residual_sarima_order import DATASETS, load_station_series, SEED, HORIZONS, MAX_HISTORY_DAYS
 
 # Number of training periods to evaluate per station

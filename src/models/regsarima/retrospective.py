@@ -21,7 +21,7 @@ matches the model, whose errors are stationary, and leaves the other fits practi
 """
 import numpy as np
 import pandas as pd
-from src.models.regression_sarima_errors.train import fit_residual_sarima, stage_one_residuals
+from src.models.regsarima.train import fit_residual_sarima, stage_one_residuals
 
 
 def fill_gap_retrospective(df, target_station, exog_cols, gap_start, gap_end, arima_order, seasonal_order,

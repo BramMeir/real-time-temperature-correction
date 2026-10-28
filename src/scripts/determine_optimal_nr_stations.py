@@ -15,7 +15,7 @@ import os
 import pandas as pd
 import signal
 import sys
-from src.models.arima.repeat_forecast import repeat_forecasts
+from src.models.sarima.repeat_forecast import repeat_forecasts
 
 # Global variable to store the final results
 final_result = None

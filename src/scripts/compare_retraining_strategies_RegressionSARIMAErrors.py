@@ -12,8 +12,8 @@ the residual SARIMA is a separate follow-up experiment, not covered here.
 python -m src.scripts.compare_retraining_strategies_RegressionSARIMAErrors --dataset TURKU
 """
 import argparse
-from src.models.linear_regression.train import train_neighbour_regression
-from src.models.regression_sarima_errors.train import stage_one_residuals, fit_residual_sarima
+from src.models.neighbour_regression.train import train_neighbour_regression
+from src.models.regsarima.train import stage_one_residuals, fit_residual_sarima
 from src.scripts.test_aging_model_RegressionSARIMAErrors import (
     train_two_stage, age_two_stage, forecast_two_stage, RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 )

@@ -8,7 +8,7 @@ interval width correlates with the error realised later. This checks whether the
 honest: how often the truth falls inside a nominal 95 % interval.
 
 Two bands are compared, both built from the same calibration-window errors:
-- "quantile": the interpolated error quantiles, as regression_sarima_errors/confidence_score.py
+- "quantile": the interpolated error quantiles, as regsarima/confidence_score.py
   builds them today. Biased narrow - a band between order statistics of n points covers about
   (hi_rank - lo_rank)/(n + 1), which is ~0.92 for a nominal 0.95 at n = 72.
 - "conformal": the finite-sample rank of the absolute errors, which removes that bias. Symmetric
