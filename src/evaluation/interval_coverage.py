@@ -19,32 +19,7 @@ def conformal_rank(n, level):
     return int(np.ceil((n + 1) * level))
 
 
-def interval_score(lower, upper, actual, level):
-    """
-    Winkler interval score per point: width plus a penalty for missing. Reported alongside
-    coverage, which on its own is bought by widening.
-
-    Input
-    -----
-    lower, upper: Interval bounds
-    actual: Observed values
-    level: Nominal coverage level
-
-    Output
-    ------
-    score: Per-point scores, in the units of the observations
-    """
-    lower, upper, actual = np.asarray(lower), np.asarray(upper), np.asarray(actual)
-    alpha = 1 - level
-
-    width = upper - lower
-    below = np.where(actual < lower, (2 / alpha) * (lower - actual), 0.0)
-    above = np.where(actual > upper, (2 / alpha) * (actual - upper), 0.0)
-
-    return width + below + above
-
-
-def summarise_interval(lower, upper, actual, level):
+def summarise_interval(lower, upper, actual):
     """
     Summarise one interval over one reconstruction window. Counts are returned so windows of
     different lengths pool correctly.
@@ -53,11 +28,10 @@ def summarise_interval(lower, upper, actual, level):
     -----
     lower, upper: Interval bounds over the window
     actual: Observed values over the window
-    level: Nominal coverage level
 
     Output
     ------
-    summary: Dict with n_total, n_inside, coverage, mean_width and mean_interval_score
+    summary: Dict with n_total, n_inside, coverage and mean_width
     """
     lower, upper, actual = np.asarray(lower), np.asarray(upper), np.asarray(actual)
     inside = (actual >= lower) & (actual <= upper)
@@ -66,8 +40,7 @@ def summarise_interval(lower, upper, actual, level):
         "n_total": actual.size,
         "n_inside": int(inside.sum()),
         "coverage": float(inside.mean()),
-        "mean_width": float(np.mean(upper - lower)),
-        "mean_interval_score": float(np.mean(interval_score(lower, upper, actual, level)))
+        "mean_width": float(np.mean(upper - lower))
     }
 
 

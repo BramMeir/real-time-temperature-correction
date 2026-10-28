@@ -6,4 +6,4 @@ How a reconstruction is scored.
 |---|---|
 | `metrics.py` | MAE and MSE of a reconstruction over the hours at which the target was observed. |
 | `paired_comparison.py` | Paired tests between two models on the same windows: bootstrap confidence interval, sign-flip permutation test and Holm adjustment. |
-| `interval_coverage.py` | Prediction intervals from held-out errors (conformal rank or interpolated quantiles), and their coverage, width and interval score. |
+| `interval_coverage.py` | Prediction intervals from held-out errors (conformal rank or interpolated quantiles), and their coverage and width. |
