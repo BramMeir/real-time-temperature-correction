@@ -396,8 +396,8 @@ if __name__ == "__main__":
 
     df = pd.concat(dfs, ignore_index=True)
 
-    # The one-hour outage (#78) was only rerun for the linear models, into their own directory. Of the runs read
-    # here, only the RF and MLP reruns (#97, #107) have it, so it is dropped to give every model the same outage durations
+    # The stored runs of the sequence models and the baselines start at 4 h, so the 1 h outage, reported in the paired
+    # comparison only, is dropped to give every model the same outage durations
     df = df[df["Horizon"] != 1]
 
     # Per-forecast RMSE, averaged the same way the MAE is
