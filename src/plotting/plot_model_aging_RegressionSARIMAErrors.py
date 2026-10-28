@@ -44,15 +44,8 @@ def load_data():
     dfs = []
 
     for dataset in DATASETS:
-        file_path = INPUT_TEMPLATE.format(dataset)
-
-        if not os.path.exists(file_path):
-            print(f"Warning: file not found for {dataset}: {file_path}")
-            continue
-
-        df = pd.read_csv(file_path)
-        # The aging run has three synthetic targets beyond those of the model comparison, keep only the
-        # comparison's targets so every experiment on part of a network uses the same stations
+        df = pd.read_csv(INPUT_TEMPLATE.format(dataset))
+        # The stored run of the paper also holds three synthetic targets that the experiment no longer uses
         df = df[df["station"].isin(COMPARISON_DATASETS[dataset]["stations"])]
 
         # Ensure correct data types
@@ -61,9 +54,6 @@ def load_data():
         df["rmse"] = np.sqrt(df["mse"].astype(float))
 
         dfs.append(df)
-
-    if not dfs:
-        raise ValueError("No data files could be loaded.")
 
     return pd.concat(dfs, ignore_index=True)
 
@@ -129,108 +119,6 @@ def plot_datasets(df):
     plt.close()
 
 
-def plot_relative(df):
-    """
-    Plot the relative degradation of the error (METRIC) over time for each dataset, showing how the performance degrades relative
-    to the starting point.
-
-    Input:
-    ------
-    df: A DataFrame containing the error values per dataset, station, and age gap, with columns 'dataset', 'station', 'age_gap', and 'mae'/'rmse'.
-    """
-    column = METRIC.lower()
-
-    # Compute baseline per dataset + station
-    baseline = df[df["age_gap"] == 0].groupby(
-        ["dataset", "station"]
-    )[column].mean().reset_index()
-
-    baseline = baseline.rename(columns={column: "error_baseline"})
-
-    df = df.merge(baseline, on=["dataset", "station"])
-    df["rel_error"] = df[column] / df["error_baseline"]
-
-    # Aggregate
-    grouped = df.groupby(["dataset", "age_gap"]).agg(
-        rel_mean=("rel_error", "mean"),
-        rel_std=("rel_error", "std"),
-        count=("rel_error", "count")
-    ).reset_index()
-
-    # Add confidence intervals (same as elsewhere)
-    grouped = add_confidence_interval(grouped, "rel_std", "count")
-
-    plt.figure(figsize=(9, 5))
-
-    for dataset in grouped["dataset"].unique():
-        sub = grouped[grouped["dataset"] == dataset]
-
-        plt.errorbar(
-            sub["age_gap"],
-            sub["rel_mean"],
-            yerr=sub["ci95"],
-            capsize=3,
-            marker="o",
-            linewidth=1.5,
-            label=DATASET_LABELS.get(dataset, dataset)
-        )
-
-    # Subtle reference line at 1.0 to indicate no degradation
-    plt.axhline(
-        y=1.0,
-        linestyle="--",
-        linewidth=1.0,
-        color="black",
-        alpha=0.7
-    )
-
-    plt.xlabel("Days since last training")
-    plt.ylabel(f"Relative {METRIC} (vs. day 0)")
-    plt.legend(title="Datasets", frameon=True, loc="best")
-    plt.grid(alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig(_plot_path("aging_relative"))
-    plt.close()
-
-
-def plot_overall(df):
-    """
-    Plot the overall error (METRIC) degradation over time, averaging across all datasets and stations.
-
-    Input:
-    ------
-    df: A DataFrame containing the error values per dataset, station, and age gap.
-    """
-    column = METRIC.lower()
-    grouped = df.groupby("age_gap").agg(
-        error_mean=(column, "mean"),
-        error_std=(column, "std"),
-        count=(column, "count")
-    ).reset_index()
-
-    # Add confidence intervals to the grouped DataFrame
-    grouped = add_confidence_interval(grouped, "error_std", "count")
-
-    plt.figure(figsize=(9, 5))
-
-    plt.errorbar(
-        grouped["age_gap"],
-        grouped["error_mean"],
-        yerr=grouped["ci95"],
-        capsize=4,
-        marker="o",
-    )
-
-    plt.xlabel("Days since last training")
-    plt.ylabel(f"Mean {METRIC} (°C)")
-    plt.grid(alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig(_plot_path("aging_overall"))
-    plt.close()
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--metric", choices=["MAE", "RMSE"], default="RMSE")
@@ -248,5 +136,3 @@ if __name__ == "__main__":
 
     df = load_data()
     plot_datasets(df)
-    plot_relative(df)
-    plot_overall(df)
