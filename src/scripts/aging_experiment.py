@@ -1,26 +1,12 @@
-"""
-Module: aging_experiment.py
-
-Generic engine for the "model aging" experiment: train a model once on a training window, then check
-how far its forecast quality degrades the longer it goes without ever being retrained. For a range of
-"age gaps" the model's internal state (never its parameters) is advanced with the true intervening
-observations, and a fixed-horizon forecast is evaluated from that aged state.
-
-Shared by test_aging_model.py (ARIMAX) and test_aging_model_RegressionSARIMAErrors.py (the two-stage
-regression with SARIMA errors model): the training/aging/forecasting mechanics only differ in what
-"train", "age" and "forecast" mean for a given model, so those three steps are passed in as functions.
-
-Functions:
-- run_aging_experiment: Run the aging experiment for every station of one dataset and save the
-  results to a CSV file.
-"""
+import argparse
 import pandas as pd
+from src.models.regsarima.train import train_regression_sarima_errors, stage_one_residuals
+from src.models.regsarima.execute_forecast import run_single_forecast as run_regression_sarima_errors
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 
 
-# Metadata about the used datasets and stations to evaluate on, shared by every aging experiment so
-# different models' aging curves are directly comparable
+# Metadata about the used datasets and stations to evaluate on
 DATASETS = {
     "RMI": {
         "file": "data/RMI/observations.csv",
@@ -61,8 +47,60 @@ NUMBER_OF_REPEATS = 100
 
 FORECAST_HORIZON_HOURS = 48
 
+# Orders of the residual SARIMA, selected on the stage-one residuals
+RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
 
-def _run_single_experiment(task, train_fn, age_fn, forecast_fn, training_weeks):
+
+def train_two_stage(df_window, station, exog_cols):
+    """
+    Train RegSARIMA on the training window, on every neighbouring station.
+
+    Output
+    ------
+    model: The trained (regression, residual_model)
+    exog_cols: The neighbouring stations the model uses, the ones it was given
+    """
+    model = train_regression_sarima_errors(
+        df=df_window,
+        target_station=station,
+        exog_cols=exog_cols,
+        arima_order=RESIDUAL_ORDER,
+        seasonal_order=RESIDUAL_SEASONAL_ORDER,
+        max_iter=1000
+    )
+    return model, exog_cols
+
+
+def age_two_stage(model, df_gap, station, exog_cols):
+    """
+    Advance the residual SARIMA's state with the gap's true stage-one residuals, without refitting. The
+    regression has no state of its own to advance, it only needs the current neighbour readings.
+    """
+    regression, residual_model = model
+
+    _, gap_residuals = stage_one_residuals(df_gap, station, exog_cols, regression=regression)
+
+    return regression, residual_model.append(endog=gap_residuals, refit=False)
+
+
+def forecast_two_stage(repeat_id, df_complete, station, model, exog_cols, train_start, test_begin, test_end):
+    """Reconstruct the target over [test_begin, test_end] with a trained model, returning its MAE and MSE."""
+    result = run_regression_sarima_errors(
+        df=df_complete,
+        target_station=station,
+        model=model,
+        exog_cols=exog_cols,
+        start=train_start,
+        train_end=test_begin,
+        test_end=test_end,
+        arima_order=RESIDUAL_ORDER,
+        seasonal_order=RESIDUAL_SEASONAL_ORDER,
+        mode="forecast"
+    )
+    return result[:2]
+
+
+def _run_single_experiment(task, training_weeks):
     """
     Run a single aging experiment: train once, then re-forecast at every age gap from a state that
     has been advanced (never retrained) with the true observations up to that point.
@@ -70,12 +108,6 @@ def _run_single_experiment(task, train_fn, age_fn, forecast_fn, training_weeks):
     Input
     -----
     task: A tuple containing (dataset_name, repeat_id, station, station_index)
-    train_fn: (df_train_window, station, exog_cols) -> (model, exog_cols). The returned exog_cols lets
-      a model narrow its own candidate stations during training (e.g. ARIMAX's LASSO selection on
-      large networks); most models just return the exog_cols they were given
-    age_fn: (model, df_gap_window, station, exog_cols) -> aged_model
-    forecast_fn: (repeat_id, df_complete, station, model, exog_cols, train_start, test_begin, test_end)
-      -> (mae, mse)
     training_weeks: Number of weeks of training data to use
 
     Output
@@ -105,7 +137,7 @@ def _run_single_experiment(task, train_fn, age_fn, forecast_fn, training_weeks):
 
     # Train the model once on the training period to reuse for every age gap
     start_time = pd.Timestamp.now()
-    model, exog_cols = train_fn(df_complete[train_start:train_end], station, exog_cols)
+    model, exog_cols = train_two_stage(df_complete[train_start:train_end], station, exog_cols)
     training_duration = pd.Timestamp.now() - start_time
 
     # Evaluate the model for all the 'aging gaps' (0 to MAX_AGING_GAP_DAYS, step 3) to see how
@@ -122,9 +154,9 @@ def _run_single_experiment(task, train_fn, age_fn, forecast_fn, training_weeks):
             # The regression/coefficients are never refit, so they are just as frozen as the aged
             # model's parameters: only its internal state is advanced with the true observations
             gap_start = train_end + pd.Timedelta(hours=1)  # Right after the training period
-            aged_model = age_fn(model, df_complete[gap_start:test_begin], station, exog_cols)
+            aged_model = age_two_stage(model, df_complete[gap_start:test_begin], station, exog_cols)
 
-        mae, mse = forecast_fn(
+        mae, mse = forecast_two_stage(
             repeat_id, df_complete, station, aged_model, exog_cols, train_start, test_begin, test_end
         )
 
@@ -144,7 +176,7 @@ def _run_single_experiment(task, train_fn, age_fn, forecast_fn, training_weeks):
     return results
 
 
-def _load_station_data(dataset_info, station):
+def load_station_data(dataset_info, station):
     """
     Build the wide, hourly (target + neighbouring stations) DataFrame for one station, from the
     preprocessed long-format dataset file.
@@ -182,8 +214,7 @@ def _load_station_data(dataset_info, station):
     return series.to_frame(name=station).join(exog_df)
 
 
-def run_aging_experiment(dataset_name, training_weeks, train_fn, age_fn, forecast_fn, output_path,
-                         max_workers=None):
+def run_aging_experiment(dataset_name, training_weeks, output_path, max_workers=None):
     """
     Run the aging experiment for every station of one dataset and save the results to a CSV file.
 
@@ -191,7 +222,6 @@ def run_aging_experiment(dataset_name, training_weeks, train_fn, age_fn, forecas
     -----
     dataset_name: Name of the dataset to run the experiment on (must be a key of DATASETS)
     training_weeks: Number of weeks of training data to use
-    train_fn, age_fn, forecast_fn: Model-specific hooks, see _run_single_experiment
     output_path: Path of the CSV file to write the results to
     max_workers: Number of worker processes (default is None, which uses one per core). Lower it if
       the full core count runs into memory pressure
@@ -202,7 +232,7 @@ def run_aging_experiment(dataset_name, training_weeks, train_fn, age_fn, forecas
     for station_index, station in enumerate(dataset_info["stations"]):
         print(f"Running experiments for dataset {dataset_name}, station {station}...")
 
-        df_complete = _load_station_data(dataset_info, station)
+        df_complete = load_station_data(dataset_info, station)
 
         tasks = [
             (dataset_name, repeat_id, station, station_index)
@@ -210,8 +240,7 @@ def run_aging_experiment(dataset_name, training_weeks, train_fn, age_fn, forecas
         ]
 
         results_all.extend(run_tasks_for_station(
-            df_complete, tasks, _run_single_experiment, (train_fn, age_fn, forecast_fn, training_weeks),
-            max_workers=max_workers
+            df_complete, tasks, _run_single_experiment, (training_weeks,), max_workers=max_workers
         ))
 
     write_results_csv(output_path, [
@@ -226,3 +255,22 @@ def run_aging_experiment(dataset_name, training_weeks, train_fn, age_fn, forecas
         "mse",
         "training_duration"
     ], results_all)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run the aging experiment for RegSARIMA, across all stations"
+                                                 " and age gaps of one dataset. The results are saved to a"
+                                                 " CSV file for later analysis.")
+    parser.add_argument("--dataset", type=str, choices=DATASETS.keys(), required=True,
+                        help="The dataset to run the experiment on.")
+    parser.add_argument("--max_workers", type=int, default=None,
+                        help="Number of worker processes (default: one per core). Lower it if the"
+                             " full core count runs into memory pressure")
+    args = parser.parse_args()
+
+    run_aging_experiment(
+        dataset_name=args.dataset,
+        training_weeks=8,
+        output_path=f"output/aging_model_regression_sarima_errors/results_{args.dataset}_100.csv",
+        max_workers=args.max_workers
+    )
