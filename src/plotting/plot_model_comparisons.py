@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 # Error metric to report, set from --metric. RMSE is derived per row as sqrt(MSE), so the
 # reported value is the mean of the per-forecast RMSEs, matching how the MAE is averaged.
-METRIC = "MAE"
+METRIC = "RMSE"
 
 METRIC_CAPTIONS = {"MAE": "Mean absolute error", "RMSE": "Root mean squared error"}
 
@@ -584,7 +584,7 @@ def plot_urban_vs_rural_comparison(df):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--metric", choices=["MAE", "RMSE"], default="MAE")
+    parser.add_argument("--metric", choices=["MAE", "RMSE"], default="RMSE")
     METRIC = parser.parse_args().metric
 
     output_dir = "output/models_comparison"

@@ -33,7 +33,7 @@ STRATEGY_STYLES = {
 
 # Error metric to report, set from --metric. RMSE is derived per row as sqrt(MSE), so the
 # reported value is the mean of the per-forecast RMSEs, as in plot_model_comparisons.py.
-METRIC = "MAE"
+METRIC = "RMSE"
 
 
 def _plot_path(name):
@@ -150,7 +150,7 @@ def plot_training_event_cost(df_avg):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--metric", choices=["MAE", "RMSE"], default="MAE")
+    parser.add_argument("--metric", choices=["MAE", "RMSE"], default="RMSE")
     METRIC = parser.parse_args().metric
 
     # Make sure the output directory exists
