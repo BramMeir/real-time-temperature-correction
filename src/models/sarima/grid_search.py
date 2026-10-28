@@ -26,7 +26,9 @@ def _fit_arima(series, exog_df, params, seasonal_params=(0, 0, 0, 0)):
             order=params,
             seasonal_order=seasonal_params,
             enforce_stationarity=False,
-            enforce_invertibility=False
+            enforce_invertibility=False,
+            # The constant of train_sarima_model, so the search ranks the model that is actually fitted
+            trend='c'
         )
         results = model.fit(maxiter=1000)
         return params, results.aic
