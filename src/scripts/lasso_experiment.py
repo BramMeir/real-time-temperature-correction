@@ -1,5 +1,6 @@
 import argparse
 import pandas as pd
+from src.models.regsarima.train import RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.utils.datasets import DATASETS, load_station_data
 from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 from src.utils.select_LASSO_stations import select_LASSO_stations
@@ -8,7 +9,6 @@ from src.models.sarima.train import train_sarima_model
 from src.models.sarima.execute_forecast import run_single_forecast as run_sarimax
 from src.models.regsarima.train import train_regression_sarima_errors
 from src.models.regsarima.execute_forecast import run_single_forecast as run_regression_sarima_errors
-
 
 DATASET_NAME = "SYNTHETIC"
 
@@ -24,7 +24,6 @@ HORIZONS = [1, 4, 12, 24, 48, 96, 168, 336, 504, 720]
 
 # Orders of the two estimators, as used in the model comparison
 SARIMAX_ORDER, SARIMAX_SEASONAL_ORDER = (2, 0, 0), (1, 0, 1, 24)
-RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
 
 OUTPUT_DIR = "output/LASSO_selection_estimators"
 

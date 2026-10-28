@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from src.evaluation.interval_coverage import conformal_rank
-from src.models.regsarima.train import train_regression_sarima_errors
+from src.models.regsarima.train import train_regression_sarima_errors, RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.models.regsarima.execute_forecast import run_single_forecast
 
 
@@ -27,8 +27,8 @@ def conformal_interval_width(errors, ci_level=0.95):
 
 
 def two_stage_forecast_with_confidence_score(
-        df, target_station, exog_cols=None, hours_to_forecast=48, arima_order=(2, 0, 0),
-        seasonal_order=(1, 0, 1, 24), max_iter=1000, calibration_days=14, ci_level=0.95
+        df, target_station, exog_cols=None, hours_to_forecast=48, arima_order=RESIDUAL_ORDER,
+        seasonal_order=RESIDUAL_SEASONAL_ORDER, max_iter=1000, calibration_days=14, ci_level=0.95
 ):
     """
     Fit the two-stage regression with SARIMA errors model, deriving a confidence score and a

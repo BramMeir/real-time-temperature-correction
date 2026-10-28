@@ -1,5 +1,6 @@
 import argparse
 import pandas as pd
+from src.models.regsarima.train import RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.models.regsarima.train import train_regression_sarima_errors, stage_one_residuals
 from src.models.regsarima.execute_forecast import run_single_forecast as run_regression_sarima_errors
 from src.utils.generate_forecast_start import generate_forecast_start
@@ -20,8 +21,6 @@ NUMBER_OF_REPEATS = 100
 
 FORECAST_HORIZON_HOURS = 48
 
-# Orders of the residual SARIMA, selected on the stage-one residuals
-RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
 
 
 def train_two_stage(df_window, station, exog_cols):

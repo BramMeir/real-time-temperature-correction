@@ -2,6 +2,7 @@ import argparse
 import zlib
 import numpy as np
 import pandas as pd
+from src.models.regsarima.train import RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 from src.models.regsarima.train import train_regression_sarima_errors
 from src.models.regsarima.execute_forecast import run_single_forecast
@@ -26,9 +27,6 @@ CONTROL_SEARCH_DAYS = 42
 CONTROL_MARGIN_DAYS = 3
 
 SEED = 42
-
-# Residual SARIMA orders as used elsewhere for this model
-RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
 
 OUTPUT_DIR = "output/heatwave_experiment"
 
