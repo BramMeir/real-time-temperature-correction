@@ -11,7 +11,7 @@ import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.utils.select_LASSO_stations import select_LASSO_stations
 from src.models.arima.train import train_sarima_model
-from src.models.arima.repeat_forecast import _run_single_forecast as run_arimax
+from src.models.arima.execute_forecast import run_single_forecast as run_arimax
 from src.utils.generate_forecast_start import generate_forecast_start
 
 
@@ -126,10 +126,7 @@ def run_single_experiment(task):
             hours_to_forecast=horizon,
             arima_order=(2, 0, 0),
             seasonal_order=(1, 0, 1, 24),
-            confidence_score=False,
-            use_LASSO_selection=False,
-            max_iter=1000,
-            plot=False
+            max_iter=1000
         )
 
         mae, mse = result[:2]

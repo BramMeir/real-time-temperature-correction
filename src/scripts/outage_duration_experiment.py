@@ -28,7 +28,7 @@ from src.utils.generate_forecast_start import generate_forecast_start
 from src.models.arima.train import train_sarima_model
 from src.models.linear_regression.train import train_neighbour_regression
 from src.models.regression_sarima_errors.train import train_regression_sarima_errors
-from src.models.arima.repeat_forecast import _run_single_forecast as run_arimax
+from src.models.arima.execute_forecast import run_single_forecast as run_arimax
 from src.models.regression_sarima_errors.execute_forecast import run_single_forecast as run_regression_sarima_errors
 from src.scripts.models_comparison_experiment import DATASETS as ALL_DATASETS
 
@@ -104,7 +104,7 @@ def run_single_experiment(task):
         repeat_id, series=series, exog_df=exog_df, model=arimax_result,
         start_date=train_start, end_date=test_end, hours_to_forecast=MAX_HORIZON,
         arima_order=ARIMAX_ORDER, seasonal_order=ARIMAX_SEASONAL_ORDER,
-        confidence_score=False, use_LASSO_selection=False, max_iter=1000, plot=False
+        max_iter=1000
     )
     arimax_full_series = arimax_full_result[-1]
 
