@@ -25,7 +25,7 @@ come from a bootstrap over events: all stations reconstruct the same heat wave, 
 The RMSE is also compared per station, to see whether the heat waves affect every station or only a few.
 
 Run:
-    python -m src.scripts.summarize_heatwave_errors
+    python -m src.plotting.summarize_heatwave_errors
 """
 import numpy as np
 import pandas as pd
