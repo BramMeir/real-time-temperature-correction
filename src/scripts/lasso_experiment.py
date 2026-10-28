@@ -1,9 +1,7 @@
-import os
 import argparse
-import csv
 import pandas as pd
-from concurrent.futures import ProcessPoolExecutor, as_completed
-from src.utils.datasets import DATASETS
+from src.utils.datasets import DATASETS, load_station_data
+from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 from src.utils.select_LASSO_stations import select_LASSO_stations
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.models.sarima.train import train_sarima_model
@@ -46,52 +44,6 @@ COLUMNS = [
     "mse"
 ]
 
-# Network data of the worker process, loaded once per worker by load_network so a task only has to carry
-# the station name and the repeat id
-NETWORK = None
-
-
-def load_network(file):
-    """
-    Read the dataset and pivot it to one column per station, once per worker process.
-
-    Input
-    -----
-    file: Path to the preprocessed dataset CSV file
-    """
-    global NETWORK
-
-    df = pd.read_csv(file)
-
-    NETWORK = df.pivot_table(index="datetime", columns="station_name", values="temp_dry_avg_2m")
-    NETWORK.index = pd.to_datetime(NETWORK.index)
-
-
-def station_data(station):
-    """
-    Build the target series and the neighbouring stations of one target.
-
-    Input
-    -----
-    station: Name of the target station
-
-    Output
-    ------
-    series: Hourly target series
-    exog_df: Hourly series of all other stations, aligned with the target
-    df_complete: Target and neighbouring stations in one DataFrame, as required by the two-stage model
-    """
-    series = NETWORK[station].asfreq("1h").dropna()
-    exog_df = NETWORK.drop(columns=station).reindex(series.index)
-
-    series = series.resample("1h").mean().interpolate(limit_direction="both")
-    exog_df = exog_df.resample("1h").mean().interpolate(limit_direction="both")
-
-    df_complete = series.to_frame(name=station).join(exog_df)
-
-    return series, exog_df, df_complete
-
-
 def fit_and_evaluate(estimator, stations, station, series, exog_df, df_complete, train_start, train_end):
     """
     Fit one estimator on the given stations and evaluate it on every horizon.
@@ -101,7 +53,7 @@ def fit_and_evaluate(estimator, stations, station, series, exog_df, df_complete,
     estimator: "SARIMAX" or "RegSARIMA"
     stations: Names of the neighbouring stations used as inputs
     station: Name of the target station
-    series, exog_df, df_complete: Data of the target, as returned by station_data
+    series, exog_df, df_complete: Target series, the other stations, and both in one DataFrame
     train_start, train_end: Training window
 
     Output
@@ -168,22 +120,25 @@ def fit_and_evaluate(estimator, stations, station, series, exog_df, df_complete,
     return training_duration, errors
 
 
-def run_single_experiment(task):
+def run_single_experiment(task, training_weeks):
     """
     Run one training period of one target: select the stations with LASSO, then fit both estimators on
     all stations and on the selection, and evaluate every fit on every horizon.
 
     Input
     -----
-    task: A tuple containing (station, station_index, repeat_id, training_weeks)
+    task: A tuple containing (station, station_index, repeat_id)
+    training_weeks: Number of training weeks
 
     Output
     ------
     A list of result rows, one per (estimator, arm, horizon), in the order of COLUMNS
     """
-    station, station_index, repeat_id, training_weeks = task
+    station, station_index, repeat_id = task
 
-    series, exog_df, df_complete = station_data(station)
+    df_complete = get_worker_df_complete()
+    series = df_complete[station]
+    exog_df = df_complete.drop(columns=station)
 
     # Generate random training period (start and end date) for the given station. Every station gets its
     # own seed so stations don't all sample the same forecast starts
@@ -191,7 +146,7 @@ def run_single_experiment(task):
         series=series,
         seed=SEED + station_index * STATION_SEED_STRIDE,
         repeat_id=repeat_id,
-        max_history_days=104 * 7,  # Max of 2 years of history that is tested
+        max_history_days=104 * 7,  # Leaves room for two years of history, which fixes the reported training periods
         max_horizon=max(HORIZONS)
     )
 
@@ -242,41 +197,26 @@ def run_single_experiment(task):
     return rows
 
 
-def run_all_experiments(training_weeks, repeats):
+def run_all_experiments(training_weeks, repeats, max_workers):
     """
-    Run every training period of every target station in one pool of workers, one per reserved core,
-    and append the results of each training period to the CSV file as soon as it is done.
+    Run every training period of every target station and write the results to a CSV file.
 
     Input
     -----
     training_weeks: Number of training weeks
     repeats: Number of training periods per target station
+    max_workers: Number of worker processes (default is None, which uses one per core)
     """
-    stations = sorted(pd.read_csv(DATASETS[DATASET_NAME]["file"], usecols=["station_name"])["station_name"].unique())
+    df = pd.read_csv(DATASETS[DATASET_NAME]["file"])
+    rows = []
 
-    tasks = [
-        (station, station_index, repeat_id, training_weeks)
-        for station_index, station in enumerate(stations)
-        for repeat_id in range(repeats)
-    ]
+    for station_index, station in enumerate(sorted(df["station_name"].unique())):
+        tasks = [(station, station_index, repeat_id) for repeat_id in range(repeats)]
+        rows.extend(run_tasks_for_station(
+            load_station_data(df, station), tasks, run_single_experiment, (training_weeks,), max_workers=max_workers
+        ))
 
-    # One worker per core reserved for the job, as in the model comparison
-    max_workers = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
-
-    with open(f"{OUTPUT_DIR}/results_{training_weeks}_weeks.csv", "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(COLUMNS)
-
-        with ProcessPoolExecutor(
-            max_workers=max_workers, initializer=load_network, initargs=(DATASETS[DATASET_NAME]["file"],)
-        ) as executor:
-            futures = [executor.submit(run_single_experiment, t) for t in tasks]
-
-            for done, future in enumerate(as_completed(futures), start=1):
-                writer.writerows(future.result())
-                f.flush()
-
-                print(f"Finished {done} / {len(tasks)} training periods")
+    write_results_csv(f"{OUTPUT_DIR}/results_{training_weeks}_weeks.csv", COLUMNS, rows)
 
 
 if __name__ == "__main__":
@@ -289,9 +229,8 @@ if __name__ == "__main__":
                         help="Number of training weeks to use (default: 8)")
     parser.add_argument("--repeats", type=int, default=15,
                         help="Number of training periods per target station (default: 15)")
+    parser.add_argument("--max_workers", type=int, default=None,
+                        help="Number of worker processes (default: one per core)")
     args = parser.parse_args()
 
-    # Make sure the output directory exists
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-    run_all_experiments(args.training_weeks, args.repeats)
+    run_all_experiments(args.training_weeks, args.repeats, args.max_workers)
