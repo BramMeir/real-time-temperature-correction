@@ -1,17 +1,3 @@
-"""
-Script to determine which stations the first stage of the two-stage model (the neighbour regression) relies on,
-per target of the synthetic network. For every target, the regression is fitted on the full network over
-NUMBER_OF_REPEATS training periods, and the coefficient of every neighbour is averaged over those periods.
-The result feeds the station weight maps (src/plotting/plot_stage_one_weight_maps.py).
-
-The neighbours are strongly collinear, so a single coefficient varies considerably from one training period to
-the next and is often negative. A neighbour is therefore ranked by its mean absolute coefficient over many
-periods rather than by one fit. The coefficients are standardised afterwards (coef * std(x) / std(y) over the
-training period) without refitting, so the weights of stations with a different natural variance are
-comparable. The raw coefficients are kept next to them.
-
-python -m src.scripts.station_weights_experiment [--targets Vielsalm Station_Eeklo]
-"""
 import os
 import argparse
 import pandas as pd
@@ -25,7 +11,7 @@ from src.scripts.residual_sarima_order import SEED, HORIZONS, MAX_HISTORY_DAYS
 
 OUTPUT_DIR = "output/stage_one_weights"
 
-# Number of training periods per target, as in the coefficient analysis of the thesis
+# Number of training periods per target
 NUMBER_OF_REPEATS = 50
 
 # Length of every training period, as in the comparison experiment

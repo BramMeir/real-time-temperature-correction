@@ -1,21 +1,3 @@
-"""
-Script: detect_heatwaves.py
-
-Count the heat waves in the three datasets, to see how many events an extreme-conditions experiment can be built on.
-
-The events are defined on the network rather than on any target station, so that selecting them does not condition on
-the values a reconstruction is scored against. Two definitions are used:
-- "relative": at least MIN_RELATIVE_DAYS consecutive days on which the network-median daily Tmax exceeds a percentile of
-  all summer (JJA) days of that dataset. Portable across climates, so it is the one that works for Turku as well.
-- "RMI": the RMI definition, a run of at least 5 consecutive days with Tmax >= 25 degC of which at least 3 reach
-  Tmax >= 30 degC. Applied to the network median, and for the RMI network also to Uccle, where RMI applies it.
-
-Days are calendar days of the timestamps as stored. Each event is flagged as usable when the record holds the training
-window plus the longest lead before it, and the whole event after it.
-
-Run:
-    python -m src.scripts.detect_heatwaves
-"""
 import pandas as pd
 from src.utils.experiment_utils import write_results_csv
 from src.utils.datasets import DATASETS

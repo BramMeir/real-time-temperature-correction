@@ -1,31 +1,3 @@
-"""
-Script: jacobs_comparison_experiment.py
-
-Comparison of RegSARIMA with the ERA5 debiasing of Jacobs et al. (2024) on the same simulated gaps in
-the TURCLIM network.
-
-Gaps follow their technique evaluation: per station and gap length, 1000 single gaps whose start is
-drawn uniformly over the record, 60 days away from both ends. Each gap is filled by
-- their techniques, with their selection parameters (60-day learning period, time variation 1 h):
-  linear interpolation (LI), original ERA5, and the LR and MB debiasing with the learning period
-  placed symmetrically around the gap, plus MB with the two halves of the learning period weighted
-  separately (positioning 'separate'). Their algorithm combines LI and the two MB variants by gap
-  length, which is left to the analysis, as their code and paper place the switch to 'separate' at
-  15 h and 15 days respectively;
-- RegSARIMA in real time, exactly as in the model comparison: trained on the eight weeks before the
-  gap and forecast from its start;
-- RegSARIMA retrospectively, trained on four weeks on either side of the gap with the residual
-  inside it estimated by the Kalman smoother (src/models/regsarima/retrospective.py);
-- the regression of both RegSARIMA variants on its own, to separate the contribution of the
-  residual model.
-
-The MSE of every gap and method is written to one row, so that the analysis can compute both the
-RMSE averaged over gaps, as in the paper, and their error E, the MSE averaged over gaps.
-
-Run:
-    python -m src.scripts.jacobs_comparison_experiment --repetitions 20
-    python -m src.scripts.jacobs_comparison_experiment --stations Betel --max_workers 16
-"""
 import argparse
 import csv
 import os

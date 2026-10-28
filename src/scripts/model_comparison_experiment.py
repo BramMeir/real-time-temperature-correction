@@ -1,15 +1,3 @@
-"""
-Main script to run the full experiment comparing all models across all datasets, different stations, training periods,
-and forecast horizons. The results are saved to a CSV file for later analysis.
-
-python -m src.scripts.model_comparison_experiment --model RF
-python -m src.scripts.model_comparison_experiment --model ARIMAX --output_dir output/models_comparison_linear
-
-To compare training windows on the same forecast starts, fix the history the starts leave room for at the longest
-window, for example
-python -m src.scripts.model_comparison_experiment --model RF --training_weeks 4 --onset_history_weeks 26 \
-    --datasets TURKU SYNTHETIC --output_dir output/training_weeks_comparison
-"""
 import csv
 import os
 import zlib

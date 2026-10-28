@@ -1,26 +1,10 @@
-"""
-Script: reliability_experiment.py
-
-Description:
-Evaluates model performance and confidence score for a single target station, for the two-stage
-regression with SARIMA errors model. Mirrors evaluate_confidence_per_station.py (ARIMAX) so the
-two models' results are directly comparable with plot_confidence_analysis.py /
-plot_confidence_analysis_RegressionSARIMAErrors.py: same station ordering, same output CSV columns.
-
-For the selected station:
-- Runs repeated forecasts
-- Computes average MAE/MSE
-- Computes average confidence score
-- Computes average bootstrapped interval width
-"""
 import argparse
 import os
 import pandas as pd
 from src.utils.datasets import DATASETS, load_station_data
 from src.models.regsarima.repeat_forecast import repeat_forecasts
 
-# Orders selected on the stage-one residuals, as used elsewhere for this model (see
-# short_horizon_comparison_experiment.py, test_aging_model_RegressionSARIMAErrors.py)
+# Orders of the residual SARIMA, selected on the stage-one residuals
 RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER = (3, 0, 0), (1, 0, 0, 24)
 
 
