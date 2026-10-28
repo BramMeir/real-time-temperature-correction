@@ -5,7 +5,7 @@ with a column per estimator: the selected stations, the selection and training t
 the training time, and the effect on the RMSE averaged over all horizons, with a paired sign-flip test
 over the training periods. The table is also saved as a CSV file in the "plots" directory.
 
-python -m src.plotting.summarise_LASSO_selection_estimators
+python -m src.plotting.table_lasso
 """
 import os
 import numpy as np

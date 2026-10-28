@@ -4,7 +4,7 @@ Each function generates a specific plot to visualize different aspects of model 
 overall performance, performance across forecast horizons, ...
 The plots are saved in the "plots" directory for further analysis and presentation.
 
-python -m src.plotting.plot_model_comparisons [--metric MAE|RMSE]
+python -m src.plotting.plot_model_comparison [--metric MAE|RMSE]
 """
 import argparse
 import os

@@ -5,7 +5,7 @@ were measured with the allocation of the model comparison.
 Mirrors plot_training_time_impact_ARIMAX.py so the two models can be compared on the same kind of plots.
 The plots are saved in the "plots" directory for further analysis and presentation.
 
-python -m src.plotting.plot_training_time_impact_RegressionSARIMAErrors [--metric MAE|RMSE]
+python -m src.plotting.plot_training_history [--metric MAE|RMSE]
 """
 import argparse
 import os
@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import glob
 
 # Error metric to report, set from --metric. RMSE is derived per row as sqrt(MSE), so the
-# reported value is the mean of the per-forecast RMSEs, as in plot_model_comparisons.py.
+# reported value is the mean of the per-forecast RMSEs, as in plot_model_comparison.py.
 METRIC = "RMSE"
 
 

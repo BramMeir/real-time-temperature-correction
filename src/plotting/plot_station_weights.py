@@ -4,7 +4,7 @@ synthetic network (the station selection maps of the paper). Every map is framed
 neighbours, and shows the other stations in that area, so it can be seen which nearby stations the model passes
 over. The weights come from src/scripts/station_weights_experiment.py, which has to run first.
 
-python -m src.plotting.plot_stage_one_weight_maps
+python -m src.plotting.plot_station_weights
 """
 import os
 import pandas as pd

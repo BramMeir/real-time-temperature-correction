@@ -1,5 +1,5 @@
 """
-Script: summarize_heatwave_errors.py
+Script: table_heatwaves.py
 
 Error metrics of the two-stage model during the heat waves of heatwave_experiment.py, and how they differ from its
 error in the control windows around the same events.
@@ -25,7 +25,7 @@ come from a bootstrap over events: all stations reconstruct the same heat wave, 
 The RMSE is also compared per station, to see whether the heat waves affect every station or only a few.
 
 Run:
-    python -m src.plotting.summarize_heatwave_errors
+    python -m src.plotting.table_heatwaves
 """
 import numpy as np
 import pandas as pd

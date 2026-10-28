@@ -1,9 +1,9 @@
 """
-Script: plot_retraining_results_RegressionSARIMAErrors.py
+Script: plot_retraining.py
 Description: Plot the retraining-strategy results for the two-stage model. Mirrors
              plot_retraining_results.py, which ran this analysis for ARIMAX.
 
-python -m src.plotting.plot_retraining_results_RegressionSARIMAErrors [--metric MAE|RMSE]
+python -m src.plotting.plot_retraining [--metric MAE|RMSE]
 """
 import argparse
 import pandas as pd
@@ -33,7 +33,7 @@ STRATEGY_STYLES = {
 }
 
 # Error metric to report, set from --metric. RMSE is derived per row as sqrt(MSE), so the
-# reported value is the mean of the per-forecast RMSEs, as in plot_model_comparisons.py.
+# reported value is the mean of the per-forecast RMSEs, as in plot_model_comparison.py.
 METRIC = "RMSE"
 
 
