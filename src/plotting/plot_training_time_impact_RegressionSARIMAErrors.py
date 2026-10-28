@@ -15,7 +15,7 @@ import glob
 
 # Error metric to report, set from --metric. RMSE is derived per row as sqrt(MSE), so the
 # reported value is the mean of the per-forecast RMSEs, as in plot_model_comparisons.py.
-METRIC = "MAE"
+METRIC = "RMSE"
 
 
 def _file_name(name):
@@ -284,7 +284,7 @@ def plot_error_vs_weeks_per_horizon(df, output_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--metric", choices=["MAE", "RMSE"], default="MAE")
+    parser.add_argument("--metric", choices=["MAE", "RMSE"], default="RMSE")
     METRIC = parser.parse_args().metric
 
     output_dir = "plots/training_time_impact_regression_sarima_errors_joltik"
