@@ -2,8 +2,15 @@ import pandas as pd
 from src.utils.experiment_utils import write_results_csv
 from src.utils.datasets import DATASETS
 
-PERCENTILE = 90
+# Station whose series RMI uses for its official heat wave count, per dataset that contains it
+REFERENCE_STATIONS = {"RMI": "UCCLE"}
+
+PERCENTILES = [90, 95]
 MIN_RELATIVE_DAYS = 3
+
+# RMI definition
+RMI_HOT_THRESHOLD, RMI_MIN_HOT_DAYS = 25, 5
+RMI_VERY_HOT_THRESHOLD, RMI_MIN_VERY_HOT_DAYS = 30, 3
 
 # An onset may lie up to MAX_LEAD_DAYS before the event start, with TRAINING_WEEKS of training before it
 TRAINING_WEEKS = 8
@@ -98,6 +105,25 @@ def relative_events(tmax, percentile):
     return events, threshold
 
 
+def rmi_events(tmax):
+    """
+    Heat waves under the RMI definition.
+
+    Input
+    -----
+    tmax: Daily Tmax Series
+
+    Output
+    ------
+    events: List of (first day, last day) tuples
+    """
+    return [
+        (start, end) for start, end in runs(tmax >= RMI_HOT_THRESHOLD)
+        if (end - start).days + 1 >= RMI_MIN_HOT_DAYS
+        and (tmax[start:end] >= RMI_VERY_HOT_THRESHOLD).sum() >= RMI_MIN_VERY_HOT_DAYS
+    ]
+
+
 def describe_events(dataset, definition, series_name, events, tmax, tmin, first_day, last_day):
     """
     One row per event, with its length, intensity and whether the experiment can use it.
@@ -150,14 +176,29 @@ def main():
         print(f"\n== {dataset}: {tmax.shape[1]} stations, {first_day.date()} to {last_day.date()}")
 
         # The median keeps a single station, including the target of a later reconstruction, from deciding an event
-        median_tmax, median_tmin = tmax.median(axis=1), tmin.median(axis=1)
+        series = {"network median": (tmax.median(axis=1), tmin.median(axis=1))}
 
-        events, threshold = relative_events(median_tmax, PERCENTILE)
-        print(f"relative P{PERCENTILE} ({threshold:.1f} degC), network median: {len(events)} events")
+        if dataset in REFERENCE_STATIONS:
+            station = REFERENCE_STATIONS[dataset]
+            series[station] = (tmax[station], tmin[station])
 
-        rows += describe_events(
-            dataset, f"relative P{PERCENTILE}", "network median", events, median_tmax, median_tmin, first_day, last_day
-        )
+        for series_name, (series_tmax, series_tmin) in series.items():
+            if series_name == "network median":
+                for percentile in PERCENTILES:
+                    events, threshold = relative_events(series_tmax, percentile)
+                    print(f"relative P{percentile} ({threshold:.1f} degC), {series_name}: {len(events)} events")
+
+                    rows += describe_events(
+                        dataset, f"relative P{percentile}", series_name, events, series_tmax, series_tmin,
+                        first_day, last_day
+                    )
+
+            events = rmi_events(series_tmax)
+            print(f"RMI, {series_name}: {len(events)} events")
+
+            rows += describe_events(
+                dataset, "RMI", series_name, events, series_tmax, series_tmin, first_day, last_day
+            )
 
     write_results_csv(OUTPUT_PATH, header, rows)
 
