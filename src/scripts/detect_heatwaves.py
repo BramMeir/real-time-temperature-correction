@@ -17,7 +17,7 @@ Run:
     python -m src.scripts.detect_heatwaves
 """
 import pandas as pd
-from src.evaluation.experiment_utils import write_results_csv
+from src.utils.experiment_utils import write_results_csv
 
 DATASETS = {
     "RMI": "data/RMI/observations.csv",

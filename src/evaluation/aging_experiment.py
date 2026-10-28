@@ -16,7 +16,7 @@ Functions:
 """
 import pandas as pd
 from src.utils.generate_forecast_start import generate_forecast_start
-from src.evaluation.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
+from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 
 
 # Metadata about the used datasets and stations to evaluate on, shared by every aging experiment so
