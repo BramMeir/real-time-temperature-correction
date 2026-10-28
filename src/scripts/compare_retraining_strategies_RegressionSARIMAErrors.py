@@ -51,13 +51,13 @@ def retrain_sarima_only(model, df_window, station, exog_cols):
     return (regression, residual_model), exog_cols
 
 
-# (model_type, retrain_gap_days, window_kind, retrain_fn). Every arm retrains from scratch on the same
+# (model_type, retrain_gap_days, retrain_fn). Every arm retrains from scratch on the same
 # trailing training window at the same frequency, differing only in which component(s) get refit
 MODEL_CONFIGS = [
-    ("no_retrain", None, None, None),
-    ("lr_only", RETRAIN_GAP_DAYS, "trailing", retrain_lr_only),
-    ("sarima_only", RETRAIN_GAP_DAYS, "trailing", retrain_sarima_only),
-    ("both", RETRAIN_GAP_DAYS, "trailing", full_retrain_two_stage),
+    ("no_retrain", None, None),
+    ("lr_only", RETRAIN_GAP_DAYS, retrain_lr_only),
+    ("sarima_only", RETRAIN_GAP_DAYS, retrain_sarima_only),
+    ("both", RETRAIN_GAP_DAYS, full_retrain_two_stage),
 ]
 
 
