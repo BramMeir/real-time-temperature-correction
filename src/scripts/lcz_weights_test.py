@@ -3,13 +3,10 @@ import numpy as np
 import pandas as pd
 import rasterio
 from rasterio.windows import Window
-from scipy.stats import spearmanr
 from src.utils.load_station_coordinates import load_station_coordinates
 from src.models.idw.train import _haversine_distance
 
 WEIGHTS_FILE = "output/stage_one_weights/weights.csv"
-
-COEFFICIENTS_FILE = "output/stage_one_weights/coefficients_per_period.csv"
 
 OUTPUT_DIR = "output/urban_context_weights"
 
@@ -18,9 +15,6 @@ LCZ_COG_URL = "/vsicurl/https://lcz-generator.rub.de/cogs/lcz_filter_v1_cog.tif"
 
 # Radius around a station within which its LCZ is the majority class
 LCZ_RADIUS_M = 500
-
-# LCZ classes 1 to 10 are built types, 11 to 17 land cover types
-BUILT_CLASSES = set(range(1, 11))
 
 # Compact midrise, the class of the urban targets in this network
 URBAN_CLASS = 2
@@ -41,8 +35,7 @@ def load_lcz_labels(coords, radius_m=LCZ_RADIUS_M):
 
     Output
     ------
-    Returns a DataFrame indexed by station with the majority class, the share of the neighbourhood it covers, and
-    the class of the single pixel under the station.
+    Returns a DataFrame indexed by station with the majority class in the column lcz.
     """
     rows = []
     with rasterio.open(LCZ_COG_URL) as src:
@@ -62,38 +55,9 @@ def load_lcz_labels(coords, radius_m=LCZ_RADIUS_M):
             inside = classes[(distance_m <= radius_m) & (classes != src.nodata)]
 
             values, counts = np.unique(inside, return_counts=True)
-            pixel = int(classes[half_rows, half_cols])
-            rows.append({
-                "station": station,
-                "lcz": int(values[counts.argmax()]),
-                "lcz_share": counts.max() / counts.sum(),
-                "lcz_pixel": pixel if pixel != src.nodata else None,
-            })
+            rows.append({"station": station, "lcz": int(values[counts.argmax()])})
 
     return pd.DataFrame(rows).set_index("station")
-
-
-def split_half_stability(coefficients):
-    """
-    Check whether the ranking of the neighbours depends on the training periods, by averaging the weights over the
-    first and the second half of the periods separately and correlating them per target.
-
-    Input
-    -----
-    coefficients: DataFrame with one row per target, training period and neighbour, as written by
-    station_weights_experiment.py
-
-    Output
-    ------
-    Returns a Series with the Spearman correlation between the two halves per target.
-    """
-    coefficients = coefficients.assign(weight=coefficients["std_coef"].abs())
-    half = coefficients["repeat_id"] < coefficients["repeat_id"].nunique() / 2
-    first = coefficients[half].groupby(["target", "neighbour"])["weight"].mean()
-    second = coefficients[~half].groupby(["target", "neighbour"])["weight"].mean()
-    halves = pd.concat({"first": first, "second": second}, axis=1).reset_index()
-
-    return halves.groupby("target").apply(lambda g: spearmanr(g["first"], g["second"]).statistic)
 
 
 def demean_by_target(values, targets):
@@ -185,8 +149,8 @@ def test_context(pairs, labels, same_context, permute_targets=True, rng=None):
 
 def run_context_test():
     """
-    Label the stations, check the stability of the weights, run the context test for every definition of a match
-    and save the labels and the results to OUTPUT_DIR.
+    Label the stations, run the context test over all targets and over the LCZ 2 targets, and save the labels and
+    the results to OUTPUT_DIR.
     """
     weights = pd.read_csv(WEIGHTS_FILE)
     coords = load_station_coordinates("SYNTHETIC")
@@ -194,21 +158,12 @@ def run_context_test():
     print(f"Sampling the LCZ within {LCZ_RADIUS_M} m of {len(coords)} stations from the WUDAPT map...", flush=True)
     labels = load_lcz_labels(coords)
     print(labels["lcz"].value_counts().sort_index().to_string())
-    changed = labels[labels["lcz"] != labels["lcz_pixel"]]
-    print(f"{len(changed)} stations get a different class than the pixel under them: "
-          f"{', '.join(changed.index)}")
-
-    stability = split_half_stability(pd.read_csv(COEFFICIENTS_FILE))
-    print(f"\nSplit-half Spearman correlation of the weights per target: median {stability.median():.2f}, "
-          f"lowest {stability.min():.2f} ({stability.idxmin()})")
 
     rng = np.random.default_rng(SEED)
     lcz = labels["lcz"]
     urban_pairs = weights[weights["target"].map(lcz) == URBAN_CLASS]
     tests = {
         "same LCZ class, all targets": (weights, lambda t, n: t == n, True),
-        "same built or land cover type, all targets": (
-            weights, lambda t, n: np.isin(t, list(BUILT_CLASSES)) == np.isin(n, list(BUILT_CLASSES)), True),
         f"LCZ {URBAN_CLASS} neighbour, LCZ {URBAN_CLASS} targets": (
             urban_pairs, lambda t, n: n == URBAN_CLASS, False),
     }
@@ -223,7 +178,6 @@ def run_context_test():
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     labels.to_csv(os.path.join(OUTPUT_DIR, "lcz_labels.csv"))
-    stability.rename("spearman").to_csv(os.path.join(OUTPUT_DIR, "split_half_stability.csv"))
     pd.DataFrame(results).to_csv(os.path.join(OUTPUT_DIR, "results.csv"), index=False)
     print(f"\nResults written to {OUTPUT_DIR}")
 
