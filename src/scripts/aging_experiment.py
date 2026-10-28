@@ -3,18 +3,8 @@ import pandas as pd
 from src.models.regsarima.train import train_regression_sarima_errors, stage_one_residuals
 from src.models.regsarima.execute_forecast import run_single_forecast as run_regression_sarima_errors
 from src.utils.generate_forecast_start import generate_forecast_start
-from src.utils.datasets import DATASETS as SHARED_DATASETS, load_station_data
+from src.utils.datasets import DATASETS, load_station_data
 from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
-
-
-# The aging and retraining experiments add three synthetic targets to those of the other experiments
-DATASETS = {
-    **SHARED_DATASETS,
-    "SYNTHETIC": {
-        "file": SHARED_DATASETS["SYNTHETIC"]["file"],
-        "stations": SHARED_DATASETS["SYNTHETIC"]["stations"] + ["Etalle", "Centrum_Malmedy", "Markt_Hoei"]
-    }
-}
 
 # Seed that is used to define the training periods (for reproducibility)
 SEED = 47
