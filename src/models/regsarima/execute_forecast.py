@@ -1,11 +1,3 @@
-"""
-Script: execute_forecast.py
-
-Forecasting with the two-stage regression with SARIMA errors: the spatial part is evaluated on the
-neighbours' observations over the horizon, the local part is the SARIMA forecast of the regression
-residuals. The local part decays to zero within a few hours, after which the forecast reduces to the
-OLS regression of the neighbouring stations.
-"""
 import pandas as pd
 from src.models.regsarima.train import train_regression_sarima_errors
 from src.evaluation.evaluate_baseline_forecast import evaluate_baseline_forecast
@@ -36,7 +28,7 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
                         test_end=None, arima_order=(2, 0, 0), seasonal_order=(1, 0, 1, 24), mode="forecast"):
     """
     Runs a single forecast with a regression on the neighbouring stations plus a SARIMA model of the
-    regression residuals. As for ARIMAX and the Random Forest, the neighbours' observations over the
+    regression residuals. As for SARIMAX and the random forest, the neighbours' observations over the
     forecast horizon are assumed to be known.
 
     This model has no hyperparameter search, so every mode behaves the same as "forecast" — the mode

@@ -1,9 +1,3 @@
-"""
-Script: train.py
-
-SARIMA model implementation for time series forecasting.
-Source: https://www.digitalocean.com/community/tutorials/a-guide-to-time-series-forecasting-with-arima-in-python-3
-"""
 import statsmodels.api as sm
 
 

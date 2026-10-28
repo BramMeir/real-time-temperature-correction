@@ -1,25 +1,3 @@
-"""
-Script: train.py
-
-Regression on the neighbouring stations with SARIMA errors, estimated in two stages.
-
-The model is the same specification as ARIMAX:
-
-    y_t = beta' x_t + eta_t,   with eta_t following a SARIMA process
-
-but beta is estimated by ordinary least squares instead of jointly by maximum likelihood
-together with the error parameters. Joint (one-stage) estimation of ARIMAX maximises the
-one-step-ahead likelihood, which for autoregressive errors is a GLS fit on the
-quasi-differenced series, so beta ends up explaining hour-to-hour changes rather than the
-level of the target. Multi-step forecasts converge to beta' x_t once the autoregressive
-contribution has decayed, so long-lead accuracy depends only on how well beta reproduces
-the level. Estimating beta by OLS and fitting the SARIMA to its residuals keeps each
-component fitted against the quantity it is used to predict.
-
-Functions:
-- stage_one_residuals: Compute the residuals the neighbouring stations cannot explain.
-- train_regression_sarima_errors: Fit the two-stage model.
-"""
 import pandas as pd
 import statsmodels.api as sm
 from src.models.neighbour_regression.train import train_neighbour_regression

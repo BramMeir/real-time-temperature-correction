@@ -1,9 +1,3 @@
-"""
-Contains functions for plotting diagnostics for ARIMA models.
-
-Functions:
-- arima_plot_diagnostics: Plots ACF and PACF for a given time series.
-"""
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 import matplotlib.pyplot as plt
 import numpy as np

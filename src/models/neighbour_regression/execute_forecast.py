@@ -8,7 +8,7 @@ def run_single_forecast(df, target_station, model=None, exog_cols=None, start=No
     """
     Runs a single forecast using a linear regression of the target station on the contemporaneous
     observations of the neighbouring stations. The forecast assumes the neighbours' future observations
-    are known (the same assumption made for the exogenous variables of ARIMAX and the Random Forest),
+    are known (the same assumption made for the exogenous variables of SARIMAX and the random forest),
     predicting the target station directly from the neighbours' observed values over the test window.
 
     This baseline has no hyperparameter search, so every mode behaves the same as "forecast" — the
