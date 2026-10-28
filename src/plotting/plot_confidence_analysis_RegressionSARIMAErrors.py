@@ -1,114 +1,72 @@
-"""
-Script: plot_confidence_analysis_RegressionSARIMAErrors.py
-
-Mirrors plot_confidence_analysis.py (ARIMAX) for the two-stage regression with SARIMA errors
-model, so the two figures are directly comparable: same layout, same axes, same correlation
-annotation, reading from output/confidence_analysis_regression_sarima_errors/ instead of
-output/confidence_analysis/.
-"""
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 import glob
 import os
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from matplotlib.ticker import MaxNLocator
 
-# Output directory
-plots_dir = "plots/confidence_analysis_regression_sarima_errors"
-os.makedirs(plots_dir, exist_ok=True)
-# Larger axis labels, tick labels and panel titles than matplotlib's defaults, so they stay readable once LaTeX
-# scales the 12-inch figure to the text width
-plt.rcParams.update({"axes.labelsize": 16, "axes.titlesize": 15, "xtick.labelsize": 14, "ytick.labelsize": 14})
-# Saved as vector PDF, which Elsevier prefers for charts, with the fonts embedded as TrueType instead of
-# matplotlib's default Type 3
-plt.rcParams["pdf.fonttype"] = 42
-
-# Load data
-files = glob.glob("output/confidence_analysis_regression_sarima_errors/confidence_station_*.csv")
-df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
-
-# Casino_Oostende's realised error is not representative: its nearest neighbours are too far/dissimilar
-# for a meaningful spatial correction, which distorts the scale of the plot without adding information
-df = df[df["target_station"] != "Casino_Oostende"]
-
-# Compute correlations
-corr_conf = df["confidence_mean"].corr(df["mae_mean"])
-corr_interval = df["interval_size_mean"].corr(df["mae_mean"])
-
-print(f"Correlation (confidence vs MAE): {corr_conf:.3f}")
-print(f"Correlation (interval size vs MAE): {corr_interval:.3f}")
-
-# Create subplots
-fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
-
-# Left: Confidence vs MAE
-ax = axes[0]
-
-x = df["confidence_mean"]
-y = df["mae_mean"]
-
-# Scatter
-ax.scatter(x, y, alpha=0.6)
-
-# Regression line (sorted for clean line)
-x_sorted = np.sort(x)
-m, b = np.polyfit(x, y, 1)
-ax.plot(x_sorted, m * x_sorted + b)
-
-# Labels
-ax.set_title("Error-based score")
-ax.set_xlabel("Reliability score (1 / (1 + MAE))")
-ax.set_ylabel("Mean MAE (°C)")
-
-# Correlation annotation
-ax.text(
-    0.825, 0.95,
-    f"r = {corr_conf:.2f}",
-    transform=ax.transAxes,
-    verticalalignment='top',
-    fontsize=14,
-)
-
-# A few ticks per axis are enough to read the trend
-ax.xaxis.set_major_locator(MaxNLocator(5))
-ax.yaxis.set_major_locator(MaxNLocator(5))
-ax.grid(alpha=0.2)
+RESULTS_GLOB = "output/confidence_analysis_regression_sarima_errors/confidence_station_*.csv"
+PLOTS_DIR = "plots/confidence_analysis_regression_sarima_errors"
 
 
-# Right: Interval vs MAE
-ax = axes[1]
+def scatter_panel(ax, x, y, title, xlabel, correlation, text_x):
+    """Scatter one indicator against the realised MAE, with its least-squares line and correlation."""
+    ax.scatter(x, y, alpha=0.6)
 
-x = df["interval_size_mean"]
-y = df["mae_mean"]
+    x_sorted = np.sort(x)
+    m, b = np.polyfit(x, y, 1)
+    ax.plot(x_sorted, m * x_sorted + b)
 
-# Scatter
-ax.scatter(x, y, alpha=0.6)
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.text(text_x, 0.95, f"r = {correlation:.2f}", transform=ax.transAxes, verticalalignment='top', fontsize=14)
 
-# Regression line
-x_sorted = np.sort(x)
-m, b = np.polyfit(x, y, 1)
-ax.plot(x_sorted, m * x_sorted + b)
+    # A few ticks per axis are enough to read the trend
+    ax.xaxis.set_major_locator(MaxNLocator(5))
+    ax.yaxis.set_major_locator(MaxNLocator(5))
+    ax.grid(alpha=0.2)
 
-# Labels
-ax.set_title("Prediction-interval width")
-ax.set_xlabel("95 % interval width (°C)")
 
-# Correlation annotation
-ax.text(
-    0.05, 0.95,
-    f"r = {corr_interval:.2f}",
-    transform=ax.transAxes,
-    verticalalignment='top',
-    fontsize=14,
-)
+def plot_reliability(df, output_path):
+    """
+    Plot the reliability score and the interval width of every station against its realised MAE, side by side.
 
-# A few ticks per axis are enough to read the trend
-ax.xaxis.set_major_locator(MaxNLocator(5))
-ax.yaxis.set_major_locator(MaxNLocator(5))
-ax.grid(alpha=0.2)
+    Input
+    -----
+    df: One row per station, with mae_mean, confidence_mean and interval_size_mean
+    output_path: Path of the PDF to write
+    """
+    corr_conf = df["confidence_mean"].corr(df["mae_mean"])
+    corr_interval = df["interval_size_mean"].corr(df["mae_mean"])
 
-# Layout
-plt.tight_layout()
+    print(f"Correlation (confidence vs MAE): {corr_conf:.3f}")
+    print(f"Correlation (interval size vs MAE): {corr_interval:.3f}")
 
-# Save
-plt.savefig(f"{plots_dir}/confidence_combined_corr.pdf")
+    _, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
+
+    scatter_panel(axes[0], df["confidence_mean"], df["mae_mean"], "Error-based score",
+                  "Reliability score (1 / (1 + MAE))", corr_conf, 0.825)
+    axes[0].set_ylabel("Mean MAE (°C)")
+    scatter_panel(axes[1], df["interval_size_mean"], df["mae_mean"], "Prediction-interval width",
+                  "95 % interval width (°C)", corr_interval, 0.05)
+
+    plt.tight_layout()
+    plt.savefig(output_path)
+
+
+if __name__ == "__main__":
+    # Larger axis labels, tick labels and panel titles than matplotlib's defaults, so they stay readable once LaTeX
+    # scales the 12-inch figure to the text width
+    plt.rcParams.update({"axes.labelsize": 16, "axes.titlesize": 15, "xtick.labelsize": 14, "ytick.labelsize": 14})
+    # Saved as vector PDF, which Elsevier prefers for charts, with the fonts embedded as TrueType instead of
+    # matplotlib's default Type 3
+    plt.rcParams["pdf.fonttype"] = 42
+
+    df = pd.concat([pd.read_csv(f) for f in glob.glob(RESULTS_GLOB)], ignore_index=True)
+
+    # Casino_Oostende's realised error is not representative: its nearest neighbours are too far/dissimilar
+    # for a meaningful spatial correction, which distorts the scale of the plot without adding information
+    df = df[df["target_station"] != "Casino_Oostende"]
+
+    os.makedirs(PLOTS_DIR, exist_ok=True)
+    plot_reliability(df, f"{PLOTS_DIR}/confidence_combined_corr.pdf")
