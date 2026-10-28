@@ -1,26 +1,3 @@
-"""
-Module: interval_coverage.py
-
-Empirical coverage of the two-stage model's prediction intervals (experiment P1.5 of the paper).
-
-The existing reliability indicators (src/models/*/confidence_score.py) only show that a station's
-interval width correlates with the error realised later. This checks whether the intervals are
-honest: how often the truth falls inside a nominal 95 % interval.
-
-Two bands are compared, both built from the same calibration-window errors:
-- "quantile": the interpolated error quantiles, as regsarima/confidence_score.py
-  builds them today. Biased narrow - a band between order statistics of n points covers about
-  (hi_rank - lo_rank)/(n + 1), which is ~0.92 for a nominal 0.95 at n = 72.
-- "conformal": the finite-sample rank of the absolute errors, which removes that bias. Symmetric
-  about the forecast, so it assumes the errors are roughly unbiased.
-
-Functions:
-- conformal_rank: Order statistic of the split-conformal quantile.
-- interval_score: Per-point Winkler interval score.
-- summarise_interval: Coverage, width and interval score over one window.
-- empirical_bounds: Bounds from interpolated error quantiles.
-- conformal_bounds: Bounds from the conformal rank of the absolute errors.
-"""
 import numpy as np
 
 

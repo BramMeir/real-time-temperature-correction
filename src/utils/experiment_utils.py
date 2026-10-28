@@ -1,9 +1,3 @@
-"""
-Module: experiment_utils.py
-
-Helpers shared by the per-station experiment engines (aging_experiment.py, retraining_experiment.py):
-running tasks for one station in a worker pool, and writing results to a CSV file.
-"""
 import csv
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed

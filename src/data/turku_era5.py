@@ -1,10 +1,3 @@
-"""
-TURCLIM observations joined with the ERA5 series of the nearest land grid point, in the layout of
-Jacobs et al. (2024): one column per station and one per station named <station>_ERA5.
-
-The observations are raw_observations.csv, the wide-format source of the observations.csv used by
-the model comparison, with identical values.
-"""
 import pandas as pd
 
 OBSERVATIONS_FILE = "data/Turku/raw_observations.csv"

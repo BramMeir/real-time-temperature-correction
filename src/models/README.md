@@ -1,11 +1,11 @@
 # src/models
 
-One folder per model of the paper. Every folder has the same two entry points, which the experiments in `src/scripts`
-call:
+One folder per model of the paper. Every folder but `jacobs2024` has the same two entry points, which the experiments
+in `src/scripts` call:
 
 - `train.py` fits the model on a training window;
 - `execute_forecast.py` reconstructs the target over an outage with a fitted model (`run_single_forecast`), and
-  returns the MAE and MSE together with the hourly reconstruction.
+  returns the MAE and MSE (`src/evaluation/metrics.py`) together with the hourly reconstruction.
 
 The models that have orders or hyperparameters to choose also have a `tune.py`, which runs that search on the RMI
 station of Melle and reads `data/RMI/observations.csv` by default. Its result is fixed in the code of the model and
@@ -77,6 +77,12 @@ default to 0, since the augmented Dickey-Fuller test rejects a unit root.
 Model-specific helpers: `MLP/skoptMLP.py` lets scikit-optimize search over tuples of layer sizes,
 `TCN/skoptTCN.py` builds the TCN network (for both the search and the final fit), and `transformer/build_model.py`
 builds the Transformer network.
+
+## jacobs2024
+
+The gap-filling methods of Jacobs et al. (2024), the retrospective reference of the paper. Their code, not part of
+the twelve models above, so it has its own layout; see `jacobs2024/README.md` for its source, licence and the changes
+made.
 
 ## Baselines
 
