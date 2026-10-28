@@ -51,7 +51,7 @@ src/
 ├── models/       One folder per model: training, reconstruction and, where needed, tuning
 ├── evaluation/   Error metrics, paired tests and prediction-interval coverage
 ├── scripts/      One script per experiment of the paper
-├── plotting/     The figures and tables of the paper
+├── plotting/     Generation of the figures and tables of the paper
 └── utils/        Shared helpers: datasets, outage onsets, station coordinates, LASSO selection
 ```
 
