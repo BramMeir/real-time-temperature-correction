@@ -28,7 +28,7 @@ from src.models.climatology.train import train_hourly_climatology
 from src.models.idw.train import train_idw
 from src.models.linear_regression.train import train_neighbour_regression
 from src.models.regression_sarima_errors.train import train_regression_sarima_errors
-from src.models.arima.repeat_forecast import _run_single_forecast as run_arimax
+from src.models.arima.execute_forecast import run_single_forecast as run_arimax
 from src.models.random_forest.execute_forecast import run_single_forecast as run_rf
 from src.models.LSTM.execute_forecast import run_single_forecast as run_lstm
 from src.models.MLP.execute_forecast import run_single_forecast as run_mlp
@@ -277,10 +277,7 @@ def run_single_experiment(task):
                 hours_to_forecast=horizon,
                 arima_order=(2, 0, 0),
                 seasonal_order=(1, 0, 1, 24),
-                confidence_score=False,
-                use_LASSO_selection=False,
-                max_iter=1000,
-                plot=False
+                max_iter=1000
             )
         elif model_name == "LSTM":
             result = forecast_model_fn(

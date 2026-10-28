@@ -14,7 +14,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.scripts.determine_residual_sarima_order import DATASETS, SEED, load_station_series
 from src.models.arima.train import train_sarima_model
-from src.models.arima.repeat_forecast import _run_single_forecast as run_arimax
+from src.models.arima.execute_forecast import run_single_forecast as run_arimax
 from src.models.linear_regression.train import train_neighbour_regression
 from src.models.linear_regression.execute_forecast import run_single_forecast as run_linear_regression
 from src.models.regression_sarima_errors.train import train_regression_sarima_errors
@@ -128,10 +128,7 @@ def forecast_model(model_name, model, repeat_id, station, series, exog_df, df_co
             hours_to_forecast=MAX_LEAD_HOURS,
             arima_order=ARIMAX_ORDER,
             seasonal_order=ARIMAX_SEASONAL_ORDER,
-            confidence_score=False,
-            use_LASSO_selection=False,
-            max_iter=1000,
-            plot=False
+            max_iter=1000
         )
     else:
         forecast_fn = run_linear_regression if model_name == "LinearRegression" else run_regression_sarima_errors

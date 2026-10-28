@@ -22,7 +22,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from src.utils.select_LASSO_stations import select_LASSO_stations
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.models.arima.train import train_sarima_model
-from src.models.arima.repeat_forecast import _run_single_forecast as run_sarimax
+from src.models.arima.execute_forecast import run_single_forecast as run_sarimax
 from src.models.regression_sarima_errors.train import train_regression_sarima_errors
 from src.models.regression_sarima_errors.execute_forecast import run_single_forecast as run_regression_sarima_errors
 
@@ -165,10 +165,7 @@ def fit_and_evaluate(estimator, stations, station, series, exog_df, df_complete,
                 hours_to_forecast=horizon,
                 arima_order=SARIMAX_ORDER,
                 seasonal_order=SARIMAX_SEASONAL_ORDER,
-                confidence_score=False,
-                use_LASSO_selection=False,
-                max_iter=1000,
-                plot=False
+                max_iter=1000
             )
         else:
             result = run_regression_sarima_errors(
