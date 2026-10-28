@@ -6,7 +6,7 @@ reconstruct the same outages, so a difference between two windows comes from the
 Prints the mean RMSE per model and window over all windows and outage durations, and the same relative to the
 eight weeks of the benchmark, and writes both to OUTPUT_DIR. Only reads the results otherwise.
 
-python -m src.scripts.summarize_training_weeks
+python -m src.plotting.summarize_training_weeks
 """
 import glob
 import os
