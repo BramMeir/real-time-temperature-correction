@@ -144,8 +144,10 @@ def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
                zorder=5)
     ax.scatter(selected.geometry.x, selected.geometry.y, s=NEIGHBOUR_SIZE, color=NEIGHBOUR_COLOR, edgecolor="white",
                linewidth=0.8, zorder=5)
+    # Centred on the part above the baseline: va="center" also counts the room below it for descenders, which digits
+    # lack, and so sets them high in the marker
     for rank, point in zip(top["weight_rank"], selected.geometry):
-        ax.annotate(str(rank), (point.x, point.y), ha="center", va="center", fontsize=RANK_FONT_SIZE,
+        ax.annotate(str(rank), (point.x, point.y), ha="center", va="center_baseline", fontsize=RANK_FONT_SIZE,
                     fontweight="bold", color="white", zorder=6)
 
     # The attribution is drawn on one line: contextily wraps it over three at the printed map width
