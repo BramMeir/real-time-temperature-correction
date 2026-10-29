@@ -89,7 +89,8 @@ if __name__ == "__main__":
 
     os.makedirs(PLOT_DIR, exist_ok=True)
     # Same text sizes and font embedding as the other paper figures, see plot_training_history.py
-    plt.rcParams.update({"axes.labelsize": 13, "xtick.labelsize": 12, "ytick.labelsize": 12, "legend.fontsize": 12})
+    plt.rcParams.update({"font.family": "Arial", "font.size": 11, "axes.labelsize": 14, "xtick.labelsize": 13,
+                         "ytick.labelsize": 13, "legend.fontsize": 13})
     plt.rcParams["pdf.fonttype"] = 42
 
     profiles = hourly_gap_profiles(dataset)

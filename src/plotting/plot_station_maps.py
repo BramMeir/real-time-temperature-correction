@@ -47,7 +47,7 @@ STATION_SIZE = 30
 BASEMAP_ALPHA = 0.55
 
 # Font size of the station names on the TURCLIM map, in points
-LABEL_SIZE = 6
+LABEL_SIZE = 7
 
 
 def load_station_points(dataset):
@@ -160,7 +160,7 @@ def add_scale_bar(ax, extent):
 def add_attribution(ax):
     """Credit OpenStreetMap on one line, as on the stage-one weight maps."""
     ax.text(0.005, 0.005, "© OpenStreetMap contributors", transform=ax.transAxes, ha="left", va="bottom",
-            fontsize=4, zorder=7, bbox={"facecolor": "white", "alpha": 0.7, "linewidth": 0, "pad": 1})
+            fontsize=5, zorder=7, bbox={"facecolor": "white", "alpha": 0.7, "linewidth": 0, "pad": 1})
 
 
 def save_map(fig, name):
@@ -222,6 +222,8 @@ def plot_legend():
 
 if __name__ == "__main__":
     os.makedirs(PLOTS_DIR, exist_ok=True)
+    # Arial, one of the fonts Elsevier recommends for artwork, as in the other paper figures
+    plt.rcParams["font.family"] = "Arial"
     # The legend is a vector PDF, with its font embedded as TrueType instead of matplotlib's default Type 3
     plt.rcParams["pdf.fonttype"] = 42
     plot_belgian_maps()

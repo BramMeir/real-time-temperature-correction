@@ -354,7 +354,7 @@ def plot_performance_vs_horizon_with_zoom(df):
     ax_zoom.set_ylabel(_metric_label())
     ax_zoom.set_xlabel("Outage duration (days)")
 
-    legend = ax_top.legend(loc="upper left", ncol=4, fontsize=11)
+    legend = ax_top.legend(loc="upper left", ncol=4, fontsize=12)
     plt.tight_layout()
 
     # Just enough headroom above the highest error bar for the legend in the upper left, so it covers none of the
@@ -398,8 +398,10 @@ if __name__ == "__main__":
     # Create plot directory if it does not exist
     os.makedirs("plots", exist_ok=True)
     # Larger axis labels and tick labels than matplotlib's 10 pt, so they stay readable once LaTeX scales the 10-inch
-    # figure to the text width
-    plt.rcParams.update({"axes.labelsize": 14, "xtick.labelsize": 13, "ytick.labelsize": 13})
+    # figure to the text width. Arial is one of the fonts Elsevier recommends for artwork, and it is set 1 pt larger
+    # than matplotlib's default DejaVu Sans would need, since its lowercase letters are smaller
+    plt.rcParams.update({"font.family": "Arial", "font.size": 11, "axes.labelsize": 15, "xtick.labelsize": 14,
+                         "ytick.labelsize": 14})
     # Saved as vector PDF, which Elsevier prefers for charts, with the fonts embedded as TrueType instead of
     # matplotlib's default Type 3
     plt.rcParams["pdf.fonttype"] = 42
