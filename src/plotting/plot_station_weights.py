@@ -37,7 +37,7 @@ ASPECT = 4 / 3
 MAP_WIDTH = 0.5 * 390 / 72.27
 
 # Font size of the rank numbers, in points
-RANK_FONT_SIZE = 8
+RANK_FONT_SIZE = 9
 
 # Resolution of the maps. Elsevier asks 500 dpi at the printed size for artwork that combines an image with text,
 # and the saved map (the axes alone) is enlarged about 1.3 times in the paper and up to 1.7 times on a 190 mm
@@ -144,14 +144,16 @@ def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
                zorder=5)
     ax.scatter(selected.geometry.x, selected.geometry.y, s=NEIGHBOUR_SIZE, color=NEIGHBOUR_COLOR, edgecolor="white",
                linewidth=0.8, zorder=5)
+    # Centred on the part above the baseline: va="center" also counts the room below it for descenders, which digits
+    # lack, and so sets them high in the marker
     for rank, point in zip(top["weight_rank"], selected.geometry):
-        ax.annotate(str(rank), (point.x, point.y), ha="center", va="center", fontsize=RANK_FONT_SIZE,
+        ax.annotate(str(rank), (point.x, point.y), ha="center", va="center_baseline", fontsize=RANK_FONT_SIZE,
                     fontweight="bold", color="white", zorder=6)
 
     # The attribution is drawn on one line: contextily wraps it over three at the printed map width
     ctx.add_basemap(ax, source=basemap, headers=TILE_HEADERS, alpha=BASEMAP_ALPHA, attribution=False)
     ax.text(0.005, 0.005, "© OpenStreetMap contributors", transform=ax.transAxes, ha="left", va="bottom",
-            fontsize=4, zorder=7, bbox={"facecolor": "white", "alpha": 0.7, "linewidth": 0, "pad": 1})
+            fontsize=5, zorder=7, bbox={"facecolor": "white", "alpha": 0.7, "linewidth": 0, "pad": 1})
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
     ax.set_axis_off()
@@ -162,6 +164,8 @@ def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
 
 if __name__ == "__main__":
     os.makedirs(PLOTS_DIR, exist_ok=True)
+    # Arial, one of the fonts Elsevier recommends for artwork, as in the other paper figures
+    plt.rcParams["font.family"] = "Arial"
 
     weights = pd.read_csv(WEIGHTS_FILE)
     points = load_station_points()

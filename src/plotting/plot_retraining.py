@@ -102,7 +102,7 @@ def plot_per_dataset(df_avg):
 
         plt.xlabel("Days since start of simulation")
         plt.ylabel(f"Mean {METRIC} (°C)")
-        plt.legend(fontsize=12)
+        plt.legend(fontsize=13)
         plt.grid(alpha=0.3)
 
         plt.tight_layout()
@@ -118,8 +118,10 @@ if __name__ == "__main__":
     # Make sure the output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     # Larger axis labels and tick labels than matplotlib's 10 pt, so they stay readable once LaTeX scales the 10-inch
-    # figure to the text width
-    plt.rcParams.update({"axes.labelsize": 14, "xtick.labelsize": 13, "ytick.labelsize": 13})
+    # figure to the text width. Arial is one of the fonts Elsevier recommends for artwork, and it is set 1 pt larger
+    # than matplotlib's default DejaVu Sans would need, since its lowercase letters are smaller
+    plt.rcParams.update({"font.family": "Arial", "font.size": 11, "axes.labelsize": 15, "xtick.labelsize": 14,
+                         "ytick.labelsize": 14})
     # Saved as vector PDF, which Elsevier prefers for charts, with the fonts embedded as TrueType instead of
     # matplotlib's default Type 3
     plt.rcParams["pdf.fonttype"] = 42

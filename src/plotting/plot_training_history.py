@@ -105,16 +105,18 @@ def plot_performance_vs_training_time(df, output_dir):
         zorder=2,
     )
 
-    # Place the labels compactly inside the plot
+    # Place the labels compactly inside the plot, above their point. The 12-week point lies so close to the 8-week one
+    # that their labels would run into each other, so its label goes below the curve instead
     for _, row in agg.iterrows():
+        below = row["training_weeks"] == 12
         plt.annotate(
             f'{int(row["training_weeks"])} {"weeks" if row["training_weeks"] != 1 else "week"}',  # short label
             (row["duration_mean"], row["error_mean"]),
-            xytext=(3, 5),
+            xytext=(3, -5) if below else (3, 5),
             textcoords="offset points",
-            fontsize=11,
+            fontsize=12,
             ha="left",
-            va="bottom",
+            va="top" if below else "bottom",
         )
 
     plt.xlabel("Mean training time (seconds)")
@@ -143,8 +145,10 @@ if __name__ == "__main__":
     output_dir = "plots/training_time_impact_regression_sarima_errors_joltik"
     os.makedirs(output_dir, exist_ok=True)
     # Larger axis labels and tick labels than matplotlib's 10 pt, so they stay readable once LaTeX scales the 9-inch
-    # figure to the text width
-    plt.rcParams.update({"axes.labelsize": 13, "xtick.labelsize": 12, "ytick.labelsize": 12})
+    # figure to the text width. Arial is one of the fonts Elsevier recommends for artwork, and it is set 1 pt larger
+    # than matplotlib's default DejaVu Sans would need, since its lowercase letters are smaller
+    plt.rcParams.update({"font.family": "Arial", "font.size": 11, "axes.labelsize": 14, "xtick.labelsize": 13,
+                         "ytick.labelsize": 13})
     # Saved as vector PDF, which Elsevier prefers for charts, with the fonts embedded as TrueType instead of
     # matplotlib's default Type 3
     plt.rcParams["pdf.fonttype"] = 42

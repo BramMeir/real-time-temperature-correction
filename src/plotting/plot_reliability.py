@@ -19,7 +19,7 @@ def scatter_panel(ax, x, y, title, xlabel, correlation, text_x):
 
     ax.set_title(title)
     ax.set_xlabel(xlabel)
-    ax.text(text_x, 0.95, f"r = {correlation:.2f}", transform=ax.transAxes, verticalalignment='top', fontsize=14)
+    ax.text(text_x, 0.95, f"r = {correlation:.2f}", transform=ax.transAxes, verticalalignment='top', fontsize=15)
 
     # A few ticks per axis are enough to read the trend
     ax.xaxis.set_major_locator(MaxNLocator(5))
@@ -56,8 +56,10 @@ def plot_reliability(df, output_path):
 
 if __name__ == "__main__":
     # Larger axis labels, tick labels and panel titles than matplotlib's defaults, so they stay readable once LaTeX
-    # scales the 12-inch figure to the text width
-    plt.rcParams.update({"axes.labelsize": 16, "axes.titlesize": 15, "xtick.labelsize": 14, "ytick.labelsize": 14})
+    # scales the 12-inch figure to the text width. Arial is one of the fonts Elsevier recommends for artwork, and it is
+    # set 1 pt larger than matplotlib's default DejaVu Sans would need, since its lowercase letters are smaller
+    plt.rcParams.update({"font.family": "Arial", "font.size": 11, "axes.labelsize": 17, "axes.titlesize": 16,
+                         "xtick.labelsize": 15, "ytick.labelsize": 15})
     # Saved as vector PDF, which Elsevier prefers for charts, with the fonts embedded as TrueType instead of
     # matplotlib's default Type 3
     plt.rcParams["pdf.fonttype"] = 42
