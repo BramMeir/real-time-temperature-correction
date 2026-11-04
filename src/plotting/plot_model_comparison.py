@@ -2,12 +2,11 @@ import argparse
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+from src.utils.datasets import DATASETS
 
 # Error metric to report, set from --metric. RMSE is derived per row as sqrt(MSE), so the
 # reported value is the mean of the per-forecast RMSEs, matching how the MAE is averaged.
 METRIC = "RMSE"
-
-METRIC_CAPTIONS = {"MAE": "Mean absolute error", "RMSE": "Root mean squared error"}
 
 # Gap between the legend of the zoomed horizon plot and the highest curve below it, as a fraction of the panel height
 LEGEND_GAP = 0.04
@@ -60,8 +59,8 @@ def _display_name(model):
     return LATEX_MODEL_NAMES.get(model, model)
 
 
-# Outage durations shown in the results table, as (hours, column label)
-REPORTED_HORIZONS = [(4, "4\\,h"), (24, "24\\,h"), (168, "7\\,d"), (720, "30\\,d")]
+# Outage durations (hours) over which the models are ranked within their group in the tables
+RANKING_HORIZONS = [4, 24, 168, 720]
 
 # Models grouped by the information they are given, in table order
 MODEL_FAMILIES = [
@@ -80,58 +79,50 @@ def _latex_cell(value, decimals, is_best):
 
 def _family_order(errors):
     """Group the models of the results into the families of MODEL_FAMILIES, most accurate first."""
-    accuracy = errors[[hours for hours, _ in REPORTED_HORIZONS]].mean(axis=1).sort_values()
+    accuracy = errors[RANKING_HORIZONS].mean(axis=1).sort_values()
     listed = {m for _, members in MODEL_FAMILIES for m in members}
     families = MODEL_FAMILIES + [("Other", [m for m in accuracy.index if m not in listed])]
     grouped = [(family, [m for m in accuracy.index if m in set(members)]) for family, members in families]
     return [(family, members) for family, members in grouped if members]
 
 
-def generate_overall_results_table(df):
+def generate_training_time_table(df):
     """
-    1. Generate a summary table with the error (METRIC) per outage duration and the training and prediction
-    time, and print it as a booktabs LaTeX table in the style of the paper (tab:overall).
+    1. Generate a table with the mean training time per fit of every model per network, and print it as a booktabs
+    LaTeX table in the style of the paper (tab:cost).
 
-    Averaging the error over all horizons weights the table by the horizon grid rather than by the
-    model, so the error is reported per outage duration instead. The best model is marked per column,
-    comparing values as printed, so models that tie at the reported precision are all marked.
+    The networks are ordered by the number of other stations a corrector draws on, so the table shows how the
+    training time grows with the size of the network. The models keep the grouping and order of the error table.
 
     Input:
     ------
     df: DataFrame containing all the results, with the horizon in hours
-    (columns: Dataset,Station,Model,Train_start,Train_end,Horizon,MAE,MSE)
+    (columns: Dataset,Station,Model,Train_start,Train_end,Horizon,MAE,MSE,Train_duration_seconds)
     """
+    decimals = 2
+    times = df.pivot_table(index="Model", columns="Dataset", values="Train_duration_seconds", aggfunc="mean")
+
+    # Number of other stations in every network, read from the full network rather than from the targets in the results
+    others = {
+        dataset: pd.read_csv(DATASETS[dataset]["file"], usecols=["station_name"])["station_name"].nunique() - 1
+        for dataset in times.columns
+    }
+    datasets = sorted(others, key=others.get)
+
     errors = df.pivot_table(index="Model", columns="Horizon", values=METRIC, aggfunc="mean")
-    cost = df.groupby("Model")[["Train_duration_seconds", "Forecast_duration_seconds"]].mean()
 
-    missing = [label for hours, label in REPORTED_HORIZONS if hours not in errors.columns]
-    if missing:
-        raise ValueError(f"Horizons missing from the results: {missing}")
-
-    # (column of the source table, decimals, mark the best) per table column, in table order
-    columns = (
-        [(errors[hours], 3, True) for hours, _ in REPORTED_HORIZONS]
-        + [(cost["Train_duration_seconds"], 2, False), (cost["Forecast_duration_seconds"], 2, False)]
-    )
-
-    header = (
-        ["\\textbf{Model}"]
-        + [f"\\textbf{{{label}}}" for _, label in REPORTED_HORIZONS]
-        + ["\\textbf{Train}", "\\textbf{Predict}"]
-    )
+    header = ["\\textbf{Model}"] + [
+        f"\\textbf{{{LATEX_DATASET_NAMES[dataset]} ({others[dataset]})}}" for dataset in datasets
+    ]
 
     # Either ("group", family name) or ("model", cells), in table order
     body = []
     for family, models in _family_order(errors):
         body.append(("group", family))
         for model in models:
-            cells = ["\\quad " + _display_name(model)]
-            for values, decimals, mark_best in columns:
-                # Compared as printed, so models that tie at the reported precision are all marked, as in
-                # the per-dataset table
-                rounded = values.round(decimals)
-                is_best = mark_best and rounded[model] == rounded.min()
-                cells.append(_latex_cell(values[model], decimals, is_best))
+            cells = ["\\quad " + _display_name(model)] + [
+                _latex_cell(times.loc[model, dataset], decimals, False) for dataset in datasets
+            ]
             body.append(("model", cells))
 
     # Pad every column so the ampersands line up in the .tex source
@@ -146,21 +137,19 @@ def generate_overall_results_table(df):
         return f"    \\multicolumn{{{len(header)}}}{{l}}{{\\emph{{{family}}}}} \\\\"
 
     caption = (
-        f"{METRIC_CAPTIONS[METRIC]} (\\textcelsius) per outage duration, averaged over stations and "
-        "failure onsets. Models are grouped by the information they are given --- temporal is the "
-        "past observations at the target station, spatial the concurrent observations at the "
-        "neighbouring stations --- and ordered by their mean error within each group. Training and "
-        "prediction times in seconds, measured on the UGent HPC."
+        "Mean training time per fit (s) of each model in the model comparison, per network, with the number of "
+        "other stations in the network in brackets. All models ran on the UGent HPC (\\texttt{joltik}) with the "
+        "same resources for every job, including a GPU for the neural models. Models are grouped by the "
+        "information they receive."
     )
 
     lines = [
-        "\\begin{table}[htb]",
+        "\\begin{table}[!htbp]",
         "  \\centering",
         f"  \\caption{{{caption}}}",
-        "  \\label{tab:overall}",
+        "  \\label{tab:cost}",
         "  \\small",
-        "  \\setlength{\\tabcolsep}{3pt}",
-        f"  \\begin{{tabular*}}{{\\linewidth}}{{@{{\\extracolsep{{\\fill}}}}l{'r' * (len(header) - 1)}@{{}}}}",
+        f"  \\begin{{tabular*}}{{\\linewidth}}{{@{{\\extracolsep{{\\fill}}}}l{'r' * len(datasets)}@{{}}}}",
         "    \\toprule",
         format_row(header),
         "    \\midrule",
@@ -178,10 +167,10 @@ def generate_overall_results_table(df):
         "\\end{table}",
     ]
 
-    print(f"\n=== Overall Model Performance ({METRIC}) ===")
-    print(errors[[hours for hours, _ in REPORTED_HORIZONS]].join(cost).to_string())
+    print("\n=== Mean training time per fit (s) ===")
+    print(times[datasets].to_string())
 
-    print("\nLaTeX code for the overall results table:")
+    print("\nLaTeX code for the training time table:")
     print("\n".join(lines))
 
 
@@ -199,7 +188,7 @@ def generate_dataset_results_table(df):
 
     The best model is marked per column, so it can be read whether the ranking holds on every network.
     Values are compared as printed, so models that tie at the reported precision are all marked.
-    The models keep the grouping and order of the overall table.
+    The models keep the grouping and order of the training time table.
 
     Input:
     ------
@@ -211,7 +200,7 @@ def generate_dataset_results_table(df):
     errors = df.pivot_table(index="Model", columns=["Dataset", "Horizon"], values=METRIC, aggfunc="mean")
     columns = [(dataset, hours) for dataset in datasets for hours, _ in DATASET_HORIZONS]
 
-    # Same grouping and order as the overall table
+    # Same grouping and order as the training time table
     overall = df.pivot_table(index="Model", columns="Horizon", values=METRIC, aggfunc="mean")
     families = _family_order(overall)
 
@@ -253,12 +242,11 @@ def generate_dataset_results_table(df):
     windows = df.groupby(["Dataset", "Station"])["Train_start"].nunique()
     # Acronyms keep their capitals, other names are lower case mid-sentence, as in the paper
     names = [name if name.isupper() else name.lower() for name in map(LATEX_DATASET_NAMES.get, datasets)]
-    counts = [f"{name}: {stations[d]}" for name, d in zip(names, datasets)]
-    counts[0] += " stations"
+    counts = [f"{stations[d]} {name}" for name, d in zip(names, datasets)]
     caption = (
-        f"{METRIC} (\\textcelsius) per network over 4-hour and 30-day outages ({', '.join(counts)}; "
-        f"{windows.max()} windows per station). Models are grouped and ordered as in "
-        "Table~\\ref{tab:overall}. Bold marks the lowest error per column."
+        f"{METRIC} (\\textcelsius) of each model per network over 4-hour and 30-day outages, with "
+        f"{windows.max()} windows at each of the {', '.join(counts[:-1])}, and {counts[-1]} stations. "
+        "Bold marks the lowest error per column."
     )
 
     lines = [
@@ -406,8 +394,8 @@ if __name__ == "__main__":
     # matplotlib's default Type 3
     plt.rcParams["pdf.fonttype"] = 42
 
-    # The results table reports per outage duration, so it needs the horizon in hours
-    generate_overall_results_table(df)
+    # Both tables order the models by their error at the reported outage durations, so they need the horizon in hours
+    generate_training_time_table(df)
     generate_dataset_results_table(df)
 
     # Convert horizon to days for better readability
