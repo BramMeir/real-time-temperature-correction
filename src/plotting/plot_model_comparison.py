@@ -242,12 +242,11 @@ def generate_dataset_results_table(df):
     windows = df.groupby(["Dataset", "Station"])["Train_start"].nunique()
     # Acronyms keep their capitals, other names are lower case mid-sentence, as in the paper
     names = [name if name.isupper() else name.lower() for name in map(LATEX_DATASET_NAMES.get, datasets)]
-    counts = [f"{name}: {stations[d]}" for name, d in zip(names, datasets)]
-    counts[0] += " stations"
+    counts = [f"{stations[d]} {name}" for name, d in zip(names, datasets)]
     caption = (
-        f"{METRIC} (\\textcelsius) per network over 4-hour and 30-day outages ({', '.join(counts)}; "
-        f"{windows.max()} windows per station). Models are grouped and ordered as in "
-        "Table~\\ref{tab:cost}. Bold marks the lowest error per column."
+        f"{METRIC} (\\textcelsius) of each model per network over 4-hour and 30-day outages, with "
+        f"{windows.max()} windows at each of the {', '.join(counts[:-1])}, and {counts[-1]} stations. "
+        "Bold marks the lowest error per column."
     )
 
     lines = [
