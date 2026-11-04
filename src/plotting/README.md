@@ -23,7 +23,7 @@ Scripts that generate the figures and tables of the paper from the results the e
 
 | Table | File | Needs |
 |---|---|---|
-| Error per outage duration, overall and per network | `plot_model_comparison.py` (printed as LaTeX) | model comparison |
+| Training time per network, and error per network | `plot_model_comparison.py` (printed as LaTeX) | model comparison |
 | Paired comparison, in the results and in full | `table_paired_comparison.py` (printed as LaTeX) | model comparison |
 | Comparison with Jacobs et al. (2024) | `table_jacobs_comparison.py` | comparison with Jacobs et al. |
 | Heat waves | `table_heatwaves.py` (printed as LaTeX) | heat-wave experiment |
