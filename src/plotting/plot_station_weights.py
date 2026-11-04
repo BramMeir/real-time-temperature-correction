@@ -11,12 +11,8 @@ PLOTS_DIR = "plots/stage_one_weights"
 
 # Targets shown in the paper, from rural to urban, with the file name of their map
 MAP_TARGETS = {
-    "Vielsalm": "Vielsalm",
-    "Vesten_Geraardsbergen": "Geraardsbergen",
-    "Station_Eeklo": "Eeklo",
+    "Abdij_Tongerlo": "Tongerlo",
     "Stadhuis_Antwerpen_Grote_Markt": "Antwerp",
-    "Stadhuis_Brussel_Grote_Markt": "Brussels",
-    "Sint_Baafs_Gent": "Ghent",
 }
 
 # Number of highest-weighted neighbours that are marked on every map
@@ -29,7 +25,7 @@ MARGIN = 0.25
 # all lie close by still shows its surroundings
 MIN_SPAN = 100_000
 
-# Width to height ratio of every map, wider than tall so six maps fit on one page at almost the full text width
+# Width to height ratio of every map, wider than tall as the maps sit side by side at almost the full text width
 ASPECT = 4 / 3
 
 # Every map is drawn at the width it is printed at in the paper, half the text width of 390 pt, so the markers and
