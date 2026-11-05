@@ -8,7 +8,7 @@ MAX_GAP_HOURS = 24
 # a network
 DATASETS = {
     "RMI": {
-        "file": "data/RMI/observations.csv",
+        "file": "data/RMI/open_data/observations.csv",
         "stations": ["MELLE", "DIEPENBEEK", "HUMAIN", "SINT-KATELIJNE-WAVER", "ERNAGE"]
     },
     "TURKU": {
