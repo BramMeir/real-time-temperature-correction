@@ -21,6 +21,15 @@ python -m src.data.preprocessing --dataset <rmi|turku|synthetic> --input_file <r
 For RMI, the stations with more than 10 % missing temperatures are dropped. The data stays at 10 minutes, the
 experiments themselves keep the observation at every full hour.
 
+`download_rmi.py` fetches the RMI export from the RMI open data platform (opendata.meteo.be, CC BY 4.0). It writes
+every 10-minute temperature of the 12 stations of the paper over the chosen years, validated or not, with the RMI
+validation flag in the column `validated`, to `data/RMI/open_data/raw_observations.csv`, and the station list to
+`data/RMI/open_data/stations.csv`:
+
+```bash
+python -m src.data.download_rmi --first_year 2021 --last_year 2025
+```
+
 Besides these files, some experiments read a few more files directly:
 
 | File | Content | Read by |
@@ -36,6 +45,7 @@ Besides these files, some experiments read a few more files directly:
 
 | File | What it does |
 |---|---|
+| `download_rmi.py` | Downloads the RMI export from the RMI open data platform, see above. |
 | `preprocessing.py` | Converts the raw data of each dataset, see above. |
 | `turku_era5.py` | Joins the TURCLIM observations with ERA5 in the layout of Jacobs et al. (2024), one column per station and one `<station>_ERA5` column per station, for the comparison with their gap-filling. |
 | `create_supervised.py` | Input-output pairs of the tabular models (RF, MLP): the target's past 24 hours, the network at the current hour and the hour of day. |
