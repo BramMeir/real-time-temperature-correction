@@ -17,6 +17,9 @@ STATION_SEED_STRIDE = 10_000
 
 MAX_AGING_GAP_DAYS = 90
 
+# Days between two ages. Every age costs a fresh model per episode, and a finer step mostly adds noise to the curve
+AGING_STEP_DAYS = 9
+
 NUMBER_OF_REPEATS = 100
 
 FORECAST_HORIZON_HOURS = 48
@@ -73,7 +76,9 @@ def evaluate_two_stage(repeat_id, df_complete, station, model, exog_cols, train_
 def _run_single_experiment(task, training_weeks, usable):
     """
     Run a single aging experiment: train once, then re-forecast at every age gap from a state that
-    has been advanced (never retrained) with the true observations up to that point.
+    has been advanced (never retrained) with the true observations up to that point. Every reconstruction
+    is paired with one of a fresh model, trained on the same number of weeks right before it, so the
+    difference between both isolates the ageing from how hard that time of year is to reconstruct.
 
     Input
     -----
@@ -85,7 +90,8 @@ def _run_single_experiment(task, training_weeks, usable):
     ------
     A list containing the results of the experiment, one row per age gap:
         [dataset_name, station, training_weeks, train_start, train_end, age_gap, forecast_horizon,
-         mae, mse, training_duration]
+         mae, mse, mae_fresh, mse_fresh, training_duration]
+      mae and mse are the errors of the aged model, mae_fresh and mse_fresh those of the fresh model
     """
     dataset_name, repeat_id, station, station_index = task
 
@@ -110,10 +116,10 @@ def _run_single_experiment(task, training_weeks, usable):
     model = train_two_stage(df_complete[train_start:train_end], station, exog_cols)
     training_duration = pd.Timestamp.now() - start_time
 
-    # Evaluate the model for all the 'aging gaps' (0 to MAX_AGING_GAP_DAYS, step 3) to see how
+    # Evaluate the model for all the 'aging gaps' (0 to MAX_AGING_GAP_DAYS, step AGING_STEP_DAYS) to see how
     # performance degrades with aging
     results = []
-    for age_gap in range(0, MAX_AGING_GAP_DAYS + 1, 3):
+    for age_gap in range(0, MAX_AGING_GAP_DAYS + 1, AGING_STEP_DAYS):
         # Set the test period as [train_end + age_gap, train_end + age_gap + forecast horizon]
         test_begin = train_end + pd.Timedelta(days=age_gap)
         test_end = test_begin + pd.Timedelta(hours=FORECAST_HORIZON_HOURS)
@@ -130,6 +136,18 @@ def _run_single_experiment(task, training_weeks, usable):
             repeat_id, df_complete, station, aged_model, exog_cols, train_start, test_begin, test_end
         )
 
+        # At age 0 the fresh model would be trained on the very same window as the aged one, so it is the
+        # same model and its errors are the aged ones
+        mae_fresh, mse_fresh = mae, mse
+
+        if age_gap > 0:
+            # Trained like the original model, on the training_weeks weeks right before the reconstruction
+            fresh_start = test_begin - pd.Timedelta(days=training_weeks * 7)
+            fresh_model = train_two_stage(df_complete[fresh_start:test_begin], station, exog_cols)
+            mae_fresh, mse_fresh = evaluate_two_stage(
+                repeat_id, df_complete, station, fresh_model, exog_cols, fresh_start, test_begin, test_end
+            )
+
         results.append([
             dataset_name,
             station,
@@ -140,6 +158,8 @@ def _run_single_experiment(task, training_weeks, usable):
             FORECAST_HORIZON_HOURS,
             mae,
             mse,
+            mae_fresh,
+            mse_fresh,
             training_duration
         ])
 
@@ -188,6 +208,8 @@ def run_aging_experiment(dataset_name, training_weeks, output_path, max_workers=
         "forecast_horizon",
         "mae",
         "mse",
+        "mae_fresh",
+        "mse_fresh",
         "training_duration"
     ], results_all)
 

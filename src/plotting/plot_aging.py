@@ -19,6 +19,12 @@ OUTPUT_DIR = "plots/aging_model_regression_sarima_errors/"
 # reported value is the mean of the per-forecast RMSEs, as in plot_model_comparison.py.
 METRIC = "RMSE"
 
+# An episode is one onset of one target, with its reconstructions at every age gap
+EPISODE = ["dataset", "station", "train_end"]
+
+NUMBER_OF_RESAMPLES = 10_000
+SEED = 42
+
 
 def _plot_path(name):
     """Keep the MAE filenames unchanged, suffix any other metric so it doesn't overwrite them."""
@@ -45,65 +51,79 @@ def load_data():
         df["age_gap"] = df["age_gap"].astype(int)
         df["mae"] = df["mae"].astype(float)
         df["rmse"] = np.sqrt(df["mse"].astype(float))
+        df["mae_fresh"] = df["mae_fresh"].astype(float)
+        df["rmse_fresh"] = np.sqrt(df["mse_fresh"].astype(float))
 
         dfs.append(df)
 
     return pd.concat(dfs, ignore_index=True)
 
 
-def add_confidence_interval(grouped_df, std_col, count_col):
+def extra_error(df, rng):
     """
-    Adds confidence interval columns to the given grouped DataFrame.
+    Extra error (METRIC) of the aged model relative to a fresh model trained right before the same
+    reconstruction, (mean aged / mean fresh - 1) * 100 %, per age gap of one dataset. Both models
+    reconstruct the same windows, so the season of a window weighs on both alike and drops out of the
+    ratio. The 95 % interval is a percentile bootstrap over episodes, keeping the windows of an episode
+    together since they share one aged model.
 
-    Input:
+    Input
+    -----
+    df: DataFrame with the rows of one dataset, as returned by load_data
+    rng: Random generator
+
+    Output
     ------
-    - grouped_df: DataFrame that has been grouped and aggregated, containing mean, std, and count columns.
-    - std_col: Name of the column containing the standard deviation values.
-    - count_col: Name of the column containing the count of samples for each group.
-
-    Output:
-    -------
-    - grouped_df: The same DataFrame with two new columns added: 'ci_lower' and 'ci_upper',
-                  representing the lower and upper bounds of the 95% confidence interval for the mean.
+    extra: DataFrame indexed by age gap with the columns extra, lower and upper, in %
     """
-    grouped_df["ci95"] = 1.96 * (grouped_df[std_col] / np.sqrt(grouped_df[count_col]))
-    return grouped_df
+    column = METRIC.lower()
+
+    # Summed per episode rather than pivoted, because a target can draw the same onset in two repeats
+    # (three times for RMI). Such an episode then counts twice, as in the plain means
+    aged = df.pivot_table(index=EPISODE, columns="age_gap", values=column, aggfunc="sum")
+    fresh = df.pivot_table(index=EPISODE, columns="age_gap", values=f"{column}_fresh", aggfunc="sum")
+
+    # The ratio of the means over the windows equals the ratio of the sums, as both count the same windows
+    estimate = (aged.sum() / fresh.sum() - 1) * 100
+
+    # Every resample draws as many episodes as there are, with replacement, and recomputes the extra error
+    resampled = []
+    for _ in range(NUMBER_OF_RESAMPLES):
+        drawn = rng.integers(len(aged), size=len(aged))
+        resampled.append((aged.values[drawn].sum(axis=0) / fresh.values[drawn].sum(axis=0) - 1) * 100)
+    lower, upper = np.percentile(resampled, [2.5, 97.5], axis=0)
+
+    return pd.DataFrame({"extra": estimate, "lower": lower, "upper": upper}, index=aged.columns)
 
 
 def plot_datasets(df):
     """
-    Plot the error (METRIC) degradation over time for each dataset, showing the mean and confidence intervals.
+    Plot the extra error (METRIC) of the aged model relative to a freshly trained one against the time
+    since its training, for each dataset, with 95 % bootstrap intervals.
 
     Input:
     ------
-    df: A DataFrame containing the error values per dataset, station, and age gap.
+    df: A DataFrame containing the aged and fresh error values per dataset, episode, and age gap.
     """
-    column = METRIC.lower()
-    grouped = df.groupby(["dataset", "age_gap"]).agg(
-        error_mean=(column, "mean"),
-        error_std=(column, "std"),
-        count=(column, "count")
-    ).reset_index()
-
-    # Add confidence intervals to the grouped DataFrame
-    grouped = add_confidence_interval(grouped, "error_std", "count")
+    rng = np.random.default_rng(SEED)
 
     plt.figure(figsize=(9, 5))
+    plt.axhline(0, color="black", linewidth=0.8)
 
-    for dataset in grouped["dataset"].unique():
-        sub = grouped[grouped["dataset"] == dataset]
+    for dataset in df["dataset"].unique():
+        extra = extra_error(df[df["dataset"] == dataset], rng)
 
         plt.errorbar(
-            sub["age_gap"],
-            sub["error_mean"],
-            yerr=sub["ci95"],
+            extra.index,
+            extra["extra"],
+            yerr=[extra["extra"] - extra["lower"], extra["upper"] - extra["extra"]],
             capsize=4,
             marker="o",
             label=DATASET_LABELS.get(dataset, dataset)
         )
 
     plt.xlabel("Days since last training")
-    plt.ylabel(f"Mean {METRIC} (°C)")
+    plt.ylabel(f"Extra {METRIC} relative to a freshly trained model (%)")
     plt.legend(title="Datasets", frameon=True, loc="best")
     plt.grid(alpha=0.3)
 
@@ -113,9 +133,14 @@ def plot_datasets(df):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Plot the RMSE of RegSARIMA against the time since its training, per network.")
+    parser = argparse.ArgumentParser(description="Plot the extra RMSE of an aged RegSARIMA relative to a freshly trained"
+                                                 " one against the time since its training, per network.")
     parser.add_argument("--metric", choices=["MAE", "RMSE"], default="RMSE")
-    METRIC = parser.parse_args().metric
+    parser.add_argument("--datasets", nargs="+", choices=DATASETS, default=DATASETS,
+                        help="The networks to plot (default: all three).")
+    args = parser.parse_args()
+    METRIC = args.metric
+    DATASETS = args.datasets
 
     # Ensure output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)

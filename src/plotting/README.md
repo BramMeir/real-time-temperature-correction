@@ -16,7 +16,7 @@ Scripts that generate the figures and tables of the paper from the results the e
 | Station weight maps | `plot_station_weights.py` | station weights | `plots/stage_one_weights/` |
 | Error against training time | `plot_training_history.py` | RegSARIMA training-window runs | `plots/training_time_impact_regression_sarima_errors_joltik/` |
 | Reliability score and interval width | `plot_reliability.py` | reliability experiment | `plots/confidence_analysis_regression_sarima_errors/` |
-| Model ageing | `plot_aging.py` | ageing experiment | `plots/aging_model_regression_sarima_errors/` |
+| Extra error of an aged model over a freshly trained one | `plot_aging.py` (`--datasets` for only some networks) | ageing experiment | `plots/aging_model_regression_sarima_errors/` |
 | Retraining strategies | `plot_retraining.py` | retraining experiment | `plots/retraining_results_regression_sarima_errors/` |
 
 ## Tables
