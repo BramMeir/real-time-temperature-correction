@@ -86,9 +86,11 @@ def extra_error(df, rng):
     # The ratio of the means over the windows equals the ratio of the sums, as both count the same windows
     estimate = (aged.sum() / fresh.sum() - 1) * 100
 
-    # How often every episode is drawn in each resample, so a resample's sums are a matrix product
-    counts = rng.multinomial(len(aged), np.full(len(aged), 1 / len(aged)), size=NUMBER_OF_RESAMPLES)
-    resampled = (counts @ aged.values / (counts @ fresh.values) - 1) * 100
+    # Every resample draws as many episodes as there are, with replacement, and recomputes the extra error
+    resampled = []
+    for _ in range(NUMBER_OF_RESAMPLES):
+        drawn = rng.integers(len(aged), size=len(aged))
+        resampled.append((aged.values[drawn].sum(axis=0) / fresh.values[drawn].sum(axis=0) - 1) * 100)
     lower, upper = np.percentile(resampled, [2.5, 97.5], axis=0)
 
     return pd.DataFrame({"extra": estimate, "lower": lower, "upper": upper}, index=aged.columns)
