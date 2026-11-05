@@ -32,7 +32,7 @@ The LCZ test reads the global LCZ map of Demuzere et al. (2022) over the interne
 | LASSO pre-selection | `python -m src.scripts.lasso_experiment` | `output/LASSO_selection_estimators/` |
 | Reliability score | `python -m src.scripts.reliability_experiment` | `output/confidence_analysis_regression_sarima_errors/` |
 | Interval coverage | `python -m src.scripts.interval_coverage_experiment` | `output/interval_coverage/` |
-| Model ageing | `python -m src.scripts.aging_experiment --dataset <RMI\|TURKU\|SYNTHETIC>` | `output/aging_model_regression_sarima_errors/` |
+| Model ageing, against a model trained right before each outage | `python -m src.scripts.aging_experiment --dataset <RMI\|TURKU\|SYNTHETIC>` | `output/aging_model_regression_sarima_errors/` |
 | Retraining | `python -m src.scripts.retraining_experiment --dataset <RMI\|TURKU\|SYNTHETIC>` | `output/retraining_results_regression_sarima_errors/` |
 
 ## Training window

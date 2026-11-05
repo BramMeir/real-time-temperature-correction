@@ -73,7 +73,9 @@ def evaluate_two_stage(repeat_id, df_complete, station, model, exog_cols, train_
 def _run_single_experiment(task, training_weeks, usable):
     """
     Run a single aging experiment: train once, then re-forecast at every age gap from a state that
-    has been advanced (never retrained) with the true observations up to that point.
+    has been advanced (never retrained) with the true observations up to that point. Every reconstruction
+    is paired with one of a fresh model, trained on the same number of weeks right before it, so the
+    difference between both isolates the ageing from how hard that time of year is to reconstruct.
 
     Input
     -----
@@ -85,7 +87,8 @@ def _run_single_experiment(task, training_weeks, usable):
     ------
     A list containing the results of the experiment, one row per age gap:
         [dataset_name, station, training_weeks, train_start, train_end, age_gap, forecast_horizon,
-         mae, mse, training_duration]
+         mae, mse, mae_fresh, mse_fresh, training_duration]
+      mae and mse are the errors of the aged model, mae_fresh and mse_fresh those of the fresh model
     """
     dataset_name, repeat_id, station, station_index = task
 
@@ -130,6 +133,18 @@ def _run_single_experiment(task, training_weeks, usable):
             repeat_id, df_complete, station, aged_model, exog_cols, train_start, test_begin, test_end
         )
 
+        # At age 0 the fresh model would be trained on the very same window as the aged one, so it is the
+        # same model and its errors are the aged ones
+        mae_fresh, mse_fresh = mae, mse
+
+        if age_gap > 0:
+            # Trained like the original model, on the training_weeks weeks right before the reconstruction
+            fresh_start = test_begin - pd.Timedelta(days=training_weeks * 7)
+            fresh_model = train_two_stage(df_complete[fresh_start:test_begin], station, exog_cols)
+            mae_fresh, mse_fresh = evaluate_two_stage(
+                repeat_id, df_complete, station, fresh_model, exog_cols, fresh_start, test_begin, test_end
+            )
+
         results.append([
             dataset_name,
             station,
@@ -140,6 +155,8 @@ def _run_single_experiment(task, training_weeks, usable):
             FORECAST_HORIZON_HOURS,
             mae,
             mse,
+            mae_fresh,
+            mse_fresh,
             training_duration
         ])
 
@@ -188,6 +205,8 @@ def run_aging_experiment(dataset_name, training_weeks, output_path, max_workers=
         "forecast_horizon",
         "mae",
         "mse",
+        "mae_fresh",
+        "mse_fresh",
         "training_duration"
     ], results_all)
 
