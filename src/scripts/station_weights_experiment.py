@@ -1,7 +1,7 @@
 import os
 import argparse
 import pandas as pd
-from src.utils.datasets import DATASETS, load_station_data
+from src.utils.datasets import DATASETS, load_station_data, usable_hours
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.utils.load_station_coordinates import load_station_coordinates
 from src.models.idw.train import _haversine_distance
@@ -18,14 +18,14 @@ NUMBER_OF_REPEATS = 50
 TRAINING_WEEKS = 8
 
 
-def fit_weights(df_complete, series, target, exog_cols, repeats):
+def fit_weights(df_complete, usable, target, exog_cols, repeats):
     """
     Fit the neighbour regression of one target over several training periods and return its coefficients.
 
     Input
     -----
     df_complete: DataFrame with the target station and all neighbouring stations as columns
-    series: Target time series with an hourly datetime index, used to draw the training periods
+    usable: Hours a training period may use, as returned by usable_hours in src/utils/datasets.py
     target: Name of the target station
     exog_cols: List of the neighbouring station column names
     repeats: Number of training periods
@@ -38,7 +38,7 @@ def fit_weights(df_complete, series, target, exog_cols, repeats):
     for repeat_id in range(repeats):
         # Training periods drawn as in the residual diagnostics (residual_autocorrelation.py)
         train_end = generate_forecast_start(
-            series=series,
+            usable=usable,
             seed=SEED,
             repeat_id=repeat_id,
             max_history_days=max(MAX_HISTORY_DAYS, TRAINING_WEEKS * 7),
@@ -102,9 +102,8 @@ def run_weight_analysis(repeats):
     fits = []
     for target in df["station_name"].unique():
         df_complete = load_station_data(df, target)
-        series = df_complete[target]
         exog_cols = list(df_complete.columns[1:])
-        fits.append(fit_weights(df_complete, series, target, exog_cols, repeats))
+        fits.append(fit_weights(df_complete, usable_hours(df, target, df_complete.index), target, exog_cols, repeats))
         print(f"{target}: fitted on {repeats} training periods, {len(exog_cols)} neighbours", flush=True)
 
     fits = pd.concat(fits, ignore_index=True)

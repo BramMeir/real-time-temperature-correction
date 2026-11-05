@@ -1,7 +1,7 @@
 import argparse
 import pandas as pd
 from src.models.regsarima.train import RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
-from src.utils.datasets import DATASETS, load_station_data
+from src.utils.datasets import DATASETS, load_station_data, usable_hours
 from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 from src.utils.select_LASSO_stations import select_LASSO_stations
 from src.utils.generate_forecast_start import generate_forecast_start
@@ -119,7 +119,7 @@ def fit_and_evaluate(estimator, stations, station, series, exog_df, df_complete,
     return training_duration, errors
 
 
-def run_single_experiment(task, training_weeks):
+def run_single_experiment(task, training_weeks, usable):
     """
     Run one training period of one target: select the stations with LASSO, then fit both estimators on
     all stations and on the selection, and evaluate every fit on every horizon.
@@ -128,6 +128,7 @@ def run_single_experiment(task, training_weeks):
     -----
     task: A tuple containing (station, station_index, repeat_id)
     training_weeks: Number of training weeks
+    usable: Hours a forecast start may use, as returned by usable_hours in src/utils/datasets.py
 
     Output
     ------
@@ -142,7 +143,7 @@ def run_single_experiment(task, training_weeks):
     # Generate random training period (start and end date) for the given station. Every station gets its
     # own seed so stations don't all sample the same forecast starts
     forecast_start = generate_forecast_start(
-        series=series,
+        usable=usable,
         seed=SEED + station_index * STATION_SEED_STRIDE,
         repeat_id=repeat_id,
         max_history_days=104 * 7,  # Leaves room for two years of history, which fixes the reported training periods
@@ -211,8 +212,10 @@ def run_all_experiments(training_weeks, repeats, max_workers):
 
     for station_index, station in enumerate(sorted(df["station_name"].unique())):
         tasks = [(station, station_index, repeat_id) for repeat_id in range(repeats)]
+        df_complete = load_station_data(df, station)
         rows.extend(run_tasks_for_station(
-            load_station_data(df, station), tasks, run_single_experiment, (training_weeks,), max_workers=max_workers
+            df_complete, tasks, run_single_experiment, (training_weeks, usable_hours(df, station, df_complete.index)),
+            max_workers=max_workers
         ))
 
     write_results_csv(f"{OUTPUT_DIR}/results_{training_weeks}_weeks.csv", COLUMNS, rows)

@@ -1,5 +1,9 @@
 import pandas as pd
 
+# Longest run of missing hours that load_station_data may fill by interpolation inside a window. A longer run would
+# enter the window as a straight line instead of a temperature record
+MAX_GAP_HOURS = 24
+
 # The file each experiment reads per dataset, and the target stations of the experiments that reconstruct only part of
 # a network
 DATASETS = {
@@ -62,3 +66,35 @@ def load_station_data(df, station):
     exog_df = exog_df.resample('1h').mean().interpolate(limit_direction="both")
 
     return series.to_frame(name=station).join(exog_df)
+
+
+def usable_hours(df, station, index):
+    """
+    Mark which hours of a target's data an outage may cover and which a window may contain.
+
+    Input
+    -----
+    df: DataFrame of one dataset file, with the columns datetime, station_name, temp_dry_avg_2m and validated
+    station: Name of the target station
+    index: Hourly datetime index of the target's data, as returned by load_station_data
+
+    Output
+    ------
+    usable: DataFrame on index with two boolean columns. validated is true where the target has a validated
+      observation, so an outage may be scored against it. complete is true where no station lies in a run of more
+      than MAX_GAP_HOURS missing hours, so a window holds no long interpolated stretch
+    """
+    observations = df.assign(datetime=pd.to_datetime(df["datetime"]))
+    temperatures = observations.pivot(index="datetime", columns="station_name", values="temp_dry_avg_2m").reindex(index)
+    target = observations[observations["station_name"] == station].set_index("datetime")
+
+    # Length of the run of missing hours that every missing hour belongs to
+    missing = temperatures.isna()
+    run_lengths = missing.apply(
+        lambda gaps: gaps.groupby((gaps != gaps.shift()).cumsum()).transform("size").where(gaps, 0)
+    )
+
+    return pd.DataFrame({
+        "validated": target["validated"].reindex(index),
+        "complete": ~(run_lengths > MAX_GAP_HOURS).any(axis=1),
+    }, index=index)

@@ -1,7 +1,7 @@
 import argparse
 import pandas as pd
 from statsmodels.tsa.stattools import adfuller
-from src.utils.datasets import DATASETS, load_station_data
+from src.utils.datasets import DATASETS, load_station_data, usable_hours
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.utils.experiment_utils import write_results_csv
 from src.models.regsarima.train import stage_one_residuals
@@ -29,12 +29,12 @@ def run_stationarity_check(training_weeks, repeats, output_file):
 
         for station in dataset_info["stations"]:
             df_complete = load_station_data(df, station)
-            series = df_complete[station]
+            usable = usable_hours(df, station, df_complete.index)
             exog_cols = list(df_complete.columns[1:])
 
             for repeat_id in range(repeats):
                 forecast_start = generate_forecast_start(
-                    series=series,
+                    usable=usable,
                     seed=SEED,
                     repeat_id=repeat_id,
                     max_history_days=max(MAX_HISTORY_DAYS, training_weeks * 7),

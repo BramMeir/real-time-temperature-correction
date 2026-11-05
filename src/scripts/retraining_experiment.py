@@ -6,7 +6,7 @@ from src.scripts.aging_experiment import (
     SEED, STATION_SEED_STRIDE,
     train_two_stage, age_two_stage, evaluate_two_stage
 )
-from src.utils.datasets import DATASETS, load_station_data
+from src.utils.datasets import DATASETS, load_station_data, usable_hours
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 
@@ -59,7 +59,7 @@ MODEL_CONFIGS = [
 ]
 
 
-def _run_single_experiment(task, training_weeks):
+def _run_single_experiment(task, training_weeks, usable):
     """
     Simulate every retraining strategy of MODEL_CONFIGS for one station and training period.
 
@@ -67,6 +67,7 @@ def _run_single_experiment(task, training_weeks):
     -----
     task: A tuple containing (dataset_name, repeat_id, station, station_index)
     training_weeks: Number of weeks of training data to use
+    usable: Hours a forecast start may use, as returned by usable_hours in src/utils/datasets.py
 
     Output
     ------
@@ -77,11 +78,10 @@ def _run_single_experiment(task, training_weeks):
     dataset_name, repeat_id, station, station_index = task
 
     df_complete = get_worker_df_complete()
-    series = df_complete[station]
     exog_cols = [c for c in df_complete.columns if c != station]
 
     forecast_start = generate_forecast_start(
-        series=series,
+        usable=usable,
         seed=SEED + station_index * STATION_SEED_STRIDE,
         repeat_id=repeat_id,
         max_history_days=training_weeks * 7,
@@ -163,7 +163,8 @@ def run_retraining_experiment(dataset_name, training_weeks, output_path, max_wor
         ]
 
         results_all.extend(run_tasks_for_station(
-            df_complete, tasks, _run_single_experiment, (training_weeks,), max_workers=max_workers
+            df_complete, tasks, _run_single_experiment, (training_weeks, usable_hours(df, station, df_complete.index)),
+            max_workers=max_workers
         ))
 
     write_results_csv(output_path, [

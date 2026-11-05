@@ -4,7 +4,7 @@ from src.models.regsarima.train import RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
 from src.models.regsarima.train import train_regression_sarima_errors, stage_one_residuals
 from src.models.regsarima.execute_forecast import run_single_forecast as run_regression_sarima_errors
 from src.utils.generate_forecast_start import generate_forecast_start
-from src.utils.datasets import DATASETS, load_station_data
+from src.utils.datasets import DATASETS, load_station_data, usable_hours
 from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 
 # Seed that is used to define the training periods (for reproducibility)
@@ -20,7 +20,6 @@ MAX_AGING_GAP_DAYS = 90
 NUMBER_OF_REPEATS = 100
 
 FORECAST_HORIZON_HOURS = 48
-
 
 
 def train_two_stage(df_window, station, exog_cols):
@@ -71,7 +70,7 @@ def evaluate_two_stage(repeat_id, df_complete, station, model, exog_cols, train_
     return result[:2]
 
 
-def _run_single_experiment(task, training_weeks):
+def _run_single_experiment(task, training_weeks, usable):
     """
     Run a single aging experiment: train once, then re-forecast at every age gap from a state that
     has been advanced (never retrained) with the true observations up to that point.
@@ -80,6 +79,7 @@ def _run_single_experiment(task, training_weeks):
     -----
     task: A tuple containing (dataset_name, repeat_id, station, station_index)
     training_weeks: Number of weeks of training data to use
+    usable: Hours a forecast start may use, as returned by usable_hours in src/utils/datasets.py
 
     Output
     ------
@@ -90,13 +90,12 @@ def _run_single_experiment(task, training_weeks):
     dataset_name, repeat_id, station, station_index = task
 
     df_complete = get_worker_df_complete()
-    series = df_complete[station]
     exog_cols = [c for c in df_complete.columns if c != station]
 
     # Generate random training period (start and end date) for the given dataset and station. Every
     # station gets its own seed so stations within a dataset don't all sample the same forecast starts
     forecast_start = generate_forecast_start(
-        series=series,
+        usable=usable,
         seed=SEED + station_index * STATION_SEED_STRIDE,
         repeat_id=repeat_id,
         max_history_days=training_weeks * 7,
@@ -175,7 +174,8 @@ def run_aging_experiment(dataset_name, training_weeks, output_path, max_workers=
         ]
 
         results_all.extend(run_tasks_for_station(
-            df_complete, tasks, _run_single_experiment, (training_weeks,), max_workers=max_workers
+            df_complete, tasks, _run_single_experiment, (training_weeks, usable_hours(df, station, df_complete.index)),
+            max_workers=max_workers
         ))
 
     write_results_csv(output_path, [
