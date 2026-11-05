@@ -17,6 +17,9 @@ STATION_SEED_STRIDE = 10_000
 
 MAX_AGING_GAP_DAYS = 90
 
+# Days between two ages. Every age costs a fresh model per episode, and a finer step mostly adds noise to the curve
+AGING_STEP_DAYS = 9
+
 NUMBER_OF_REPEATS = 100
 
 FORECAST_HORIZON_HOURS = 48
@@ -113,10 +116,10 @@ def _run_single_experiment(task, training_weeks, usable):
     model = train_two_stage(df_complete[train_start:train_end], station, exog_cols)
     training_duration = pd.Timestamp.now() - start_time
 
-    # Evaluate the model for all the 'aging gaps' (0 to MAX_AGING_GAP_DAYS, step 3) to see how
+    # Evaluate the model for all the 'aging gaps' (0 to MAX_AGING_GAP_DAYS, step AGING_STEP_DAYS) to see how
     # performance degrades with aging
     results = []
-    for age_gap in range(0, MAX_AGING_GAP_DAYS + 1, 3):
+    for age_gap in range(0, MAX_AGING_GAP_DAYS + 1, AGING_STEP_DAYS):
         # Set the test period as [train_end + age_gap, train_end + age_gap + forecast horizon]
         test_begin = train_end + pd.Timedelta(days=age_gap)
         test_end = test_begin + pd.Timedelta(hours=FORECAST_HORIZON_HOURS)
