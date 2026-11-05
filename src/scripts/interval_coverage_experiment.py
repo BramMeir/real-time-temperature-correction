@@ -2,7 +2,7 @@ import argparse
 import zlib
 import pandas as pd
 from src.models.regsarima.train import RESIDUAL_ORDER, RESIDUAL_SEASONAL_ORDER
-from src.utils.datasets import DATASETS, load_station_data
+from src.utils.datasets import DATASETS, load_station_data, usable_hours
 from src.utils.experiment_utils import get_worker_df_complete, run_tasks_for_station, write_results_csv
 from src.evaluation.interval_coverage import conformal_bounds, empirical_bounds, summarise_interval
 from src.models.regsarima.train import train_regression_sarima_errors
@@ -82,7 +82,7 @@ def run_intervals(df_complete, target_station, exog_cols, train_start, forecast_
     return bounds
 
 
-def run_single_experiment(task, training_days):
+def run_single_experiment(task, training_days, usable):
     """
     Coverage rows for one (dataset, station, onset), on the station's data of the worker process.
 
@@ -90,6 +90,7 @@ def run_single_experiment(task, training_days):
     -----
     task: Tuple of (dataset_name, repeat_id, station)
     training_days: Days of training data per onset
+    usable: Hours a forecast start may use, as returned by usable_hours in src/utils/datasets.py
 
     Output
     ------
@@ -98,13 +99,12 @@ def run_single_experiment(task, training_days):
     dataset_name, repeat_id, station = task
 
     df_complete = get_worker_df_complete()
-    series = df_complete[station]
     exog_df = df_complete.drop(columns=station)
 
     # Same onset as the accuracy experiment, since SEED, its per-station offset and the history length match
     station_seed = SEED + zlib.crc32(station.encode())
     forecast_start = generate_forecast_start(
-        series=series, seed=station_seed, repeat_id=repeat_id,
+        usable=usable, seed=station_seed, repeat_id=repeat_id,
         max_history_days=training_days, max_horizon=max(HORIZONS)
     )
 
@@ -164,8 +164,10 @@ def run_all_experiments(training_weeks, repeats, max_workers):
 
         for station in dataset_info["stations"]:
             tasks = [(dataset_name, i, station) for i in range(repeats)]
+            df_complete = load_station_data(df, station)
+            usable = usable_hours(df, station, df_complete.index)
             rows.extend(run_tasks_for_station(
-                load_station_data(df, station), tasks, run_single_experiment, (training_days,), max_workers=max_workers
+                df_complete, tasks, run_single_experiment, (training_days, usable), max_workers=max_workers
             ))
 
     write_results_csv(

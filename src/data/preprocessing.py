@@ -11,13 +11,14 @@ def prepare_rmi(observations_file, stations_file, output_file):
     Input
     -----
     observations_file: CSV file path with the observations, one row per station code and 10-minute time step, with at
-      least the columns code, datetime (YYYY-MM-DD HH:MM:SS) and temp_dry_avg_2m.
+      least the columns code, datetime (YYYY-MM-DD HH:MM:SS), temp_dry_avg_2m and validated (the RMI validation flag).
     stations_file: CSV file path with the station list, at least the columns code and name.
     output_file: Output CSV file path.
 
     Output
     ------
-    Saves the observations with the columns code, temp_dry_avg_2m, datetime and station_name to output_file.
+    Saves the observations with the columns code, temp_dry_avg_2m, validated, datetime and station_name to
+    output_file.
     """
     df = pd.read_csv(observations_file)
     stations = pd.read_csv(stations_file)[['code', 'name']]
@@ -44,7 +45,7 @@ def prepare_rmi(observations_file, stations_file, output_file):
     print("Temperature statistics for each station:")
     print(temp_stats)
 
-    df = df[['code', 'temp_dry_avg_2m', 'datetime', 'station_name']]
+    df = df[['code', 'temp_dry_avg_2m', 'validated', 'datetime', 'station_name']]
     df.to_csv(output_file, index=False)
 
 
@@ -59,7 +60,7 @@ def prepare_turku(input_file, output_file):
 
     Output
     ------
-    Saves the observations with the columns datetime, station_name and temp_dry_avg_2m to output_file.
+    Saves the observations with the columns datetime, station_name, temp_dry_avg_2m and validated to output_file.
     """
     df = pd.read_csv(input_file)
 
@@ -70,6 +71,9 @@ def prepare_turku(input_file, output_file):
     # Melt the dataframe from wide to long format
     df_long = df.melt(id_vars=[datetime_col], var_name='station_name', value_name='temp_dry_avg_2m')
     df_long = df_long.rename(columns={datetime_col: 'datetime'})
+
+    # TURCLIM has no validation flag, so every temperature counts as validated
+    df_long['validated'] = True
 
     df_long.to_csv(output_file, index=False)
 
@@ -86,7 +90,7 @@ def prepare_synthetic(input_file, stations_file, output_file):
 
     Output
     ------
-    Saves the observations with the columns datetime, temp_dry_avg_2m and station_name to output_file.
+    Saves the observations with the columns datetime, temp_dry_avg_2m, station_name and validated to output_file.
     """
     ds = xr.open_dataset(input_file)
 
@@ -105,6 +109,10 @@ def prepare_synthetic(input_file, stations_file, output_file):
     df_long = df_long.merge(station_mapping, on="point_index", how="left")
 
     df_long = df_long[["datetime", "temp_dry_avg_2m", "station_name"]]
+
+    # A simulation has no validation flag, so every temperature counts as validated
+    df_long["validated"] = True
+
     df_long.to_csv(output_file, index=False)
 
 

@@ -4,7 +4,7 @@ import zlib
 import pandas as pd
 import argparse
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from src.utils.datasets import DATASETS, load_station_data
+from src.utils.datasets import DATASETS, load_station_data, usable_hours
 from src.utils.generate_forecast_start import generate_forecast_start
 from src.models.sarima.train import train_sarima_model
 from src.models.LSTM.train import train_LSTM_model
@@ -85,16 +85,17 @@ def run_single_experiment(task):
 
     Input
     -----
-    task: A tuple containing (dataset_name, repeat_id, model_name, station, series, exog_df, df_complete,
-      training_days, onset_history_days), where onset_history_days is the history every forecast start leaves room
-      for, so the starts only depend on it and not on the training window of the model
+    task: A tuple containing (dataset_name, repeat_id, model_name, station, series, exog_df, df_complete, usable,
+      training_days, onset_history_days), where usable marks the hours a forecast start may use (usable_hours in
+      src/utils/datasets.py) and onset_history_days is the history every forecast start leaves room for, so the starts
+      only depend on it and not on the training window of the model
 
     Output
     ------
     A list containing the results of the experiment:
         [dataset_name, station, model_name, train_start, train_end, horizon, mae, mse]
     """
-    (dataset_name, repeat_id, model_name, station, series, exog_df, df_complete,
+    (dataset_name, repeat_id, model_name, station, series, exog_df, df_complete, usable,
      training_days, onset_history_days) = task
 
     # Offset the seed per station so different stations in the same dataset don't all get the
@@ -103,7 +104,7 @@ def run_single_experiment(task):
 
     # Generate random training period (start and end date) for the given dataset and station
     forecast_start = generate_forecast_start(
-        series=series,
+        usable=usable,
         seed=station_seed,
         repeat_id=repeat_id,
         max_history_days=onset_history_days,
@@ -335,6 +336,7 @@ def run_all_experiments(model_name, training_weeks, output_dir=OUTPUT_DIR, onset
                 df_complete = load_station_data(df, station)
                 series = df_complete[station]
                 exog_df = df_complete.drop(columns=station)
+                usable = usable_hours(df, station, df_complete.index)
 
                 # LSTM, Transformer and TCN read a window ending at t-1, so without this they
                 # are the only models that never see the neighbours' reading at t. Shifting
@@ -356,6 +358,7 @@ def run_all_experiments(model_name, training_weeks, output_dir=OUTPUT_DIR, onset
                         series,
                         exog_df,
                         df_complete,
+                        usable,
                         training_days,
                         onset_history_days
                     ))
