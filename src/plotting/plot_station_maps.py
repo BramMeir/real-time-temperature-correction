@@ -31,13 +31,13 @@ INSET_LABEL_ROOM = 1800
 # Natural Earth land borders between countries, drawn on the Belgian maps
 BORDERS_URL = "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_0_boundary_lines_land.zip"
 
-# LCZ groups as (legend label, LCZ classes, colour): the compact built types, the other built types and the land cover
-# types (LCZ A to G, numbered 11 to 17 in the map), after the built and land cover types of Stewart and Oke (2012).
+# LCZ groups as (legend label, LCZ classes, colour): the compact built types, the other built types and the natural
+# types (LCZ A to G, numbered 11 to 17 in the map), after the built and natural classes of Demuzere et al. (2022).
 # The colours differ in lightness as well as hue, so they stay apart with colour-vision deficiencies
 LCZ_GROUPS = [
     ("Compact built (LCZ 1-3)", range(1, 4), "#A50F15"),
     ("Other built (LCZ 4-10)", range(4, 11), "#FD8D3C"),
-    ("Land cover (LCZ A-G)", range(11, 18), "#31A354"),
+    ("Natural (LCZ A-G)", range(11, 18), "#31A354"),
 ]
 
 # Station marker size, with a white edge so it stands out on the faded basemap
