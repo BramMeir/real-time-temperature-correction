@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 import pandas as pd
 from src.scripts.heatwave_experiment import OUTPUT_DIR, TRAINING_WEEKS
@@ -28,8 +29,10 @@ def window_metrics(scored, window):
     """
     scored = scored.set_index("Datetime")
 
-    # The experiment also scores the days after the heat wave, which the table leaves out
+    # The experiment also scores the days after the heat wave, which the table leaves out. Observations that have not
+    # been validated are not scored, which only occurs in RMI
     heat = scored[:window.Window_end + pd.Timedelta(hours=23)]
+    heat = heat[heat.Validated]
     error = heat.Predicted - heat.Observed
     heat_days = heat.groupby(heat.index.floor("D"))
 
@@ -110,8 +113,8 @@ def print_latex_table(summary):
     summary: Output of summarise
     """
     at_lead = summary[summary.Lead_days == PAPER_LEAD].set_index(["Dataset", "Metric"])
-    dataset_labels = {"TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
-    caption_labels = {"TURKU": "TURCLIM", "SYNTHETIC": "the synthetic network"}
+    dataset_labels = {"RMI": "RMI", "TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
+    caption_labels = {"RMI": "RMI", "TURKU": "TURCLIM", "SYNTHETIC": "the synthetic network"}
     column_labels = {"RMSE": "RMSE", "Bias": "Mean bias", "Tmax_error": "Daily max.", "Tmin_error": "Daily min."}
 
     def format_value(metric, value):
@@ -153,7 +156,7 @@ def print_latex_table(summary):
         f"outage that starts {PAPER_LEAD_TEXT} before the heat wave. Errors are the reconstruction minus the "
         "observation, in \\textcelsius{}, so a negative value means an underestimation. The errors in the daily "
         "maximum and minimum are averaged over the days of each window. During heat waves, the RMSE is higher "
-        f"{differences[0]} and {differences[1]}."
+        f"{', '.join(differences[:-1])}, and {differences[-1]}."
     )
 
     lines = [
@@ -185,11 +188,16 @@ def print_latex_table(summary):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Summarise the heat wave experiment and print its table as LaTeX.")
+    parser.add_argument("--output_dir", default=OUTPUT_DIR,
+                        help=f"Directory with the results of the experiment (default: {OUTPUT_DIR}).")
+    output_dir = parser.parse_args().output_dir
+
     hourly = pd.read_csv(
-        f"{OUTPUT_DIR}/RegressionSARIMAErrors_{TRAINING_WEEKS}_weeks.csv.gz", parse_dates=["Datetime"]
+        f"{output_dir}/RegressionSARIMAErrors_{TRAINING_WEEKS}_weeks.csv.gz", parse_dates=["Datetime"]
     )
     windows = pd.read_csv(
-        f"{OUTPUT_DIR}/windows_{TRAINING_WEEKS}_weeks.csv", parse_dates=["Window_start", "Window_end"]
+        f"{output_dir}/windows_{TRAINING_WEEKS}_weeks.csv", parse_dates=["Window_start", "Window_end"]
     ).set_index(KEYS)
 
     metrics = pd.DataFrame([
