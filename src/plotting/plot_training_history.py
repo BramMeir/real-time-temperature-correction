@@ -73,6 +73,10 @@ def plot_performance_vs_training_time(df, output_dir):
     output_dir: directory where the plot will be saved
     """
 
+    # The 1 h outage is left out, so the figure pools the same outage durations (4 h to 30 days) as the model
+    # comparison and the training-window table
+    df = df[df["horizon"] != 1]
+
     agg = (
         df.groupby("training_weeks")
         .agg(
