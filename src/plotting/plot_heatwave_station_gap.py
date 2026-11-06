@@ -6,7 +6,7 @@ from src.utils.datasets import DATASETS
 from src.scripts.detect_heatwaves import load_hourly
 from src.scripts.heatwave_experiment import EXPERIMENT_DATASETS, OUTPUT_DIR, TRAINING_WEEKS
 
-DATASET_LABELS = {"TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
+DATASET_LABELS = {"RMI": "RMI", "TURKU": "TURCLIM", "SYNTHETIC": "Synthetic"}
 
 PLOT_DIR = "plots/heatwave_experiment"
 
