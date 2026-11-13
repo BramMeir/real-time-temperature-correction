@@ -64,50 +64,44 @@ def add_relative_time(df):
 
 
 def plot_per_dataset(df_avg):
-    """Plot the average error (METRIC) over time per dataset and model type, showing the effect of each strategy."""
+    """
+    Plot the average error (METRIC) over time per dataset and model type, and below it how much each retraining
+    strategy lowers that error compared with the model that is never retrained.
+    """
     datasets = df_avg["dataset"].unique()
+    metric = METRIC.lower()
 
     for dataset in datasets:
-        plt.figure(figsize=(10, 6))
+        fig, (top, bottom) = plt.subplots(2, 1, figsize=(10, 8), sharex=True, gridspec_kw={"height_ratios": [3, 2]})
 
         subset_avg = df_avg[df_avg["dataset"] == dataset]
+        never_retrained = subset_avg[subset_avg["model_type"] == "no_retrain"].set_index("days_since_start")[metric]
 
         # The reference without retraining first in the legend, then the partial strategies and both stages
         for model_type in ["no_retrain", "lr_only", "sarima_only", "both"]:
-            model_data = subset_avg[subset_avg["model_type"] == model_type]
+            model_data = subset_avg[subset_avg["model_type"] == model_type].set_index("days_since_start")[metric]
             style = STRATEGY_STYLES[model_type]
 
-            plt.plot(
-                model_data["days_since_start"],
-                model_data[METRIC.lower()],
-                label=MODEL_LABELS[model_type],
-                **style
-            )
+            top.plot(model_data.index, model_data.values, label=MODEL_LABELS[model_type], **style)
 
-            if model_type == "no_retrain":
-                continue
+            if model_type != "no_retrain":
+                reduction = never_retrained - model_data
+                bottom.plot(reduction.index, reduction.values, **style)
 
-            # Add an indicator for the retraining points (where days_since_start is a multiple of the
-            # retraining interval)
-            events = model_data[model_data["retrain_event"] == 1]
+        bottom.axhline(0, color="black", linewidth=1)
 
-            plt.scatter(
-                events["days_since_start"],
-                events[METRIC.lower()],
-                marker="x",
-                s=50,
-                color=style["color"],
-                zorder=style["zorder"]
-            )
+        top.set_ylabel(f"Mean {METRIC} (°C)")
+        bottom.set_ylabel(f"{METRIC} reduction (°C)")
+        bottom.set_xlabel("Days since start of simulation")
+        top.legend(fontsize=13, ncol=2)
 
-        plt.xlabel("Days since start of simulation")
-        plt.ylabel(f"Mean {METRIC} (°C)")
-        plt.legend(fontsize=13)
-        plt.grid(alpha=0.3)
+        for ax in (top, bottom):
+            ax.grid(alpha=0.3)
+            ax.spines[["top", "right"]].set_visible(False)
 
-        plt.tight_layout()
-        plt.savefig(_plot_path(f"retraining_strategies_{dataset}"))
-        plt.close()
+        fig.tight_layout()
+        fig.savefig(_plot_path(f"retraining_strategies_{dataset}"))
+        plt.close(fig)
 
 
 if __name__ == "__main__":
@@ -136,8 +130,7 @@ if __name__ == "__main__":
     ).agg({
         "mae": "mean",
         "rmse": "mean",
-        "retraining_duration": "mean",
-        "retrain_event": "max"  # To know if a retraining event occurred at that time point
+        "retraining_duration": "mean"
     }).reset_index()
 
     plot_per_dataset(df_avg)
