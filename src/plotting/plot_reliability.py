@@ -45,7 +45,7 @@ def plot_reliability(df, output_path):
     _, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
 
     scatter_panel(axes[0], df["confidence_mean"], df["mae_mean"], "Error-based score",
-                  "Reliability score (1 / (1 + MAE))", corr_conf, 0.825)
+                  "Reliability score", corr_conf, 0.825)
     axes[0].set_ylabel("Mean MAE (°C)")
     scatter_panel(axes[1], df["interval_size_mean"], df["mae_mean"], "Prediction-interval width",
                   "95 % interval width (°C)", corr_interval, 0.05)
