@@ -97,7 +97,6 @@ def plot_per_dataset(df_avg):
 
         for ax in (top, bottom):
             ax.grid(alpha=0.3)
-            ax.spines[["top", "right"]].set_visible(False)
 
         fig.tight_layout()
         fig.savefig(_plot_path(f"retraining_strategies_{dataset}"))
