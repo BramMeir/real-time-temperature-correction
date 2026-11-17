@@ -1,7 +1,6 @@
-# Real-time correction of temperature measurements in urban sensor networks
+# Real-time temperature correction for urban sensor networks
 
-Code of the paper *Real-time correction of temperature measurements in urban sensor networks using regression with
-seasonal ARIMA errors*.
+Code of the paper *Real-time temperature correction for urban sensor networks*.
 
 When a station of a temperature network fails, its readings are reconstructed in real time from the concurrent
 readings of the rest of the network. The corrector of the paper, RegSARIMA, is a regression on the other stations
@@ -25,7 +24,8 @@ Run every command below from the repository root inside that environment, e.g.
 The data is not part of the repository; see the data availability statement of the paper. The experiments use
 three networks:
 
-- **RMI**: automatic weather stations of the Royal Meteorological Institute of Belgium, 2022-2023;
+- **RMI**: 12 automatic weather stations of the Royal Meteorological Institute of Belgium, 2021-2025, from the RMI
+  open data platform;
 - **TURCLIM**: the urban network of Turku, Finland, 2012-2021, with ERA5 at its stations for the comparison with
   Jacobs et al. (2024);
 - **Synthetic**: simulated hourly temperatures at 49 urban and rural locations in Belgium, 2018-2022.

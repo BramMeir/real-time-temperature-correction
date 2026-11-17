@@ -8,7 +8,7 @@ import requests
 # WFS service of the RMI open data platform (opendata.meteo.be), with the AWS observations every 10 minutes
 WFS_URL = "https://opendata.meteo.be/service/aws/ows"
 
-OUTPUT_DIR = "data/RMI/open_data"
+OUTPUT_DIR = "data/RMI"
 
 # The 12 stations of the RMI network in the paper. Zeebrugge and De Haan, the other two AWS stations, are left out,
 # as their record of the original period was incomplete
@@ -86,11 +86,14 @@ if __name__ == "__main__":
     parser.add_argument("--last_year", type=int, required=True, help="Last calendar year (included).")
     args = parser.parse_args()
 
-    stations = wfs_csv("aws:aws_station")[["code", "name"]]
+    stations = wfs_csv("aws:aws_station")
     stations = stations[stations["name"].isin(NETWORK)]
+    # The layer gives the location as "POINT (latitude longitude)"
+    stations[["latitude", "longitude"]] = stations["the_geom"].str.extract(r"POINT \((\S+) (\S+)\)").astype(float)
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    stations.to_csv(os.path.join(OUTPUT_DIR, "stations.csv"), index=False)
-    download(stations, range(args.first_year, args.last_year + 1)).to_csv(
+    stations[["code", "name", "latitude", "longitude", "altitude"]].to_csv(os.path.join(OUTPUT_DIR, "stations.csv"),
+                                                                          index=False)
+    download(stations[["code", "name"]], range(args.first_year, args.last_year + 1)).to_csv(
         os.path.join(OUTPUT_DIR, "raw_observations.csv"), index=False)
     print(f"Saved the observations of {args.first_year}-{args.last_year} to {OUTPUT_DIR}")

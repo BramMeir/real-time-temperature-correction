@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite it as below."
+type: software
+title: "real-time-temperature-correction"
+abstract: >-
+  Code of the paper "Real-time temperature correction for urban sensor networks". It contains RegSARIMA, a
+  regression on the other stations of a temperature network with a SARIMA model of its residuals, which reconstructs
+  the readings of a failed station in real time, together with the eleven models it is compared with, the experiments
+  of the paper and the scripts that generate its figures and tables.
+authors:
+  - family-names: Meir
+    given-names: Bram
+    affiliation: Ghent University
+    orcid: "https://orcid.org/0009-0008-2538-3964"
+version: "1.0"
+license: MIT
+repository-code: "https://github.com/BramMeir/real-time-temperature-correction"
+keywords:
+  - urban meteorological network
+  - air temperature
+  - quality control
+  - gap-filling
+  - sensor failure
+  - SARIMA

@@ -63,8 +63,6 @@ def load_station_points(dataset):
     ------
     Returns a GeoDataFrame with one row per station, indexed by station name, with the colour of its LCZ group.
     """
-    # The data file decides which stations take part: the RMI metadata also lists the two stations that were left
-    # out for an incomplete record
     names = sorted(pd.read_csv(DATASETS[dataset]["file"], usecols=["station_name"])["station_name"].unique())
     coords = {name: load_station_coordinates(dataset)[name] for name in names}
     lats, lons = zip(*coords.values())
