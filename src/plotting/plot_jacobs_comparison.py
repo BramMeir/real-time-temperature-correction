@@ -53,9 +53,8 @@ def plot_gap_length(summary):
         ax.set_xlabel("Gap length")
         ax.set_title(panel, fontsize=15)
         ax.set_ylim(0, 1.15)
-        ax.grid(color="0.92", linewidth=0.6)
+        ax.grid(alpha=0.3)
         ax.set_axisbelow(True)
-        ax.spines[["top", "right"]].set_visible(False)
 
     axes[0].set_ylabel("Mean RMSE (°C)")
     handles, labels = axes[0].get_legend_handles_labels()
