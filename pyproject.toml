@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "real-time-temperature-correction"
-version = "0.1.0"
-description = "Real-time correction of temperature measurements in urban sensor networks using regression with seasonal ARIMA errors"
+version = "1.0"
+description = "Real-time temperature correction for urban sensor networks"
 authors = ["Bram Meir <Bram.Meir@ugent.be>"]
 readme = "README.md"
 package-mode = false
