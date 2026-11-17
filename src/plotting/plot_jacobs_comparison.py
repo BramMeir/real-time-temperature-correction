@@ -42,7 +42,7 @@ def plot_gap_length(summary):
         ax.axvline(SWITCH_AT, color="0.7", linewidth=0.8, zorder=0)
         for x, text, align in [(SWITCH_AT / 1.06, "interpolation", "right"),
                                (SWITCH_AT * 1.06, "debiased ERA5", "left")]:
-            ax.text(x, 0.02, text, transform=ax.get_xaxis_transform(), fontsize=9, color="0.4", ha=align)
+            ax.text(x, 0.02, text, transform=ax.get_xaxis_transform(), fontsize=11, color="0.4", ha=align)
 
         ax.set_xscale("log")
         ax.set_xticks([hours for hours, _ in LABELLED_LENGTHS], [label for _, label in LABELLED_LENGTHS])
@@ -51,13 +51,13 @@ def plot_gap_length(summary):
         ax.tick_params(axis="x", which="minor", length=4)
 
         ax.set_xlabel("Gap length")
-        ax.set_title(panel, fontsize=13)
+        ax.set_title(panel, fontsize=15)
         ax.set_ylim(0, 1.15)
         ax.grid(color="0.92", linewidth=0.6)
         ax.set_axisbelow(True)
         ax.spines[["top", "right"]].set_visible(False)
 
-    axes[0].set_ylabel("RMSE (°C)")
+    axes[0].set_ylabel("Mean RMSE (°C)")
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=len(METHODS), frameon=False)
     fig.tight_layout()
@@ -72,9 +72,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     os.makedirs(PLOT_DIR, exist_ok=True)
-    # Same font setup as the other figures of the paper, Arial with TrueType fonts embedded in the PDF
-    plt.rcParams.update({"font.family": "Arial", "font.size": 11, "axes.labelsize": 13, "xtick.labelsize": 12,
-                         "ytick.labelsize": 12, "legend.fontsize": 11})
+    # Arial with TrueType fonts embedded in the PDF, as in the other figures, sized so the text prints as large as in
+    # the reliability figure, the other two-panel figure, once LaTeX scales both to the text width
+    plt.rcParams.update({"font.family": "Arial", "font.size": 11, "axes.labelsize": 15, "xtick.labelsize": 14,
+                         "ytick.labelsize": 14, "legend.fontsize": 13})
     plt.rcParams["pdf.fonttype"] = 42
 
     stations = sorted(station for group in PANELS.values() for station in group)

@@ -12,6 +12,7 @@ Scripts that generate the figures and tables of the paper from the results the e
 |---|---|---|---|
 | Station maps | `plot_station_maps.py` | the LCZ map (read over the internet) | `plots/station_maps/` |
 | Error against outage duration | `plot_model_comparison.py` (`--linear_axis` and `--error_bars` for a linear time axis and error bars) | model comparison | `plots/performance_vs_horizon_zoomed_rmse.pdf` |
+| Comparison with Jacobs et al. (2024) against gap length | `plot_jacobs_comparison.py` | comparison with Jacobs et al. | `plots/jacobs_comparison/jacobs_comparison_gap_length.pdf` |
 | Station gap during heat waves | `plot_heatwave_station_gap.py` | heat-wave experiment | `plots/heatwave_experiment/` |
 | Station weight maps | `plot_station_weights.py` | station weights | `plots/stage_one_weights/` |
 | Error against training time | `plot_training_history.py` | RegSARIMA training-window runs | `plots/training_time_impact_regression_sarima_errors_joltik/` |
@@ -25,7 +26,7 @@ Scripts that generate the figures and tables of the paper from the results the e
 |---|---|---|
 | Training time per network, and error per network | `plot_model_comparison.py` (printed as LaTeX) | model comparison |
 | Paired comparison, in the results and in full | `table_paired_comparison.py` (printed as LaTeX) | model comparison |
-| Comparison with Jacobs et al. (2024) | `table_jacobs_comparison.py` | comparison with Jacobs et al. |
+| Comparison with Jacobs et al. (2024), the numbers behind its figure | `table_jacobs_comparison.py` | comparison with Jacobs et al. |
 | Heat waves | `table_heatwaves.py` (printed as LaTeX) | heat-wave experiment |
 | LASSO pre-selection | `table_lasso.py` | LASSO experiment |
 | Interval coverage | `table_interval_coverage.py` | interval-coverage experiment |
