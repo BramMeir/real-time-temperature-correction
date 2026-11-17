@@ -22,11 +22,11 @@ def arima_plot_diagnostics(series):
 
     # ACF plot
     plot_acf(series, lags=max_lag, ax=axes[0])
-    axes[0].set_title('Autocorrelatiefunctie (ACF)')
+    axes[0].set_title('Autocorrelation function (ACF)')
 
     # PACF plot
     plot_pacf(series, lags=max_lag, ax=axes[1])
-    axes[1].set_title('Partiële Autocorrelatiefunctie (PACF)')
+    axes[1].set_title('Partial autocorrelation function (PACF)')
 
     # Set x-ticks in multiples of 24
     ticks = np.arange(0, max_lag + 1, 24)
