@@ -11,7 +11,7 @@ Scripts that generate the figures and tables of the paper from the results the e
 | Figure | File | Needs | Written to |
 |---|---|---|---|
 | Station maps | `plot_station_maps.py` | the LCZ map (read over the internet) | `plots/station_maps/` |
-| Error against outage duration | `plot_model_comparison.py` | model comparison | `plots/performance_vs_horizon_zoomed_rmse.pdf` |
+| Error against outage duration | `plot_model_comparison.py` (`--linear_axis` and `--error_bars` for a linear time axis and error bars) | model comparison | `plots/performance_vs_horizon_zoomed_rmse.pdf` |
 | Station gap during heat waves | `plot_heatwave_station_gap.py` | heat-wave experiment | `plots/heatwave_experiment/` |
 | Station weight maps | `plot_station_weights.py` | station weights | `plots/stage_one_weights/` |
 | Error against training time | `plot_training_history.py` | RegSARIMA training-window runs | `plots/training_time_impact_regression_sarima_errors_joltik/` |

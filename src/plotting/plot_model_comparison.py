@@ -36,22 +36,40 @@ LATEX_MODEL_NAMES = {
     "RF": "Random forest",
 }
 
-# One fixed colour per model: matplotlib's default cycle has only ten colours, so with more
-# models two curves would share a colour
+# The horizon plot of the paper has a logarithmic time axis and shows the 95 % confidence interval as a faint band.
+# --linear_axis and --error_bars switch to a linear time axis and to error bars instead
+LINEAR_AXIS = False
+ERROR_BARS = False
+
+# One colour per model, since matplotlib's default cycle has only ten. Every model has a distinct hue, but similar models
+# lie in the same region of the colour wheel: black for RegSARIMA, green for SARIMAX and cyan for neighbour regression,
+# blue for IDW, vivid warm and purple hues for the machine-learning models, and muted earth tones for the models that
+# use the target's own past only
 MODEL_COLOURS = {
     "RegressionSARIMAErrors": "black",
-    "ARIMAX": "tab:blue",
-    "LinearRegression": "tab:cyan",
-    "IDW": "tab:olive",
-    "TCN": "tab:red",
-    "LSTM": "tab:purple",
-    "Transformer": "tab:pink",
-    "MLP": "tab:brown",
-    "RF": "tab:orange",
-    "ARIMA": "tab:green",
-    "Persistence": "tab:gray",
-    "Climatology": "goldenrod",
+    "ARIMAX": "#2ca02c",
+    "LinearRegression": "#17becf",
+    "IDW": "#1f77b4",
+    "TCN": "#d62728",
+    "LSTM": "#ff7f0e",
+    "MLP": "#e377c2",
+    "Transformer": "#9467bd",
+    "RF": "#f4c20d",
+    "ARIMA": "#8c564b",
+    "Climatology": "#c49c94",
+    "Persistence": "#b8b8b8",
 }
+
+# RegSARIMA is drawn thicker and above the other curves. Neighbour regression nearly coincides with it, so it is dashed
+# and drawn on top, where RegSARIMA still shows through its gaps
+MODEL_LINE_STYLES = {
+    "RegressionSARIMAErrors": {"linewidth": 2.5, "zorder": 3},
+    "LinearRegression": {"linestyle": "--", "zorder": 4},
+}
+
+# Outage durations (days) labelled on the logarithmic time axis of the horizon plot
+DURATION_TICKS = [(4 / 24, "4 h"), (12 / 24, "12 h"), (1, "1 d"), (2, "2 d"), (4, "4 d"), (7, "7 d"), (14, "14 d"),
+                  (30, "30 d")]
 
 
 def _display_name(model):
@@ -283,6 +301,45 @@ def generate_dataset_results_table(df):
     print("\n".join(lines))
 
 
+def _draw_curves(summary, ax_top, ax_zoom):
+    """
+    One curve per model in both panels, with its 95 % confidence interval as a faint band or, with ERROR_BARS, as
+    error bars.
+
+    Input
+    -----
+    summary: DataFrame with the columns Model, Horizon, mean and ci95
+    ax_top, ax_zoom: Axes of the full and the zoomed panel
+    """
+    # The legend lists the models from the largest error at the longest outage to the smallest, so it reads in the same
+    # order as the right end of the curves, where they lie furthest apart, from the top of the figure down to the bottom
+    longest = summary[summary["Horizon"] == summary["Horizon"].max()]
+    legend_order = longest.sort_values("mean", ascending=False)["Model"]
+
+    for model in legend_order:
+        model_data = summary[summary["Model"] == model]
+        style = {
+            "marker": "o",
+            "color": MODEL_COLOURS[model],
+            **MODEL_LINE_STYLES.get(model, {}),
+        }
+        for ax in (ax_top, ax_zoom):
+            label = _display_name(model) if ax is ax_top else None
+            if ERROR_BARS:
+                ax.errorbar(model_data["Horizon"], model_data["mean"], yerr=model_data["ci95"], capsize=3, label=label,
+                            **style)
+            else:
+                ax.fill_between(
+                    model_data["Horizon"],
+                    model_data["mean"] - model_data["ci95"],
+                    model_data["mean"] + model_data["ci95"],
+                    color=MODEL_COLOURS[model],
+                    alpha=0.12,
+                    linewidth=0,
+                )
+                ax.plot(model_data["Horizon"], model_data["mean"], label=label, **style)
+
+
 def plot_performance_vs_horizon_with_zoom(df):
     """
     2. Zoomed version of the error vs horizon without ARIMA to highlight difference between the other models.
@@ -307,31 +364,20 @@ def plot_performance_vs_horizon_with_zoom(df):
     # Define zoom range
     zoom_min, zoom_max = ZOOM_RANGES[METRIC]
 
-    for model in summary["Model"].unique():
-        model_data = summary[summary["Model"] == model]
-
-        ax_top.errorbar(
-            model_data["Horizon"],
-            model_data["mean"],
-            yerr=model_data["ci95"],
-            marker="o",
-            capsize=4,
-            color=MODEL_COLOURS[model],
-            label=_display_name(model)
-        )
-
-        ax_zoom.errorbar(
-            model_data["Horizon"],
-            model_data["mean"],
-            yerr=model_data["ci95"],
-            marker="o",
-            capsize=4,
-            color=MODEL_COLOURS[model]
-        )
+    _draw_curves(summary, ax_top, ax_zoom)
+    if LINEAR_AXIS:
+        ax_top.set_xlim(left=0)
+        ax_zoom.set_xlabel("Outage duration (days)")
+    else:
+        # Logarithmic time axis, so the outages of a few hours to a few days, where the models differ most, are not
+        # squeezed into the first millimetres of a linear axis
+        ax_zoom.set_xscale("log")
+        ax_zoom.set_xticks([days for days, _ in DURATION_TICKS], [label for _, label in DURATION_TICKS])
+        ax_zoom.minorticks_off()
+        ax_zoom.set_xlabel("Outage duration")
 
     # Top plot
     ax_top.set_ylabel(_metric_label())
-    ax_top.set_xlim(left=0)
 
     # Show zoom region
     ax_top.axhline(zoom_min, linestyle="--", color="gray")
@@ -340,7 +386,6 @@ def plot_performance_vs_horizon_with_zoom(df):
     # Zoom plot
     ax_zoom.set_ylim(zoom_min, zoom_max)
     ax_zoom.set_ylabel(_metric_label())
-    ax_zoom.set_xlabel("Outage duration (days)")
 
     legend = ax_top.legend(loc="upper left", ncol=4, fontsize=12)
     plt.tight_layout()
@@ -360,7 +405,14 @@ def plot_performance_vs_horizon_with_zoom(df):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Print the model comparison tables and plot the error against the outage duration.")
     parser.add_argument("--metric", choices=["MAE", "RMSE"], default="RMSE")
-    METRIC = parser.parse_args().metric
+    parser.add_argument("--linear_axis", action="store_true",
+                        help="Plot the error against outage duration on a linear instead of a logarithmic time axis.")
+    parser.add_argument("--error_bars", action="store_true",
+                        help="Show the confidence interval as error bars instead of a faint band.")
+    args = parser.parse_args()
+    METRIC = args.metric
+    LINEAR_AXIS = args.linear_axis
+    ERROR_BARS = args.error_bars
 
     output_dir = "output/models_comparison"
 
