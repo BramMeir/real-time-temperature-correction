@@ -15,7 +15,7 @@ python -m src.data.preprocessing --dataset <rmi|turku|synthetic> --input_file <r
 
 | `--dataset` | `--input_file` | `--stations_file` | `--output_file` |
 |---|---|---|---|
-| `rmi` | RMI export (CSV), one row per station code and 10-minute time step, with the columns `code`, `datetime` (`YYYY-MM-DD HH:MM:SS`), `temp_dry_avg_2m` and `validated` | RMI station list (CSV) with the columns `code` and `name` | `data/RMI/open_data/observations.csv` |
+| `rmi` | RMI export (CSV), one row per station code and 10-minute time step, with the columns `code`, `datetime` (`YYYY-MM-DD HH:MM:SS`), `temp_dry_avg_2m` and `validated` | RMI station list (CSV) with the columns `code` and `name` | `data/RMI/observations.csv` |
 | `turku` | TURCLIM observations (CSV), the date and time in the first column (`DateTime`) and one column per station | – | `data/Turku/observations.csv` |
 | `synthetic` | Synthetic network (NetCDF), the variable `tas` in kelvin over the dimensions `time` and `point_index` | Point mapping (CSV) with the columns `point_index` and `station_name` | `data/Synthetic/observations.csv` |
 
@@ -25,8 +25,9 @@ stays at 10 minutes, the experiments themselves keep the observation at every fu
 
 `download_rmi.py` fetches the RMI export from the RMI open data platform (opendata.meteo.be, CC BY 4.0). It writes
 every 10-minute temperature of the 12 stations of the paper over the chosen years, validated or not, with the RMI
-validation flag in the column `validated`, to `data/RMI/open_data/raw_observations.csv`, and the station list to
-`data/RMI/open_data/stations.csv`:
+validation flag in the column `validated`, to `data/RMI/raw_observations.csv`, and the station list with the
+columns `code`, `name`, `latitude`, `longitude` and `altitude` to `data/RMI/stations.csv`, which is both the
+`--stations_file` of `rmi` above and the source of the station coordinates:
 
 ```bash
 python -m src.data.download_rmi --first_year 2021 --last_year 2025
@@ -36,7 +37,6 @@ Besides these files, some experiments read a few more files directly:
 
 | File | Content | Read by |
 |---|---|---|
-| `data/RMI/stations.csv` | RMI stations, with the columns `station_name`, `latitude` and `longitude` | station coordinates |
 | `data/Turku/stations.csv` | TURCLIM stations, with the columns `Site_name`, `Latitude` and `Longitude` | station coordinates |
 | `data/Synthetic/stations.csv` | Synthetic points, with the columns `point_index`, `lat` and `lon` | station coordinates |
 | `data/Synthetic/point_names.csv` | The point mapping used above | station coordinates |

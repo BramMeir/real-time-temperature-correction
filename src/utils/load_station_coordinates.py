@@ -19,7 +19,7 @@ def load_station_coordinates(dataset_name):
 
     if name == "RMI":
         metadata = pd.read_csv("data/RMI/stations.csv")
-        coords = {row.station_name: (row.latitude, row.longitude) for row in metadata.itertuples()}
+        coords = {row.name: (row.latitude, row.longitude) for row in metadata.itertuples()}
     elif name == "TURKU":
         metadata = pd.read_csv("data/Turku/stations.csv")
         coords = {row.Site_name: (row.Latitude, row.Longitude) for row in metadata.itertuples()}
