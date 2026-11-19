@@ -39,7 +39,7 @@ def plot_gap_length(summary):
             rows = summary[(summary["panel"] == panel) & (summary["method"] == method)]
             ax.plot(rows["gap_length"], rows["rmse"], linewidth=2, markersize=5, **LINE_STYLES[method])
 
-        ax.axvline(SWITCH_AT, color="0.7", linewidth=0.8, zorder=0)
+        ax.axvline(SWITCH_AT, color="0.35", linewidth=1.4, linestyle=(0, (5, 3)), zorder=1)
         for x, text, align in [(SWITCH_AT / 1.06, "interpolation", "right"),
                                (SWITCH_AT * 1.06, "debiased ERA5", "left")]:
             ax.text(x, 0.02, text, transform=ax.get_xaxis_transform(), fontsize=11, color="0.4", ha=align)
