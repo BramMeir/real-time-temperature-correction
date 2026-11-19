@@ -1,12 +1,17 @@
 cff-version: 1.2.0
-message: "If you use this code, please cite it as below."
+message: "If you use this software, please cite it together with the paper it accompanies."
 type: software
-title: "real-time-temperature-correction"
+title: "[SOFTWARE] Real-time temperature correction for urban sensor networks"
 abstract: >-
-  Code of the paper "Real-time temperature correction for urban sensor networks". It contains RegSARIMA, a
-  regression on the other stations of a temperature network with a SARIMA model of its residuals, which reconstructs
-  the readings of a failed station in real time, together with the eleven models it is compared with, the experiments
-  of the paper and the scripts that generate its figures and tables.
+  This software accompanies the paper "Real-time temperature correction for urban sensor networks". It implements
+  RegSARIMA, a corrector that immediately replaces a missing or flagged
+  temperature observation of a failing station. A regression on the other stations' observations at the same hour
+  gives a first estimate, which a SARIMA model then corrects for how far the station recently deviated from it.
+  The directory src/models holds RegSARIMA and the models it is compared with, src/scripts the experiments of the
+  paper, src/plotting the scripts that produce its figures and tables, and src/data the loading of the datasets,
+  including a script that downloads the RMI observations. The README of each directory explains how to run its code.
+  The RMI observations are openly available, while the TURCLIM observations and the synthetic dataset are available
+  on request, so the experiments on those two networks only run when these data are provided.
 authors:
   - family-names: Meir
     given-names: Bram
