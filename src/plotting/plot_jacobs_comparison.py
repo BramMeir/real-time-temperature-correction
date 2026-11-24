@@ -10,6 +10,8 @@ PLOT_NAME = "jacobs_comparison_gap_length.pdf"
 
 # Their algorithm switches from linear interpolation to debiased ERA5 at 5 h, so between the 4 h and 5 h gaps
 SWITCH_AT = 4.5
+# Factor on the log axis between the switch line and the labels on either side of it
+LABEL_GAP = 1.15
 
 # Labelled gap lengths in hours; every other simulated length gets a small tick without a label
 LABELLED_LENGTHS = [(1, "1 h"), (4, "4 h"), (24, "1 d"), (168, "7 d"), (720, "30 d")]
@@ -40,9 +42,10 @@ def plot_gap_length(summary):
             ax.plot(rows["gap_length"], rows["rmse"], linewidth=2, markersize=5, **LINE_STYLES[method])
 
         ax.axvline(SWITCH_AT, color="0.35", linewidth=1.4, linestyle=(0, (5, 3)), zorder=1)
-        for x, text, align in [(SWITCH_AT / 1.06, "interpolation", "right"),
-                               (SWITCH_AT * 1.06, "debiased ERA5", "left")]:
-            ax.text(x, 0.02, text, transform=ax.get_xaxis_transform(), fontsize=11, color="0.4", ha=align)
+        for x, text, align in [(SWITCH_AT / LABEL_GAP, "interpolation", "right"),
+                               (SWITCH_AT * LABEL_GAP, "debiased ERA5", "left")]:
+            # As large as the tick labels, so that they still print at about 7 pt once LaTeX scales the figure down
+            ax.text(x, 0.02, text, transform=ax.get_xaxis_transform(), fontsize=14, color="0.4", ha=align)
 
         ax.set_xscale("log")
         ax.set_xticks([hours for hours, _ in LABELLED_LENGTHS], [label for _, label in LABELLED_LENGTHS])
