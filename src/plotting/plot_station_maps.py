@@ -1,16 +1,14 @@
-import math
 import os
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import contextily as ctx
 from matplotlib.lines import Line2D
-from matplotlib_scalebar.scalebar import ScaleBar
 from src.utils.load_station_coordinates import load_station_coordinates
 from src.utils.datasets import DATASETS
 from src.scripts.lcz_weights_test import load_lcz_labels
 from src.plotting.plot_station_weights import (
-    ASPECT, BASEMAP, JPEG_QUALITY, MAP_DPI, MAP_WIDTH, TILE_HEADERS
+    ASPECT, BASEMAP, JPEG_QUALITY, MAP_DPI, MAP_WIDTH, TILE_HEADERS, add_scale_bar
 )
 
 PLOTS_DIR = "plots/station_maps"
@@ -136,23 +134,6 @@ def draw_stations(ax, points, extent, labelled=(), borders=None):
     ax.set_ylim(ymin, ymax)
     ax.set_xticks([])
     ax.set_yticks([])
-
-
-def add_scale_bar(ax, extent):
-    """
-    Add a scale bar in the lower left, just above the OpenStreetMap credit, where none of the maps has stations.
-    A metre in Web Mercator is 1 / cos(latitude) metres on the ground, so the scale is corrected for the latitude of
-    the map centre.
-
-    Input
-    -----
-    ax: Axes of the map
-    extent: (xmin, xmax, ymin, ymax) of the map, in Web Mercator metres
-    """
-    centre = gpd.GeoSeries(gpd.points_from_xy([0], [(extent[2] + extent[3]) / 2]), crs="EPSG:3857").to_crs(epsg=4326)
-    ax.add_artist(ScaleBar(math.cos(math.radians(centre.y[0])), units="m", location="lower left", length_fraction=0.2,
-                           width_fraction=0.008, font_properties={"size": LABEL_SIZE}, frameon=False,
-                           border_pad=1.2))
 
 
 def add_attribution(ax):
