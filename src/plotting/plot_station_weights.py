@@ -65,6 +65,15 @@ HALO_COLOR = "white"
 # Font size of the scale bar label, in points, as of the station names on the station maps
 SCALE_BAR_FONT_SIZE = 7
 
+# On the weight maps the scale bar is reference information, so it is drawn as small and quiet as the
+# OpenStreetMap credit (same font size and white background), on the bottom edge right after that credit, with
+# its length written to its right so that it stays on that line, clear of the stations on both maps
+WEIGHT_MAP_SCALE_BAR = {
+    "location": "lower left", "bbox_to_anchor": (0.465, 0.0), "border_pad": 0, "length_fraction": 0.12,
+    "width_fraction": 0.005, "scale_loc": "right", "font_properties": {"size": 5}, "frameon": True,
+    "box_color": "white", "box_alpha": 0.7, "pad": 0.1, "sep": 2,
+}
+
 
 def load_station_points():
     """
@@ -108,21 +117,21 @@ def map_extent(points):
     return x - width / 2, x + width / 2, y - height / 2, y + height / 2
 
 
-def add_scale_bar(ax, extent):
+def add_scale_bar(ax, extent, **style):
     """
-    Add a scale bar in the lower left, just above the OpenStreetMap credit, where none of the maps has stations.
-    A metre in Web Mercator is 1 / cos(latitude) metres on the ground, so the scale is corrected for the latitude of
-    the map centre.
+    Add a scale bar to a map, by default in the lower left, just above the OpenStreetMap credit. A metre in Web
+    Mercator is 1 / cos(latitude) metres on the ground, so the scale is corrected for the latitude of the map centre.
 
     Input
     -----
     ax: Axes of the map
     extent: (xmin, xmax, ymin, ymax) of the map, in Web Mercator metres
+    style: Keyword arguments of matplotlib_scalebar's ScaleBar that replace the defaults below
     """
     centre = gpd.GeoSeries(gpd.points_from_xy([0], [(extent[2] + extent[3]) / 2]), crs="EPSG:3857").to_crs(epsg=4326)
-    ax.add_artist(ScaleBar(math.cos(math.radians(centre.y[0])), units="m", location="lower left", length_fraction=0.2,
-                           width_fraction=0.008, font_properties={"size": SCALE_BAR_FONT_SIZE}, frameon=False,
-                           border_pad=1.2))
+    options = {"units": "m", "location": "lower left", "length_fraction": 0.2, "width_fraction": 0.008,
+               "font_properties": {"size": SCALE_BAR_FONT_SIZE}, "frameon": False, "border_pad": 1.2}
+    ax.add_artist(ScaleBar(math.cos(math.radians(centre.y[0])), **{**options, **style}))
 
 
 def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
@@ -172,6 +181,8 @@ def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
     ctx.add_basemap(ax, source=basemap, headers=TILE_HEADERS, alpha=BASEMAP_ALPHA, attribution=False)
     ax.text(0.005, 0.005, "© OpenStreetMap contributors", transform=ax.transAxes, ha="left", va="bottom",
             fontsize=5, zorder=7, bbox={"facecolor": "white", "alpha": 0.7, "linewidth": 0, "pad": 1})
+    # The anchor of WEIGHT_MAP_SCALE_BAR is given in fractions of the map
+    add_scale_bar(ax, (xmin, xmax, ymin, ymax), bbox_transform=ax.transAxes, **WEIGHT_MAP_SCALE_BAR)
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
     ax.set_axis_off()
