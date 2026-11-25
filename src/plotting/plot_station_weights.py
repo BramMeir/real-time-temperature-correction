@@ -1,8 +1,10 @@
+import math
 import os
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import contextily as ctx
+from matplotlib_scalebar.scalebar import ScaleBar
 from src.utils.load_station_coordinates import load_station_coordinates
 
 WEIGHTS_FILE = "output/stage_one_weights/weights.csv"
@@ -60,6 +62,9 @@ NEIGHBOUR_COLOR = "tab:green"
 NEIGHBOUR_SIZE = 90
 HALO_COLOR = "white"
 
+# Font size of the scale bar label, in points, as of the station names on the station maps
+SCALE_BAR_FONT_SIZE = 7
+
 
 def load_station_points():
     """
@@ -101,6 +106,23 @@ def map_extent(points):
     x, y = (xmin + xmax) / 2, (ymin + ymax) / 2
 
     return x - width / 2, x + width / 2, y - height / 2, y + height / 2
+
+
+def add_scale_bar(ax, extent):
+    """
+    Add a scale bar in the lower left, just above the OpenStreetMap credit, where none of the maps has stations.
+    A metre in Web Mercator is 1 / cos(latitude) metres on the ground, so the scale is corrected for the latitude of
+    the map centre.
+
+    Input
+    -----
+    ax: Axes of the map
+    extent: (xmin, xmax, ymin, ymax) of the map, in Web Mercator metres
+    """
+    centre = gpd.GeoSeries(gpd.points_from_xy([0], [(extent[2] + extent[3]) / 2]), crs="EPSG:3857").to_crs(epsg=4326)
+    ax.add_artist(ScaleBar(math.cos(math.radians(centre.y[0])), units="m", location="lower left", length_fraction=0.2,
+                           width_fraction=0.008, font_properties={"size": SCALE_BAR_FONT_SIZE}, frameon=False,
+                           border_pad=1.2))
 
 
 def plot_weight_map(points, weights, target, filename, basemap=BASEMAP):
